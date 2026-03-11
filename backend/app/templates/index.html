@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinGuard Agent</title>
+<style>
+:root{
+    --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+    --text:#e2e8f0;--text2:#94a3b8;--accent:#38bdf8;--accent2:#818cf8;
+    --green:#22c55e;--red:#ef4444;--orange:#f59e0b;--cyan:#06b6d4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* ── Sidebar ── */
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10}
+.sidebar .logo{padding:24px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar .logo h1{font-size:1.2rem;color:var(--accent);display:flex;align-items:center;gap:8px}
+.sidebar .logo .badge{background:var(--green);color:#fff;padding:2px 8px;border-radius:999px;font-size:.65rem;font-weight:600}
+.sidebar nav{flex:1;padding:12px 0;overflow-y:auto}
+.sidebar nav button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 20px;border:0;background:0;color:var(--text2);font-size:.875rem;cursor:pointer;transition:.15s;text-align:left}
+.sidebar nav button:hover{background:rgba(56,189,248,.08);color:var(--text)}
+.sidebar nav button.active{background:rgba(56,189,248,.12);color:var(--accent);border-right:3px solid var(--accent)}
+.sidebar nav button .icon{font-size:1.1rem;width:24px;text-align:center}
+.sidebar .agent-list{padding:16px 20px;border-top:1px solid var(--border)}
+.sidebar .agent-list h3{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:8px}
+.sidebar .agent-list .pill{display:inline-block;background:#312e81;color:#a5b4fc;padding:2px 8px;border-radius:999px;font-size:.65rem;margin:2px}
+
+/* ── Main ── */
+.main{margin-left:240px;flex:1;padding:32px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+.page-desc{color:var(--text2);font-size:.9rem;margin-bottom:24px}
+
+/* ── Cards ── */
+.card{background:var(--surface);border-radius:12px;padding:24px;margin-bottom:16px;border:1px solid rgba(71,85,105,.5)}
+.card h3{font-size:1rem;margin-bottom:12px;color:var(--accent)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--surface);border-radius:12px;padding:20px;border:1px solid rgba(71,85,105,.5);text-align:center}
+.stat-card .value{font-size:1.8rem;font-weight:700;color:var(--accent)}
+.stat-card .label{font-size:.75rem;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ── Forms ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group.full{grid-column:1/-1}
+label{font-size:.8rem;color:var(--text2);font-weight:500}
+input,select,textarea{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.875rem;outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:0;transition:.2s}
+.btn-primary{background:var(--accent);color:#0f172a}.btn-primary:hover{background:#7dd3fc}
+.btn-secondary{background:var(--surface2);color:var(--text)}.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{opacity:.85}
+.btn-success{background:var(--green);color:#fff}.btn-success:hover{opacity:.85}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:6px 14px;font-size:.8rem}
+.btn-group{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+
+/* ── Result/Output ── */
+.result-box{background:var(--bg);border-radius:8px;padding:16px;margin-top:12px;border:1px solid var(--border);max-height:500px;overflow-y:auto;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.result-box.success{border-color:var(--green)}
+.result-box.error{border-color:var(--red);color:var(--red)}
+.result-box.info{border-color:var(--accent)}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{padding:10px 12px;text-align:left;color:var(--text2);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--bg)}
+td{padding:10px 12px;border-bottom:1px solid rgba(71,85,105,.3)}
+tr:hover td{background:rgba(56,189,248,.03)}
+
+/* ── Risk badge ── */
+.risk-badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600}
+.risk-low{background:#064e3b;color:#6ee7b7}
+.risk-medium{background:#713f12;color:#fbbf24}
+.risk-high{background:#7c2d12;color:#fb923c}
+.risk-critical{background:#7f1d1d;color:#fca5a5}
+
+/* ── Spinner ── */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toast ── */
+.toast{position:fixed;top:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 20px;font-size:.85rem;z-index:1000;box-shadow:0 10px 40px rgba(0,0,0,.4);transform:translateX(120%);transition:transform .3s}
+.toast.show{transform:translateX(0)}
+.toast.toast-success{border-color:var(--green)}
+.toast.toast-error{border-color:var(--red)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{width:60px}.sidebar .logo h1 span,.sidebar nav button span,.sidebar .agent-list{display:none}
+  .sidebar nav button{justify-content:center;padding:12px}
+  .main{margin-left:60px;padding:16px}
+  .form-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:48px 24px;color:var(--text2)}
+.empty .icon{font-size:3rem;margin-bottom:12px}
+.empty p{margin-bottom:16px}
+
+/* ── Section divider ── */
+.divider{height:1px;background:var(--border);margin:24px 0}
+
+/* ── Tabs inside pages ── */
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab-btn{padding:8px 16px;border:0;background:0;color:var(--text2);font-size:.85rem;cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+</style>
+</head>
+<body>
+
+<!-- ═══════ SIDEBAR ═══════ -->
+<div class="sidebar">
+  <div class="logo">
+    <h1>&#128737; <span>FinGuard</span></h1>
+    <div style="margin-top:4px"><span class="badge">RUNNING</span></div>
+  </div>
+  <nav>
+    <button class="active" onclick="showPage('dashboard')"><span class="icon">&#128200;</span><span>Dashboard</span></button>
+    <button onclick="showPage('portfolios')"><span class="icon">&#128188;</span><span>Portfolios</span></button>
+    <button onclick="showPage('transactions')"><span class="icon">&#128176;</span><span>Transactions</span></button>
+    <button onclick="showPage('risk')"><span class="icon">&#9888;&#65039;</span><span>Risk Scoring</span></button>
+    <button onclick="showPage('analysis')"><span class="icon">&#129302;</span><span>AI Analysis</span></button>
+    <button onclick="showPage('alerts')"><span class="icon">&#128276;</span><span>Alerts</span></button>
+    <button onclick="showPage('search')"><span class="icon">&#128269;</span><span>Search</span></button>
+    <button onclick="showPage('sentiment')"><span class="icon">&#128202;</span><span>Sentiment</span></button>
+  </nav>
+  <div class="agent-list">
+    <h3>9 CrewAI Agents</h3>
+    <span class="pill">Alert Intake</span>
+    <span class="pill">Context</span>
+    <span class="pill">Risk</span>
+    <span class="pill">Explanation</span>
+    <span class="pill">Escalation</span>
+    <span class="pill">Portfolio</span>
+    <span class="pill">Detection</span>
+    <span class="pill">Market Intel</span>
+    <span class="pill">Compliance</span>
+  </div>
+</div>
+
+<!-- ═══════ MAIN CONTENT ═══════ -->
+<div class="main">
+
+  <!-- ──── DASHBOARD ──── -->
+  <div id="page-dashboard" class="page active">
+    <h2 class="page-title">Dashboard</h2>
+    <p class="page-desc">FinGuard Agent — Multi-agent financial risk analysis platform</p>
+
+    <div class="stats-grid" id="dashboard-stats">
+      <div class="stat-card"><div class="value" id="stat-portfolios">-</div><div class="label">Portfolios</div></div>
+      <div class="stat-card"><div class="value" id="stat-health">-</div><div class="label">API Status</div></div>
+      <div class="stat-card"><div class="value">9</div><div class="label">AI Agents</div></div>
+      <div class="stat-card"><div class="value">3-Tier</div><div class="label">ML Pipeline</div></div>
+    </div>
+
+    <div class="card">
+      <h3>&#9889; Quick Actions</h3>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="showPage('portfolios')">&#43; Create Portfolio</button>
+        <button class="btn btn-secondary" onclick="showPage('risk')">Score Transaction Risk</button>
+        <button class="btn btn-secondary" onclick="showPage('analysis')">Run AI Analysis</button>
+        <button class="btn btn-secondary" onclick="showPage('search')">Search Knowledge Base</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>&#129302; ML Pipeline</h3>
+      <p style="color:var(--text2);font-size:.9rem;line-height:1.7">
+        <strong style="color:var(--text)">Hybrid 3-tier scoring engine:</strong><br>
+        &#x2460; <strong>13 Deterministic Rules</strong> (AML, sanctions, velocity, concentration) — 40% weight<br>
+        &#x2461; <strong>GradientBoosting Classifier</strong> (97% accuracy) + <strong>IsolationForest</strong> (93% accuracy) — 60% weight<br>
+        &#x2462; <strong>LLM Fallback</strong> via Groq (llama-3.1-70b) for borderline scores (40-60)
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>&#128640; System Architecture</h3>
+      <p style="color:var(--text2);font-size:.9rem;line-height:1.7">
+        <strong style="color:var(--text)">Backend:</strong> Flask + SQLAlchemy &nbsp;|&nbsp;
+        <strong style="color:var(--text)">Agents:</strong> CrewAI (Sequential) &nbsp;|&nbsp;
+        <strong style="color:var(--text)">LLM:</strong> Groq API &nbsp;|&nbsp;
+        <strong style="color:var(--text)">Vector DB:</strong> ChromaDB &nbsp;|&nbsp;
+        <strong style="color:var(--text)">ML:</strong> scikit-learn
+      </p>
+    </div>
+  </div>
+
+  <!-- ──── PORTFOLIOS ──── -->
+  <div id="page-portfolios" class="page">
+    <h2 class="page-title">Portfolios</h2>
+    <p class="page-desc">Create and manage investment portfolios</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab(this,'ptab-create')">Create Portfolio</button>
+      <button class="tab-btn" onclick="switchTab(this,'ptab-view')">View Portfolio</button>
+      <button class="tab-btn" onclick="switchTab(this,'ptab-assets')">Add Asset</button>
+    </div>
+
+    <!-- Create Portfolio -->
+    <div id="ptab-create" class="tab-content active">
+      <div class="card">
+        <h3>&#43; New Portfolio</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Portfolio Name</label>
+            <input type="text" id="pf-name" placeholder="My Investment Portfolio" value="My Portfolio">
+          </div>
+          <div class="form-group">
+            <label>Initial Investment ($)</label>
+            <input type="number" id="pf-investment" placeholder="10000" value="100000">
+          </div>
+          <div class="form-group">
+            <label>User ID (optional)</label>
+            <input type="text" id="pf-user" placeholder="auto-generated">
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="createPortfolio()">Create Portfolio</button>
+        </div>
+        <div id="pf-result"></div>
+      </div>
+    </div>
+
+    <!-- View Portfolio -->
+    <div id="ptab-view" class="tab-content">
+      <div class="card">
+        <h3>&#128270; View Portfolio Details</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Portfolio ID</label>
+            <input type="number" id="pf-view-id" placeholder="1" value="1">
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="viewPortfolio()">Load Portfolio</button>
+          <button class="btn btn-secondary" onclick="viewAssets()">View Assets</button>
+          <button class="btn btn-secondary" onclick="viewTransactions()">View Transactions</button>
+        </div>
+        <div id="pf-view-result"></div>
+      </div>
+    </div>
+
+    <!-- Add Asset -->
+    <div id="ptab-assets" class="tab-content">
+      <div class="card">
+        <h3>&#128200; Add Asset to Portfolio</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Portfolio ID</label>
+            <input type="number" id="asset-pid" placeholder="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>Symbol</label>
+            <input type="text" id="asset-symbol" placeholder="AAPL" value="AAPL">
+          </div>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="asset-name" placeholder="Apple Inc." value="Apple Inc.">
+          </div>
+          <div class="form-group">
+            <label>Quantity</label>
+            <input type="number" id="asset-qty" placeholder="100" value="50">
+          </div>
+          <div class="form-group">
+            <label>Purchase Price ($)</label>
+            <input type="number" id="asset-price" placeholder="150.00" step="0.01" value="175.50">
+          </div>
+          <div class="form-group">
+            <label>Current Price ($)</label>
+            <input type="number" id="asset-current" placeholder="155.00" step="0.01" value="182.30">
+          </div>
+          <div class="form-group">
+            <label>Asset Type</label>
+            <select id="asset-type">
+              <option value="stock">Stock</option>
+              <option value="etf">ETF</option>
+              <option value="crypto">Crypto</option>
+              <option value="bond">Bond</option>
+              <option value="option">Option</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sector</label>
+            <select id="asset-sector">
+              <option value="Technology">Technology</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Finance">Finance</option>
+              <option value="Energy">Energy</option>
+              <option value="Consumer">Consumer</option>
+              <option value="Industrial">Industrial</option>
+              <option value="Real Estate">Real Estate</option>
+              <option value="Utilities">Utilities</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="addAsset()">Add Asset</button>
+        </div>
+        <div id="asset-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──── TRANSACTIONS ──── -->
+  <div id="page-transactions" class="page">
+    <h2 class="page-title">Transactions</h2>
+    <p class="page-desc">Record buy/sell transactions — auto-scored by ML risk engine</p>
+
+    <div class="card">
+      <h3>&#128176; New Transaction</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="txn-pid" placeholder="1" value="1">
+        </div>
+        <div class="form-group">
+          <label>Symbol</label>
+          <input type="text" id="txn-symbol" placeholder="AAPL" value="AAPL">
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="txn-type">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="txn-qty" placeholder="10" value="10">
+        </div>
+        <div class="form-group">
+          <label>Price ($)</label>
+          <input type="number" id="txn-price" placeholder="150.00" step="0.01" value="182.30">
+        </div>
+        <div class="form-group">
+          <label>Fees ($)</label>
+          <input type="number" id="txn-fees" placeholder="4.99" step="0.01" value="4.99">
+        </div>
+        <div class="form-group">
+          <label>Sender Country</label>
+          <input type="text" id="txn-sender" placeholder="US" value="US">
+        </div>
+        <div class="form-group">
+          <label>Receiver Country</label>
+          <input type="text" id="txn-receiver" placeholder="US" value="US">
+        </div>
+        <div class="form-group full">
+          <label>Notes</label>
+          <input type="text" id="txn-notes" placeholder="Optional note about this transaction">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="addTransaction()">Submit Transaction</button>
+      </div>
+      <div id="txn-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── RISK SCORING ──── -->
+  <div id="page-risk" class="page">
+    <h2 class="page-title">&#9888;&#65039; Risk Scoring</h2>
+    <p class="page-desc">Pre-screen transactions with the hybrid ML pipeline (Rules + ML + LLM)</p>
+
+    <div class="card">
+      <h3>Score a Transaction</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" id="risk-amount" placeholder="50000" value="50000" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Transaction Type</label>
+          <select id="risk-type">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+            <option value="transfer">Transfer</option>
+            <option value="withdrawal">Withdrawal</option>
+            <option value="deposit">Deposit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Asset Type</label>
+          <select id="risk-asset-type">
+            <option value="stock">Stock</option>
+            <option value="crypto">Crypto</option>
+            <option value="bond">Bond</option>
+            <option value="etf">ETF</option>
+            <option value="forex">Forex</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sender Country</label>
+          <input type="text" id="risk-sender" placeholder="US" value="US">
+        </div>
+        <div class="form-group">
+          <label>Receiver Country</label>
+          <input type="text" id="risk-receiver" placeholder="US" value="US">
+        </div>
+        <div class="form-group">
+          <label>Currency</label>
+          <input type="text" id="risk-currency" placeholder="USD" value="USD">
+        </div>
+        <div class="form-group">
+          <label>Channel</label>
+          <select id="risk-channel">
+            <option value="web">Web</option>
+            <option value="mobile">Mobile</option>
+            <option value="api">API</option>
+            <option value="wire">Wire</option>
+            <option value="atm">ATM</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Device Type</label>
+          <select id="risk-device">
+            <option value="desktop">Desktop</option>
+            <option value="mobile">Mobile</option>
+            <option value="tablet">Tablet</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Is New Payee?</label>
+          <select id="risk-new-payee"><option value="0">No</option><option value="1">Yes</option></select>
+        </div>
+        <div class="form-group">
+          <label>Account Age (days)</label>
+          <input type="number" id="risk-acct-age" value="365">
+        </div>
+        <div class="form-group">
+          <label>Customer Avg Txn ($)</label>
+          <input type="number" id="risk-avg-txn" value="5000" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Txn Count (30d)</label>
+          <input type="number" id="risk-txn-count" value="10">
+        </div>
+        <div class="form-group">
+          <label>Failed Logins (24h)</label>
+          <input type="number" id="risk-failed-logins" value="0">
+        </div>
+        <div class="form-group">
+          <label>IP Country Match</label>
+          <select id="risk-ip-match"><option value="1">Yes</option><option value="0">No</option></select>
+        </div>
+        <div class="form-group">
+          <label>PEP Flag</label>
+          <select id="risk-pep"><option value="0">No</option><option value="1">Yes</option></select>
+        </div>
+        <div class="form-group">
+          <label>Is Sanctioned Country</label>
+          <select id="risk-sanctioned"><option value="0">No</option><option value="1">Yes</option></select>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-danger" onclick="scoreRisk()">&#9888;&#65039; Score Risk</button>
+        <button class="btn btn-secondary" onclick="loadSuspiciousTxn()">Load Suspicious Example</button>
+      </div>
+      <div id="risk-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── AI ANALYSIS ──── -->
+  <div id="page-analysis" class="page">
+    <h2 class="page-title">&#129302; AI Analysis</h2>
+    <p class="page-desc">Run the full 9-agent CrewAI pipeline on a portfolio</p>
+
+    <div class="card">
+      <h3>Full Portfolio Analysis</h3>
+      <p style="color:var(--text2);font-size:.85rem;margin-bottom:16px">
+        This runs all 9 agents sequentially: Alert Intake → Customer Context → Risk Assessment → Explanation → Escalation → Portfolio Analysis → Risk Detection → Market Intelligence → Compliance.
+        <strong style="color:var(--orange)">This may take 1-3 minutes.</strong>
+      </p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="ai-pid" placeholder="1" value="1">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btn-analyze" onclick="runAnalysis()">&#129302; Run Full AI Analysis</button>
+      </div>
+      <div id="ai-result"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <h3>Quick Recommendation</h3>
+      <p style="color:var(--text2);font-size:.85rem;margin-bottom:16px">Get an AI-powered investment recommendation for a specific symbol.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="rec-pid" value="1">
+        </div>
+        <div class="form-group">
+          <label>Symbol</label>
+          <input type="text" id="rec-symbol" placeholder="AAPL" value="AAPL">
+        </div>
+        <div class="form-group">
+          <label>Risk Profile</label>
+          <select id="rec-risk">
+            <option value="conservative">Conservative</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="getRecommendation()">Get Recommendation</button>
+      </div>
+      <div id="rec-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── ALERTS ──── -->
+  <div id="page-alerts" class="page">
+    <h2 class="page-title">&#128276; Alerts</h2>
+    <p class="page-desc">View and manage risk alerts for your portfolios</p>
+
+    <div class="card">
+      <h3>View Alerts</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="alert-pid" value="1">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="loadAlerts()">Load Alerts</button>
+        <button class="btn btn-secondary" onclick="showPage('alert-create')">&#43; Create Alert</button>
+      </div>
+      <div id="alert-list"></div>
+    </div>
+  </div>
+
+  <!-- ──── CREATE ALERT ──── -->
+  <div id="page-alert-create" class="page">
+    <h2 class="page-title">Create Alert</h2>
+    <p class="page-desc">Set up a new alert for a portfolio</p>
+
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="ca-pid" value="1">
+        </div>
+        <div class="form-group">
+          <label>Alert Type</label>
+          <select id="ca-type">
+            <option value="price_alert">Price Alert</option>
+            <option value="risk_threshold">Risk Threshold</option>
+            <option value="ml_risk_detection">ML Risk Detection</option>
+            <option value="compliance_violation">Compliance Violation</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Symbol</label>
+          <input type="text" id="ca-symbol" placeholder="AAPL">
+        </div>
+        <div class="form-group">
+          <label>Target Price ($)</label>
+          <input type="number" id="ca-target" step="0.01" placeholder="200.00">
+        </div>
+        <div class="form-group">
+          <label>Threshold (%)</label>
+          <input type="number" id="ca-threshold" step="0.01" placeholder="5.0">
+        </div>
+        <div class="form-group full">
+          <label>Message</label>
+          <textarea id="ca-message" placeholder="Alert message..."></textarea>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="createAlert()">Create Alert</button>
+        <button class="btn btn-secondary" onclick="showPage('alerts')">&#8592; Back</button>
+      </div>
+      <div id="ca-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── SEARCH ──── -->
+  <div id="page-search" class="page">
+    <h2 class="page-title">&#128269; Knowledge Search</h2>
+    <p class="page-desc">Semantic search over past analyses, risks, and market data stored in ChromaDB</p>
+
+    <div class="card">
+      <h3>Search</h3>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Search Query</label>
+          <input type="text" id="search-query" placeholder="e.g. high-risk technology stocks, portfolio diversification issues...">
+        </div>
+        <div class="form-group">
+          <label>Search In</label>
+          <select id="search-type">
+            <option value="analyses">Past Analyses</option>
+            <option value="risks">Risk Assessments</option>
+            <option value="market">Market Intelligence</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Portfolio ID (optional)</label>
+          <input type="number" id="search-pid" placeholder="Any">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="runSearch()">&#128269; Search</button>
+      </div>
+      <div id="search-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── SENTIMENT ──── -->
+  <div id="page-sentiment" class="page">
+    <h2 class="page-title">&#128202; Market Sentiment</h2>
+    <p class="page-desc">Get AI-powered market sentiment analysis for any symbol</p>
+
+    <div class="card">
+      <h3>Sentiment Analysis</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Symbol</label>
+          <input type="text" id="sent-symbol" placeholder="AAPL" value="AAPL">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="getSentiment()">Analyze Sentiment</button>
+      </div>
+      <div id="sent-result"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════ TOAST ═══════ -->
+<div id="toast" class="toast"></div>
+
+<script>
+const API = '/api';
+
+// ── Navigation ──
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.sidebar nav button').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.sidebar nav button');
+  btns.forEach(b => { if (b.textContent.toLowerCase().includes(name.split('-')[0]) || b.getAttribute('onclick')?.includes(name)) b.classList.add('active'); });
+}
+
+function switchTab(btn, tabId) {
+  const bar = btn.closest('.page');
+  bar.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  bar.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// ── Toast ──
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast toast-' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── API helper ──
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function resultHtml(el, html, cls='success') {
+  document.getElementById(el).innerHTML = `<div class="result-box ${cls}">${html}</div>`;
+}
+
+function loadingHtml(el) {
+  document.getElementById(el).innerHTML = `<div class="result-box info"><span class="spinner"></span> Loading...</div>`;
+}
+
+function riskBadge(label) {
+  return `<span class="risk-badge risk-${label}">${label.toUpperCase()}</span>`;
+}
+
+function jsonBlock(obj) {
+  return escapeHtml(JSON.stringify(obj, null, 2));
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Dashboard ──
+async function loadDashboard() {
+  try {
+    const h = await api('/health');
+    document.getElementById('stat-health').textContent = h.status === 'healthy' ? '✅ Healthy' : '❌ Down';
+    document.getElementById('stat-health').style.fontSize = '1rem';
+  } catch { document.getElementById('stat-health').textContent = '❌'; }
+}
+loadDashboard();
+
+// ── Portfolio ──
+async function createPortfolio() {
+  loadingHtml('pf-result');
+  try {
+    const d = await api('/portfolio', 'POST', {
+      name: document.getElementById('pf-name').value,
+      initial_investment: +document.getElementById('pf-investment').value,
+      user_id: document.getElementById('pf-user').value || undefined,
+    });
+    resultHtml('pf-result',
+      `<strong>✅ Portfolio Created!</strong>\n\n` +
+      `<strong>ID:</strong>        ${d.id}\n` +
+      `<strong>Name:</strong>      ${escapeHtml(d.name)}\n` +
+      `<strong>User ID:</strong>   ${d.user_id}\n` +
+      `<strong>Created:</strong>   ${d.created_at}`
+    );
+    toast('Portfolio created! ID: ' + d.id);
+  } catch(e) { resultHtml('pf-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+async function viewPortfolio() {
+  const id = document.getElementById('pf-view-id').value;
+  loadingHtml('pf-view-result');
+  try {
+    const d = await api('/portfolio/' + id);
+    resultHtml('pf-view-result',
+      `<strong>📋 Portfolio #${d.id}</strong>\n\n` +
+      `<strong>Name:</strong>          ${escapeHtml(d.name)}\n` +
+      `<strong>User ID:</strong>       ${d.user_id}\n` +
+      `<strong>Total Value:</strong>   $${Number(d.total_value).toLocaleString()}\n` +
+      `<strong>Cash Balance:</strong>  $${Number(d.cash_balance).toLocaleString()}\n` +
+      `<strong>Assets Count:</strong>  ${d.assets_count}\n` +
+      `<strong>Created:</strong>       ${d.created_at}\n` +
+      `<strong>Updated:</strong>       ${d.updated_at}`
+    );
+  } catch(e) { resultHtml('pf-view-result', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function viewAssets() {
+  const id = document.getElementById('pf-view-id').value;
+  loadingHtml('pf-view-result');
+  try {
+    const d = await api('/portfolio/' + id + '/assets');
+    if (!d.assets.length) { resultHtml('pf-view-result', 'No assets found. Add some first!', 'info'); return; }
+    let html = '<table><tr><th>Symbol</th><th>Name</th><th>Qty</th><th>Buy Price</th><th>Current</th><th>Value</th><th>P&L</th><th>Return</th><th>Type</th></tr>';
+    d.assets.forEach(a => {
+      const color = a.gain_loss >= 0 ? 'var(--green)' : 'var(--red)';
+      html += `<tr>
+        <td><strong>${escapeHtml(a.symbol)}</strong></td>
+        <td>${escapeHtml(a.name||'')}</td>
+        <td>${a.quantity}</td>
+        <td>$${Number(a.purchase_price).toFixed(2)}</td>
+        <td>$${Number(a.current_price).toFixed(2)}</td>
+        <td>$${Number(a.current_value).toLocaleString()}</td>
+        <td style="color:${color}">${a.gain_loss >= 0 ? '+' : ''}$${Number(a.gain_loss).toFixed(2)}</td>
+        <td style="color:${color}">${a.return_percent >= 0 ? '+' : ''}${Number(a.return_percent).toFixed(2)}%</td>
+        <td>${a.asset_type}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    document.getElementById('pf-view-result').innerHTML = `<div style="overflow-x:auto;margin-top:12px">${html}</div>`;
+  } catch(e) { resultHtml('pf-view-result', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function viewTransactions() {
+  const id = document.getElementById('pf-view-id').value;
+  loadingHtml('pf-view-result');
+  try {
+    const d = await api('/portfolio/' + id + '/transactions');
+    if (!d.transactions.length) { resultHtml('pf-view-result', 'No transactions found.', 'info'); return; }
+    let html = '<table><tr><th>ID</th><th>Symbol</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th><th>Fees</th><th>Date</th></tr>';
+    d.transactions.forEach(t => {
+      const color = t.type === 'buy' ? 'var(--green)' : 'var(--red)';
+      html += `<tr>
+        <td>#${t.id}</td>
+        <td><strong>${escapeHtml(t.symbol)}</strong></td>
+        <td style="color:${color}">${t.type.toUpperCase()}</td>
+        <td>${t.quantity}</td>
+        <td>$${Number(t.price).toFixed(2)}</td>
+        <td>$${Number(t.total_amount).toLocaleString()}</td>
+        <td>$${Number(t.fees||0).toFixed(2)}</td>
+        <td>${new Date(t.timestamp).toLocaleString()}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    document.getElementById('pf-view-result').innerHTML = `<div style="overflow-x:auto;margin-top:12px">${html}</div>`;
+  } catch(e) { resultHtml('pf-view-result', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function addAsset() {
+  loadingHtml('asset-result');
+  try {
+    const pid = document.getElementById('asset-pid').value;
+    const d = await api('/portfolio/' + pid + '/asset', 'POST', {
+      symbol:         document.getElementById('asset-symbol').value,
+      name:           document.getElementById('asset-name').value,
+      quantity:       +document.getElementById('asset-qty').value,
+      purchase_price: +document.getElementById('asset-price').value,
+      current_price:  +document.getElementById('asset-current').value,
+      asset_type:     document.getElementById('asset-type').value,
+      sector:         document.getElementById('asset-sector').value,
+    });
+    resultHtml('asset-result',
+      `<strong>✅ Asset Added!</strong>\n\n` +
+      `<strong>ID:</strong>     ${d.id}\n` +
+      `<strong>Symbol:</strong> ${escapeHtml(d.symbol)}\n` +
+      `<strong>Qty:</strong>    ${d.quantity}`
+    );
+    toast('Asset added: ' + d.symbol);
+  } catch(e) { resultHtml('asset-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Transaction ──
+async function addTransaction() {
+  loadingHtml('txn-result');
+  try {
+    const pid = document.getElementById('txn-pid').value;
+    const d = await api('/portfolio/' + pid + '/transaction', 'POST', {
+      symbol:           document.getElementById('txn-symbol').value,
+      type:             document.getElementById('txn-type').value,
+      quantity:         +document.getElementById('txn-qty').value,
+      price:            +document.getElementById('txn-price').value,
+      fees:             +document.getElementById('txn-fees').value,
+      sender_country:   document.getElementById('txn-sender').value,
+      receiver_country: document.getElementById('txn-receiver').value,
+      notes:            document.getElementById('txn-notes').value || undefined,
+    });
+    let html = `<strong>✅ Transaction Recorded!</strong>\n\n` +
+      `<strong>ID:</strong>     #${d.id}\n` +
+      `<strong>Symbol:</strong> ${escapeHtml(d.symbol)}\n` +
+      `<strong>Type:</strong>   ${d.type}\n` +
+      `<strong>Amount:</strong> $${Number(d.amount).toLocaleString()}\n` +
+      `<strong>Time:</strong>   ${d.timestamp}`;
+    if (d.risk) {
+      html += `\n\n── ML Risk Assessment ─────────────\n` +
+        `<strong>Risk Score:</strong>  ${d.risk.risk_score}/100 ${riskBadge(d.risk.risk_label)}\n` +
+        `<strong>Method:</strong>      ${d.risk.method}\n` +
+        `<strong>Hard Block:</strong>  ${d.risk.hard_block ? '🚫 YES' : '✅ No'}\n` +
+        `<strong>Flags:</strong>       ${d.risk.flags?.length ? d.risk.flags.join(', ') : 'None'}`;
+    }
+    resultHtml('txn-result', html);
+    toast('Transaction recorded' + (d.risk ? ` — Risk: ${d.risk.risk_label}` : ''));
+  } catch(e) { resultHtml('txn-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Risk Scoring ──
+async function scoreRisk() {
+  loadingHtml('risk-result');
+  try {
+    const d = await api('/transaction/score-risk', 'POST', {
+      amount:                    +document.getElementById('risk-amount').value,
+      transaction_type:          document.getElementById('risk-type').value,
+      asset_type:                document.getElementById('risk-asset-type').value,
+      sender_country:            document.getElementById('risk-sender').value,
+      receiver_country:          document.getElementById('risk-receiver').value,
+      currency:                  document.getElementById('risk-currency').value,
+      channel:                   document.getElementById('risk-channel').value,
+      device_type:               document.getElementById('risk-device').value,
+      is_new_payee:              +document.getElementById('risk-new-payee').value,
+      account_age_days:          +document.getElementById('risk-acct-age').value,
+      customer_avg_txn_amount:   +document.getElementById('risk-avg-txn').value,
+      customer_txn_count_30d:    +document.getElementById('risk-txn-count').value,
+      failed_login_attempts_24h: +document.getElementById('risk-failed-logins').value,
+      ip_country_match:          +document.getElementById('risk-ip-match').value,
+      pep_flag:                  +document.getElementById('risk-pep').value,
+      is_sanctioned_country:     +document.getElementById('risk-sanctioned').value,
+    });
+    let html = `<strong>ML Risk Assessment</strong>\n\n` +
+      `  Score:          <strong style="font-size:1.5rem;color:${d.risk_score >= 55 ? 'var(--red)' : d.risk_score >= 30 ? 'var(--orange)' : 'var(--green)'}">${d.risk_score}/100</strong>  ${riskBadge(d.risk_label)}\n` +
+      `  Method:         ${d.method}\n` +
+      `  Hard Block:     ${d.hard_block ? '🚫 YES — Transaction blocked' : '✅ No'}\n` +
+      `  LLM Review:     ${d.needs_llm_review ? '⚠️ Yes — Borderline score' : 'No'}\n` +
+      `  Flags:          ${d.flags?.length ? d.flags.join(', ') : 'None'}\n` +
+      `\n── Rule Engine Details ─────────────\n` +
+      `  Rule Score:     ${d.rule_details.rule_score}/100\n` +
+      `  Rule Flags:     ${d.rule_details.flags?.length ? d.rule_details.flags.join(', ') : 'None'}\n`;
+    if (d.rule_details.details) {
+      Object.entries(d.rule_details.details).forEach(([k,v]) => {
+        if (v) html += `  ${k}: ${v}\n`;
+      });
+    }
+    html += `\n── ML Model Details ─────────────\n` +
+      `  ML Risk Score:    ${d.ml_details.ml_risk_score ?? 'N/A'}\n` +
+      `  ML Risk Label:    ${d.ml_details.ml_risk_label ?? 'N/A'}\n` +
+      `  Fraud Flag:       ${d.ml_details.ml_fraud_flag ? '🚨 YES' : '✅ No'}\n` +
+      `  Anomaly Score:    ${d.ml_details.ml_anomaly_score != null ? Number(d.ml_details.ml_anomaly_score).toFixed(4) : 'N/A'}\n` +
+      `  Confidence:       ${d.ml_details.ml_confidence != null ? (Number(d.ml_details.ml_confidence)*100).toFixed(1)+'%' : 'N/A'}`;
+    resultHtml('risk-result', html, d.risk_score >= 55 ? 'error' : 'success');
+    toast(`Risk Score: ${d.risk_score}/100 (${d.risk_label})`, d.risk_score >= 55 ? 'error' : 'success');
+  } catch(e) { resultHtml('risk-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+function loadSuspiciousTxn() {
+  document.getElementById('risk-amount').value = 950000;
+  document.getElementById('risk-type').value = 'transfer';
+  document.getElementById('risk-asset-type').value = 'crypto';
+  document.getElementById('risk-sender').value = 'IR';
+  document.getElementById('risk-receiver').value = 'KP';
+  document.getElementById('risk-currency').value = 'USD';
+  document.getElementById('risk-channel').value = 'wire';
+  document.getElementById('risk-device').value = 'mobile';
+  document.getElementById('risk-new-payee').value = '1';
+  document.getElementById('risk-acct-age').value = 15;
+  document.getElementById('risk-failed-logins').value = 5;
+  document.getElementById('risk-ip-match').value = '0';
+  document.getElementById('risk-pep').value = '1';
+  document.getElementById('risk-sanctioned').value = '1';
+  document.getElementById('risk-avg-txn').value = 500;
+  document.getElementById('risk-txn-count').value = 0;
+  toast('Loaded suspicious transaction example', 'error');
+}
+
+// ── AI Analysis ──
+async function runAnalysis() {
+  const pid = document.getElementById('ai-pid').value;
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Running 9 agents... (1-3 min)';
+  loadingHtml('ai-result');
+  document.getElementById('ai-result').innerHTML = `<div class="result-box info"><span class="spinner"></span> Running full 9-agent CrewAI pipeline on Portfolio #${pid}...\nThis involves: Alert Intake → Context → Risk → Explanation → Escalation → Portfolio → Detection → Market → Compliance\n\n<strong>Please wait 1-3 minutes...</strong></div>`;
+  try {
+    const d = await api('/portfolio/' + pid + '/analyze', 'POST');
+    let html = '<strong>✅ AI Analysis Complete!</strong>\n\n';
+    if (typeof d === 'string') {
+      html += escapeHtml(d);
+    } else {
+      html += jsonBlock(d);
+    }
+    resultHtml('ai-result', html);
+    toast('AI Analysis complete!');
+  } catch(e) { resultHtml('ai-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+  btn.disabled = false;
+  btn.innerHTML = '🤖 Run Full AI Analysis';
+}
+
+async function getRecommendation() {
+  loadingHtml('rec-result');
+  try {
+    const pid = document.getElementById('rec-pid').value;
+    const d = await api('/portfolio/' + pid + '/recommendation', 'POST', {
+      symbol: document.getElementById('rec-symbol').value,
+      risk_profile: document.getElementById('rec-risk').value,
+    });
+    let html = '<strong>✅ AI Recommendation</strong>\n\n';
+    if (typeof d === 'string') html += escapeHtml(d);
+    else html += jsonBlock(d);
+    resultHtml('rec-result', html);
+    toast('Recommendation received!');
+  } catch(e) { resultHtml('rec-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Alerts ──
+async function loadAlerts() {
+  const pid = document.getElementById('alert-pid').value;
+  loadingHtml('alert-list');
+  try {
+    const d = await api('/portfolio/' + pid + '/alerts');
+    if (!d.alerts.length) { resultHtml('alert-list', 'No alerts found for this portfolio.', 'info'); return; }
+    let html = '<table><tr><th>ID</th><th>Type</th><th>Symbol</th><th>Message</th><th>Active</th><th>Triggered</th><th>Date</th></tr>';
+    d.alerts.forEach(a => {
+      const typeColor = a.type === 'ml_risk_detection' ? 'var(--red)' : 'var(--accent)';
+      html += `<tr>
+        <td>#${a.id}</td>
+        <td style="color:${typeColor}">${escapeHtml(a.type||'')}</td>
+        <td><strong>${escapeHtml(a.symbol||'-')}</strong></td>
+        <td style="max-width:300px;word-break:break-word;font-size:.8rem">${escapeHtml(a.message||'')}</td>
+        <td>${a.is_active ? '🟢 Active' : '⚪ Inactive'}</td>
+        <td>${a.triggered ? '🔔 Yes' : 'No'}</td>
+        <td>${new Date(a.created_at).toLocaleString()}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    document.getElementById('alert-list').innerHTML = `<div style="overflow-x:auto;margin-top:12px">${html}</div>`;
+    toast(`Loaded ${d.alerts.length} alerts`);
+  } catch(e) { resultHtml('alert-list', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function createAlert() {
+  loadingHtml('ca-result');
+  try {
+    const pid = document.getElementById('ca-pid').value;
+    const d = await api('/portfolio/' + pid + '/alert', 'POST', {
+      alert_type:   document.getElementById('ca-type').value,
+      symbol:       document.getElementById('ca-symbol').value || undefined,
+      target_price: +document.getElementById('ca-target').value || undefined,
+      threshold:    +document.getElementById('ca-threshold').value || undefined,
+      message:      document.getElementById('ca-message').value || undefined,
+    });
+    resultHtml('ca-result',
+      `<strong>✅ Alert Created!</strong>\n\n` +
+      `<strong>ID:</strong>   #${d.id}\n` +
+      `<strong>Type:</strong> ${escapeHtml(d.alert_type)}\n` +
+      `<strong>Active:</strong> ${d.is_active ? 'Yes' : 'No'}`
+    );
+    toast('Alert created!');
+  } catch(e) { resultHtml('ca-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Search ──
+async function runSearch() {
+  const query = document.getElementById('search-query').value;
+  if (!query) { toast('Enter a search query', 'error'); return; }
+  loadingHtml('search-result');
+  try {
+    const type = document.getElementById('search-type').value;
+    const pid = document.getElementById('search-pid').value || undefined;
+    const body = { query };
+    if (pid) body.portfolio_id = +pid;
+    const d = await api('/search/' + type, 'POST', body);
+    if (!d.results || !d.results.length) {
+      resultHtml('search-result', 'No results found. Try a different query or run an AI analysis first to populate the knowledge base.', 'info');
+      return;
+    }
+    let html = `<strong>Found ${d.results.length} results</strong>\n\n`;
+    d.results.forEach((r, i) => {
+      html += `── Result ${i+1} ──────────────\n`;
+      if (typeof r === 'string') html += escapeHtml(r) + '\n\n';
+      else html += jsonBlock(r) + '\n\n';
+    });
+    resultHtml('search-result', html);
+    toast(`Found ${d.results.length} results`);
+  } catch(e) { resultHtml('search-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Sentiment ──
+async function getSentiment() {
+  const sym = document.getElementById('sent-symbol').value;
+  if (!sym) { toast('Enter a symbol', 'error'); return; }
+  loadingHtml('sent-result');
+  try {
+    const d = await api('/sentiment/' + sym.toUpperCase());
+    let html = `<strong>📊 Market Sentiment: ${sym.toUpperCase()}</strong>\n\n`;
+    if (typeof d === 'string') html += escapeHtml(d);
+    else html += jsonBlock(d);
+    resultHtml('sent-result', html);
+    toast('Sentiment loaded for ' + sym.toUpperCase());
+  } catch(e) { resultHtml('sent-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+</script>
+</body>
+</html>
