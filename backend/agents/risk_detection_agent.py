@@ -36,6 +36,10 @@ def _get_risk_engine():
 class RiskDetectionAgent(FinancialBaseAgent):
     """Detects financial risks, fraud indicators and anomalies using ML + LLM."""
 
+    AGENT_DOMAIN = "risk_detection"
+
+    AGENT_DOMAIN = "risk_detection"
+
     def __init__(self):
         super().__init__("RiskDetector")
 

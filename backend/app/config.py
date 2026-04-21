@@ -10,10 +10,18 @@ class Config:
 
     # Groq
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "mixtral-8x7b-32768")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     # ChromaDB
     CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./data/chroma")
+
+    # Auth / multi-tenancy
+    # JWT_SECRET: if unset, auth.py falls back to SECRET_KEY then a dev string.
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    # AUTH_ENFORCED: when "true", case/audit/sar endpoints require a bearer
+    # token. Kept off by default so the existing portfolio API stays
+    # frictionless for demos and the current callers.
+    AUTH_ENFORCED = os.getenv("AUTH_ENFORCED", "false")
 
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)

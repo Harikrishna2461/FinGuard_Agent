@@ -1,0 +1,385 @@
+
+
+===== PAGE 1 =====
+
+GC Architecting AI
+Systems
+Practice Module Briefing
+Chen Junhua
+nancycjh@nus.edu.sg
+
+
+===== PAGE 2 =====
+
+Agenda
+• Objectives
+• To brief the participants of the graduate certificate on the requirements, conduct
+and assessment of the practice module
+• Topics
+• Requirements of Graduate Certificate
+• Requirements of Group Project
+• Project Schedule
+• Selection of Group Project
+• Project Proposal
+• Typical Examples of Group Project
+• Progress Report for Group Project
+• Sample Group Project Report Template
+• Sample Individual Project Report Template
+• Assessment of Graduate Certificate
+2
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 3 =====
+
+Requirements of Graduate Certificate - 1
+Objective: In this graduate certificate, participants will learn to apply essential practices in Explainable and Responsible AI, AI-specific
+cybersecurity, Agentic AI design patterns, advanced software architecture skills, and MLSecOps/LLMSecOps to design, architect, implement
+and deploy AI systems that are responsible, ethical, explainable, robust, highly available, reusable, maintainable, and extensible, along with
+the development of relevant project artifacts.
+Outcomes: Demonstrate competency in all four course modules
+Module 1: Explainable and
+Module 2: AI and Cybersecurity (3 Module 3: Architecting Agentic AI Module 4: Integrating and
+Responsible Artificial Intelligence
+days) Solutions (4 days) Deploying AI Solutions (3 days)
+(3 Days)
+The main objective of this This course provides By combining hands-on This course provides
+course is to equip participants cybersecurity and digital experience with system-level comprehensive coverage on
+with practical skills to design professionals with the thinking, this course prepares the principles, methods, and
+and implement AI systems that knowledge and skills to identify professionals to lead the tools for integrating and
+are accountable, transparent, vulnerabilities in AI systems, architecture, design and deploying real-world systems
+fair, and ethically responsible. evaluate AI's role in implementation of next- that incorporate intelligent
+It also aims to develop their cybersecurity defense, and generation AI solutions driven components. Participants will
+ability to assess model understand AI-powered attack by autonomous, multi-agent learn MLSecOps and
+fairness, apply bias reduction techniques. Participants will systems. LLMSecOps to streamline the
+strategies, use Explainable AI also learn to formulate security entire ML/LLM lifecycle.
+tools, and apply responsible AI strategies that address the
+frameworks across real-world risks in AI-based systems.
+scenarios.
+3
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 4 =====
+
+Requirements of Graduate Certificate - 2
+Means of demonstrating competencies in the four courses:
+• Demonstrate understanding and mastery of the skills taught in the above course
+modules in a group project (100%) - Practice Module
+• There is no written exam
+4
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 5 =====
+
+Practice Module Prerequisites
+• Participants must have successfully completed all (or have been exempted
+from) the four course modules for the Graduate Certificate in Architecting AI
+Systems.
+5
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 6 =====
+
+Project Schedule
+The participants conduct their
+projects and consult the lecturers
+The participants submit their project report,
+on issues. Each group submits a
+The participants submit their incorporating remarks gathered during their
+fortnightly progress report for
+proposals for review by the project presentations.
+review by the lecturers:
+lecturers; earlier submissions • Submit a Progress Report for • Submit a Group Project Report for your
+are welcome: your team to assignment team to assignment Project Report
+• Submit a Project Proposal Progress Report in Canvas (Group-Based) in Canvas
+• Report name convention: Team
+for your team to assignment • Submit an Individual Project Report to
+X_<date>
+Project Proposal in Canvas assignment Project Report (Individual) in
+Canvas
+Participants are to form a group of 4-5 The lecturers provide
+members by signing up to a Team in the review comments. The participants
+Canvas: The participants revise present their *Some dates
+• Canvas course: NUS-ISS-SWE5008- the proposals, if projects
+are tentative
+MTech-FT-2026-01 necessary, and kick
+start their projects 6
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 7 =====
+
+Selection of Group Project
+Team size: 4-5 members
+An estimated 15 days of effort by each participant
+• Not contiguous and stretch over several weeks
+Participants are to source for suitable projects, either from within your own organizations, your
+own ideas or from other approved sources
+A suitable project is one that adequately utilizes and demonstrates the skills learned in the
+course modules
+Copyright National University of Singapore
+8
+
+
+===== PAGE 8 =====
+
+Project Proposal
+• The proposal should include the following content
+Section Content
+Project Title Title
+Project Sponsor Name, title, contact (if applicable)
+Project Members Names
+Overview Describe the context and the business problem solved by the Agentic AI system
+Scope of Work Describe the agents in your system. Define your scope of work which shall demonstrate
+key considerations, eg assurance, trust, fairness, accountability, ethical issues,
+explainability, governance, security measures, agent autonomous and orchestration, as
+well as MLOps and LLMOps practices.
+Effort Estimates List the rough WBS tasks and their estimated efforts. This is to ensure that you have
+thought about the approach and the implementation effort
+9
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 9 =====
+
+Questions to Consider
+• What are the key pain points in current workflows that multi-agent system can address? What additional value-creation opportunities arise
+specifically from introducing a multi-agent AI system, even beyond addressing today’s workflow gaps? Eg. in telemedicine platform, could
+autonomous agents proactively identify hidden risks (e.g., medication interactions)?
+• Justify the pros and cons for such agentic AI system adoption or implementation?
+• Who are the key stakeholders of this project?
+• How should the agents coordinate to ensure a seamless user experience
+• What are the expected benefits of using a modular, agentic AI architecture versus a monolithic chatbot or simple rules-based automation?
+(e.g., reduced workload, better patient guidance, flexibility, explainability, traceability)
+• How can these benefits be demonstrated during the project demo or presentation? (e.g., scenarios where agents show autonomy, handle queries
+responsibly, escalate appropriately)
+• What scale (e.g., concurrent patient sessions) is the solution designed to support?
+• How can this scalability claim be demonstrated or justified? (e.g., load tests, architectural scalability characteristics)
+• How does the solution ensure explainability and traceability of agent decisions?
+• What safeguards are in place to mitigate bias, ensure fairness, accountability, trust and assurance during deployment?
+• What common services (e.g., shared memory, logs) will be required to support these agents?
+• What reusable libraries or frameworks (e.g., LangChain, LangGraph) are leveraged for agent orchestration?
+• What are the AI-specific security risks (e.g., prompt injection, hallucinations, adversarial prompts) and how are they mitigated?
+• How does the design ensure safe behaviour even under malicious or unexpected inputs?
+• Which part of AI system lifecycle can be automated and how it can reduce the development effort and improve system quality attributes?
+• Is the amount of effort needed to do the implementation still within the guideline? 10
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 10 =====
+
+Typical Example of Group Project - 1
+Project: Care-AI telemedicine enhancement multi-agent system
+Problem description:
+• CARE-AI is a telemedicine enhancement initiative for a regional virtual clinic that aims to streamline pre-consult triage,
+improve patient education, and reduce repetitive workload for healthcare staff. The proposed solution involves a multi-
+agent system, where specialized AI agents collaborate to support patients before and after online consultations.
+• Key agent roles and system features include:
+• Triage Agent – Collects symptoms and classifies urgency level
+• Preparation Agent – Guides patients in preparing for their consultation (e.g., blood pressure logs, medication list)
+• Education Agent – Answers common questions using vector-based medical information retrieval
+• Follow-up Agent – Provides post-consultation advice and reminders (e.g., medication, lifestyle guidance)
+• Escalation Agent – Monitors conversations and flags safety-critical cases for human intervention
+• Agents may coordinate using shared memory or messaging. Each agent is expected to demonstrate autonomy through
+reasoning, planning, and tool use. The system should also maintain logs to ensure traceability and explainability of agent
+decisions.
+• The project may use simulated data and is not expected to be production-ready. The emphasis is on demonstrating
+agentic behaviour, explainable and responsible AI practices, AI-specific security considerations, and sound engineering
+principles including thoughtful architecture, modular design, and MLSecOps/LLMSecOps practices for integration,
+testing, and monitoring.
+11
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 11 =====
+
+Typical Example of Group Project - 2
+Success criteria:
+• Presentation slides clearly outlining the problem context, agent roles, system overview, and demo walkthrough
+• System architecture document providing a high-level view of the overall system. This should cover the logical and
+physical architecture, infrastructure setup, service deployment strategy, integration points, data flow across components,
+and justification of architectural styles and technologies used.
+• Agent design documentation describing the internal logic and behaviour of each agent. This includes the reasoning
+patterns used, planning loops, memory mechanisms, tool integrations, and how autonomy is achieved. Also specify
+prompt patterns, fallback strategies, and inter-agent communication protocols.
+• Explainable and Responsible AI report explaining for example, how fairness, bias mitigation, explainability, and
+governance principles were considered and applied. Show how the different stages are aligned with the explainable and
+responsible AI principles.
+• AI security risk register identifying risks resulting from potential vulnerabilities (e.g., prompt injection, hallucination),
+including AI-Agent related risks, and outlining mitigation strategies and appropriate security controls.
+• MLSecOps / LLMSecOps pipeline design specifying tools and workflows for CI/CD, automated testing (including AI
+security tests), model versioning, monitoring, and logging.
+• Well-structured source code repository showcasing modular agent implementation with clear separation of logic and
+well-documented code.
+• Testing artifacts including unit tests for agent behaviour, end-to-end flow verification and relevant AI security tests.
+• Simple UI prototype (e.g., web-based or form-based) to demonstrate user interaction and multi-agent orchestration.
+12
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 12 =====
+
+Progress Report for Group Project
+• Submit team progress report to assignment Progress Report in Canvas
+fortnightly for review by NUS-ISS
+• Report name convention: Team X_<Date>
+• The progress report should at least include the following content
+Section Content
+Project Title Title
+Date Date of report
+Summary of Work Done List of tasks conducted since last report
+Effort Expended Hours expended by each member since last report
+Problems Encountered Issues that might need assistance from NUS-ISS lecturers
+Plan for the Next 2 Week List of tasks planned for the next 2 weeks
+13
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 13 =====
+
+Sample Group Project Report Template
+Project title, Team number and members
+5. Explainable and Responsible AI Practices
+• How the different stages of development & deployment are
+1. Executive Summary
+aligned with the explainable and responsible AI principles.
+• Brief overview of project objective and scope
+• Approach to fairness, bias mitigation, explainability
+• Key highlights of the solution
+• Governance framework alignment (e.g., IMDA’s Model AI
+• Constraints/assumptions
+Governance Framework)
+2. System Overview
+Description of overall solution and how agents work together
+6. AI Security Risk Register
+High-level workflow diagram
+• Table of identified risks (e.g., prompt injection)
+3. System Architecture
+• Mitigation strategies and security controls
+• Logical architecture diagram with description 7. MLSecOps / LLMSecOps Pipeline
+• Physical architecture diagram with infrastructure details
+CI/CD diagram with description of:
+• Deployment strategy (e.g., containerization, cloud
+• Automated testing (including AI security tests)
+services)
+• Data flow and integration points
+• Versioning and tracking
+• Justification of architectural styles and tech choices
+• Deployment strategy
+4. Agent Roles and Design
+For each agent:
+• Monitoring and alerting
+• Purpose and responsibilities
+• Logging and auditability
+• Reasoning patterns
+• Planning and memory mechanisms 8. Testing Summary
+• Tools used
+• Types of tests performed (unit, integration, security)
+• Communication protocols and coordination mechanisms
+• Results
+14
+9. Reflection
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 14 =====
+
+Sample Individual Project Report Template
+4. Testing and Validation
+Project title, Team number, Individual name, Agent responsible • Types of tests implemented eg:
+for (e.g., “Follow-up Agent”) o Unit tests
+o Integration tests (with other agents or
+1. Introduction
+backend services)
+• Brief overview of the agent’s purpose
+o AI security tests (e.g., adversarial inputs,
+2. Agent Design prompt injection handling)
+• Results and key findings
+• Description of agent role and functionality
+6. Explainable and Responsible AI Considerations
+• Reasoning and planning workflow
+• How the different stages of development &
+• Memory and state management
+deployment are aligned with the explainable and
+• Tools integrated
+responsible AI principles.
+• Communication and coordination logic • How this agent addresses explainability
+• Prompt engineering patterns used • Bias mitigation strategies (if relevant)
+• Handling sensitive content and governance
+• Fallback strategies
+alignment
+3. Implementation Details
+7. Security Practices
+• Summary of implementation approach
+• Agent-specific security risks
+• Code structure overview • Mitigations implemented at code level or workflow
+• Tech stack of the agent (e.g. LLM model, agent level
+framework, MCP etc.) 8. Reflection
+Personal learning from implementing this agent
+15
+Suggestions for future improvement of the agent
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 15 =====
+
+Peer Assessment
+• Peer assessment is conducted in order to reward the members who contribute more towards meeting the
+project objectives
+• It is not a measure of the numbers of man-hours expended by the members
+• The Peer Grading System by NUS-ISS automates the conduct
+• Students are notified and reminded via their NUS email addresses
+• Not reading the emails in NUS mailboxes is not a valid excuse
+• Students are mandated to rank the contribution of their members with unique ranks
+• Additional remarks are welcome
+• Students who do not rank by the deadline would be assigned zero peer assessment marks
+16
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 16 =====
+
+Assessment of Graduate Certificate
+• Presentation, project report and individual report
+Assessment Component Weight Weight
+will be graded by a team of NUS-ISS lecturers.
+(Company (Not
+Sponsored Company
+• The participant must pass with a minimum score
+) Sponsored)
+of 20% (i.e., Grade D) of his/her individual
+assessment.
+Team based: 50% 50%
+Project presentation 20% 20%
+• The participant must attain a minimum overall
+Project report 30% 30% score of 50% (i.e., Grade C) to be awarded the
+Individual: 50% 50% Graduate Certificate in Architecting AI Systems.
+Project report (design of one 10% 13%
+• The participant must attain a minimum grade
+agent)
+point average of 60% (i.e., Grade B-) across the
+Project report (implementation and 10% 13%
+required graduate certificates to be eligible to be
+testing of the agent)
+enrolled into a Master of Technology degree.
+Individual reflection 10% 14%
+Peer assessment 10% 10%
+• Entry into the Master of Technology degree
+Company sponsor assessment* 10% -
+programme is not assured whatever the score
+TOTAL 100% 100%
+attained in a Graduate Certificate, but is solely at
+the discretion of NUS-ISS.
+17
+Copyright National University of Singapore Accelerating Digital Excellence
+
+
+===== PAGE 17 =====
+
+facebook.com/iss.nus instagram.com/iss.nus
+linkedin.com/company/iss_nus youtube.com/@nus-iss
+Thank you
+www.iss.nus.edu.sg

@@ -8,6 +8,8 @@ function Alerts({ user }) {
     { id: 2, type: 'performance', symbol: 'Portfolio', title: 'Daily Loss Alert', condition: 'Loss > 2%', isActive: true, triggered: false },
     { id: 3, type: 'volatility', symbol: 'TSLA', title: 'TSLA High Volatility', condition: 'Volatility > 4%', isActive: true, triggered: true },
     { id: 4, type: 'news', symbol: 'MSFT', title: 'MSFT News Alert', condition: 'Major announcement', isActive: false, triggered: false },
+    { id: 5, type: 'price', symbol: 'GOOGL', title: 'GOOGL Range Alert', condition: 'Price between $140-150', isActive: true, triggered: false },
+    { id: 6, type: 'volatility', symbol: 'NVDA', title: 'NVDA Volatility Monitor', condition: 'Volatility change > 3%', isActive: true, triggered: false },
   ]);
 
   const [showForm, setShowForm] = useState(false);

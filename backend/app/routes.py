@@ -11,6 +11,7 @@ from flask import Blueprint, request, jsonify
 from app import db
 from models.models import Portfolio, Asset, Transaction, Alert, RiskAssessment
 from agents.crew_orchestrator import AIAgentOrchestrator
+from app.symbols import get_all_symbols, get_symbols_by_sector, DEFAULT_SYMBOLS
 from datetime import datetime
 import uuid
 import logging
@@ -40,10 +41,39 @@ def _get_risk_engine():
         try:
             from ml.risk_scoring_engine import TransactionRiskEngine
             _risk_engine = TransactionRiskEngine()
-            logger.info("API: Hybrid ML risk engine loaded")
+            if _risk_engine.ml.loaded:
+                logger.info("API: Hybrid ML risk engine loaded (ML + Rules)")
+            else:
+                logger.warning("API: Risk engine loaded in degraded mode (Rules only - ML models unavailable)")
         except Exception as e:
-            logger.warning("API: ML risk engine unavailable — %s", e)
+            logger.error("API: Failed to initialize risk engine: %s", e, exc_info=True)
+            _risk_engine = None
     return _risk_engine
+
+
+# ============= Symbol Routes =============
+
+@api_bp.route("/symbols", methods=["GET"])
+def get_symbols():
+    """Get all available stock symbols."""
+    try:
+        return jsonify({
+            "symbols": get_all_symbols(),
+            "default_symbols": DEFAULT_SYMBOLS
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@api_bp.route("/symbols/sectors", methods=["GET"])
+def get_symbols_sectors():
+    """Get symbols grouped by sector."""
+    try:
+        return jsonify({
+            "sectors": get_symbols_by_sector()
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # ============= Portfolio Routes =============
@@ -168,7 +198,69 @@ def analyze_portfolio(portfolio_id):
         return jsonify(result), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        logger.error(f"Portfolio analysis error: {str(e)}", exc_info=True)
+        
+        # Provide detailed error response to help diagnosis
+        error_response = {
+            "error": "Portfolio analysis failed",
+            "details": str(e),
+            "type": type(e).__name__,
+            "help": "Check server logs for more details. Ensure GROQ_API_KEY is set and valid."
+        }
+        return jsonify(error_response), 400
+
+
+@api_bp.route("/portfolio/<int:portfolio_id>/quick-recommendation", methods=["POST"])
+def quick_recommendation(portfolio_id):
+    """Run lightweight single-agent quick recommendation (~1k tokens, always works on free tier)."""
+    try:
+        portfolio = Portfolio.query.get(portfolio_id)
+        if not portfolio:
+            return jsonify({"error": "Portfolio not found"}), 404
+
+        assets = Asset.query.filter_by(portfolio_id=portfolio_id).all()
+        transactions = Transaction.query.filter_by(portfolio_id=portfolio_id).all()
+
+        portfolio_data = {
+            "id": portfolio.id,
+            "name": portfolio.name,
+            "total_value": portfolio.total_value,
+            "cash_balance": portfolio.cash_balance,
+            "assets": [
+                {
+                    "symbol": a.symbol,
+                    "name": a.name,
+                    "quantity": a.quantity,
+                    "current_price": a.current_price,
+                    "purchase_price": a.purchase_price,
+                    "asset_type": a.asset_type,
+                }
+                for a in assets
+            ],
+        }
+        transactions_list = [
+            {
+                "symbol": t.symbol,
+                "type": t.transaction_type,
+                "quantity": t.quantity,
+                "price": t.price,
+                "timestamp": t.timestamp.isoformat(),
+            }
+            for t in transactions[:50]
+        ]
+
+        orch = _get_orchestrator()
+        result = orch.quick_portfolio_recommendation(portfolio_data, transactions_list)
+
+        return jsonify(result), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Quick recommendation error: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": "Quick recommendation failed",
+            "details": str(e),
+            "type": type(e).__name__,
+        }), 400
 
 
 # ============= Asset Routes =============
@@ -307,8 +399,24 @@ def add_transaction(portfolio_id):
                     "method":      result["method"],
                     "hard_block":  result["hard_block"],
                     "flags":       result["flags"],
+                    "needs_llm_review": result.get("needs_llm_review"),
+                    "rule_details": {
+                        "rule_score": result["rule_details"]["rule_score"],
+                        "flags":      result["rule_details"]["flags"],
+                        "details":    result["rule_details"]["details"],
+                    },
+                    "ml_details": {
+                        "ml_risk_score":    result["ml_details"].get("ml_risk_score"),
+                        "ml_risk_label":    result["ml_details"].get("ml_risk_label"),
+                        "ml_fraud_flag":    result["ml_details"].get("ml_fraud_flag"),
+                        "ml_anomaly_score": result["ml_details"].get("ml_anomaly_score"),
+                        "ml_confidence":    result["ml_details"].get("ml_confidence"),
+                        "available":        result["ml_details"].get("available"),
+                        "reason":           result["ml_details"].get("reason"),
+                    },
                 }
                 # Auto-create alert for high/critical risk
+                auto_alert = None
                 if result["final_score"] >= 55:
                     auto_alert = Alert(
                         portfolio_id=portfolio_id,
@@ -322,6 +430,31 @@ def add_transaction(portfolio_id):
                     )
                     db.session.add(auto_alert)
                     db.session.commit()
+
+                    # Auto-open an investigation case (tenant-scoped).
+                    try:
+                        from app.cases import open_case_for_transaction
+                        from app.auth import current_tenant_id
+                        from models.models import Tenant, DEFAULT_TENANT_SLUG
+                        tid = current_tenant_id()
+                        if tid is None:
+                            default = Tenant.query.filter_by(slug=DEFAULT_TENANT_SLUG).first()
+                            tid = default.id if default else None
+                        if tid is not None:
+                            case = open_case_for_transaction(
+                                tenant_id=tid,
+                                transaction=transaction,
+                                portfolio=portfolio,
+                                risk_score=int(result["final_score"]),
+                                flags=list(result.get("flags") or []),
+                                alert=auto_alert,
+                            )
+                            if case is not None:
+                                db.session.commit()
+                                risk_info["case_id"] = case.id
+                    except Exception as ce:
+                        db.session.rollback()
+                        logger.warning("Case auto-open failed for txn %s: %s", transaction.id, ce)
             except Exception as e:
                 logger.warning("ML scoring failed for txn %s: %s", transaction.id, e)
 
@@ -378,10 +511,11 @@ def get_transactions(portfolio_id):
 def score_transaction_risk():
     """
     Score a transaction's risk using the hybrid ML pipeline.
+    Falls back to rules-based scoring if ML models are unavailable.
     Does NOT persist the transaction — use this for pre-screening.
 
     Expects JSON body with transaction features (amount, type, country, etc.).
-    Returns risk score, label, flags, and ML details.
+    Returns risk score, label, flags, and ML details (empty if ML unavailable).
     """
     try:
         data = request.json or {}
@@ -390,7 +524,7 @@ def score_transaction_risk():
 
         engine = _get_risk_engine()
         if engine is None:
-            return jsonify({"error": "ML risk engine not available"}), 503
+            return jsonify({"error": "Risk engine initialization failed"}), 503
 
         result = engine.score(data)
         return jsonify({
@@ -411,10 +545,101 @@ def score_transaction_risk():
                 "ml_fraud_flag":    result["ml_details"].get("ml_fraud_flag"),
                 "ml_anomaly_score": result["ml_details"].get("ml_anomaly_score"),
                 "ml_confidence":    result["ml_details"].get("ml_confidence"),
+                "available":        result["ml_details"].get("available"),
+                "reason":           result["ml_details"].get("reason"),
             },
             "timestamp": result["timestamp"],
         }), 200
     except Exception as e:
+        logger.error("Score transaction risk error: %s", e, exc_info=True)
+        return jsonify({"error": str(e)}), 400
+
+
+@api_bp.route("/transaction/get-ai-insights", methods=["POST"])
+def get_transaction_ai_insights():
+    """
+    Get AI-powered insights for a transaction's risk score.
+    Uses ExplanationAgent to generate human-readable analysis.
+    
+    Expects JSON body with:
+    - transaction: dict with transaction details
+    - score: int 0-100 risk score
+    - factors: dict of contributing factors
+    
+    Returns: {"insights": str, "agent": "Explanation", "timestamp": str, "success": bool}
+    """
+    try:
+        data = request.json or {}
+        transaction = data.get("transaction", {})
+        score = data.get("score", 50)
+        factors = data.get("factors", {})
+        
+        if not transaction:
+            return jsonify({"error": "transaction required"}), 400
+
+        orch = _get_orchestrator()
+        
+        # Get ExplanationAgent and generate insights
+        try:
+            result = orch.explanation_agent.explain_risk_score(
+                transaction=transaction,
+                score=score,
+                factors=factors
+            )
+            return jsonify({
+                "insights": result.get("explanation", ""),
+                "agent": "Explanation",
+                "timestamp": result.get("timestamp", datetime.utcnow().isoformat()),
+                "success": True,
+            }), 200
+        except RuntimeError as e:
+            # LLM error - provide helpful fallback with better formatting
+            error_msg = str(e)
+            risk_level = "CRITICAL" if score >= 80 else "HIGH" if score >= 55 else "MEDIUM" if score >= 30 else "LOW"
+            
+            fallback_insights = (
+                f"**Risk Assessment Summary**\n"
+                f"Risk Score: {score}/100\n"
+                f"Risk Level: {risk_level}\n\n"
+                f"**Contributing Factors**\n"
+            )
+            for key, value in factors.items():
+                fallback_insights += f"- {key}: {value}\n"
+            
+            fallback_insights += (
+                f"\n**Analysis**\n"
+                f"The combination of these factors indicates {risk_level.lower()} risk. "
+            )
+            
+            if score >= 80:
+                fallback_insights += (
+                    "Immediate action is recommended:\n"
+                    "- Review transaction details carefully\n"
+                    "- Consider blocking the transaction\n"
+                    "- Contact the customer if appropriate"
+                )
+            elif score >= 55:
+                fallback_insights += (
+                    "Further investigation recommended:\n"
+                    "- Gather additional context\n"
+                    "- Monitor for related activity\n"
+                    "- Escalate if patterns emerge"
+                )
+            else:
+                fallback_insights += "Continue routine monitoring."
+            
+            fallback_insights += f"\n\n**Error Details**\n{error_msg}"
+            
+            return jsonify({
+                "insights": fallback_insights,
+                "agent": "Explanation",
+                "timestamp": datetime.utcnow().isoformat(),
+                "success": False,
+                "error_reason": error_msg,
+            }), 200
+            
+    except Exception as e:
+        logger.error("Get AI insights error: %s", e, exc_info=True)
         return jsonify({"error": str(e)}), 400
 
 
@@ -498,11 +723,37 @@ def get_recommendation(portfolio_id):
         return jsonify({"error": str(e)}), 400
 
 
+@api_bp.route("/sentiment", methods=["GET"])
 @api_bp.route("/sentiment/<symbol>", methods=["GET"])
-def get_sentiment(symbol):
+def get_sentiment(symbol=None):
+    """
+    Get sentiment analysis for one or more symbols.
+    
+    Can be called in two ways:
+    1. /sentiment/AAPL - get sentiment for a single symbol
+    2. /sentiment?symbols=AAPL,MSFT,GOOGL - get sentiment for multiple symbols
+    """
     try:
         orch = _get_orchestrator()
-        sentiment = orch.quick_market_sentiment([symbol.upper()])
+        
+        # Get symbols from either path parameter or query parameter
+        symbols = []
+        if symbol:
+            symbols = [symbol.upper()]
+        else:
+            # Get from query parameter (comma-separated)
+            symbols_param = request.args.get("symbols", "")
+            if symbols_param:
+                symbols = [s.strip().upper() for s in symbols_param.split(",")]
+        
+        if not symbols:
+            return jsonify({"error": "Symbol(s) required. Use /sentiment/AAPL or /sentiment?symbols=AAPL,MSFT"}), 400
+        
+        # Limit to 10 symbols max
+        if len(symbols) > 10:
+            symbols = symbols[:10]
+        
+        sentiment = orch.quick_market_sentiment(symbols)
         return jsonify(sentiment), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400

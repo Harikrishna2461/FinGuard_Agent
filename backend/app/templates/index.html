@@ -62,10 +62,40 @@ textarea{resize:vertical;min-height:80px}
 .btn-group{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
 
 /* ── Result/Output ── */
-.result-box{background:var(--bg);border-radius:8px;padding:16px;margin-top:12px;border:1px solid var(--border);max-height:500px;overflow-y:auto;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.result-box{background:var(--bg);border-radius:8px;padding:16px;margin-top:12px;border:1px solid var(--border);max-height:600px;overflow-y:auto;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}
 .result-box.success{border-color:var(--green)}
 .result-box.error{border-color:var(--red);color:var(--red)}
 .result-box.info{border-color:var(--accent)}
+.result-box.rich{white-space:normal;max-height:none}
+
+/* ── Rich markdown output ── */
+.md{color:var(--text);line-height:1.7;font-size:.9rem}
+.md h1,.md h2,.md h3,.md h4{margin:18px 0 10px;color:var(--accent);font-weight:700;line-height:1.3}
+.md h1{font-size:1.25rem;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.md h2{font-size:1.1rem;color:var(--accent2)}
+.md h3{font-size:1rem;color:var(--cyan)}
+.md h4{font-size:.92rem;color:#a5b4fc}
+.md p{margin:8px 0;color:var(--text)}
+.md ul{margin:8px 0 8px 4px;padding-left:20px;list-style:none}
+.md ul li{position:relative;margin:6px 0;color:var(--text);padding-left:16px}
+.md ul li::before{content:"▸";position:absolute;left:0;color:var(--accent);font-weight:700}
+.md strong{color:#f1f5f9;font-weight:600}
+.md em{color:#cbd5e1;font-style:italic}
+.md code{background:rgba(148,163,184,.15);color:#fbbf24;padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:.82rem}
+.md pre{background:#0b1120;border:1px solid var(--border);border-radius:6px;padding:12px;margin:10px 0;overflow-x:auto;font-family:ui-monospace,Menlo,monospace;font-size:.78rem;color:#cbd5e1;white-space:pre}
+.md hr{border:0;border-top:1px solid var(--border);margin:14px 0}
+.md .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.md .meta-pill{background:rgba(56,189,248,.1);color:var(--accent);padding:4px 12px;border-radius:999px;font-size:.75rem;font-weight:500;border:1px solid rgba(56,189,248,.2)}
+.md .meta-pill.green{background:rgba(34,197,94,.1);color:var(--green);border-color:rgba(34,197,94,.2)}
+.md .meta-pill.orange{background:rgba(245,158,11,.1);color:var(--orange);border-color:rgba(245,158,11,.2)}
+.md .meta-pill.red{background:rgba(239,68,68,.1);color:var(--red);border-color:rgba(239,68,68,.2)}
+.md .section{background:rgba(30,41,59,.5);border-left:3px solid var(--accent);border-radius:6px;padding:12px 16px;margin:12px 0}
+.md .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:.85rem;margin:6px 0}
+.md .kv dt{color:var(--text2);font-weight:500}
+.md .kv dd{color:var(--text)}
+.md .callout{background:rgba(56,189,248,.06);border-left:3px solid var(--accent);padding:10px 14px;border-radius:4px;margin:10px 0;font-size:.85rem;color:var(--text)}
+.md .callout.warn{background:rgba(245,158,11,.08);border-left-color:var(--orange);color:#fde68a}
+.md .callout.ok{background:rgba(34,197,94,.06);border-left-color:var(--green);color:#bbf7d0}
 
 /* ── Table ── */
 table{width:100%;border-collapse:collapse;font-size:.85rem}
@@ -127,12 +157,12 @@ tr:hover td{background:rgba(56,189,248,.03)}
   <nav>
     <button class="active" onclick="showPage('dashboard')"><span class="icon">&#128200;</span><span>Dashboard</span></button>
     <button onclick="showPage('portfolios')"><span class="icon">&#128188;</span><span>Portfolios</span></button>
-    <button onclick="showPage('transactions')"><span class="icon">&#128176;</span><span>Transactions</span></button>
-    <button onclick="showPage('risk')"><span class="icon">&#9888;&#65039;</span><span>Risk Scoring</span></button>
+    <button onclick="showPage('risk')"><span class="icon">&#128176;</span><span>Transaction Risk Analysis</span></button>
     <button onclick="showPage('analysis')"><span class="icon">&#129302;</span><span>AI Analysis</span></button>
     <button onclick="showPage('alerts')"><span class="icon">&#128276;</span><span>Alerts</span></button>
     <button onclick="showPage('search')"><span class="icon">&#128269;</span><span>Search</span></button>
     <button onclick="showPage('sentiment')"><span class="icon">&#128202;</span><span>Sentiment</span></button>
+    <button onclick="showPage('cases')"><span class="icon">&#128196;</span><span>Cases</span></button>
   </nav>
   <div class="agent-list">
     <h3>9 CrewAI Agents</h3>
@@ -179,7 +209,7 @@ tr:hover td{background:rgba(56,189,248,.03)}
         <strong style="color:var(--text)">Hybrid 3-tier scoring engine:</strong><br>
         &#x2460; <strong>13 Deterministic Rules</strong> (AML, sanctions, velocity, concentration) — 40% weight<br>
         &#x2461; <strong>GradientBoosting Classifier</strong> (97% accuracy) + <strong>IsolationForest</strong> (93% accuracy) — 60% weight<br>
-        &#x2462; <strong>LLM Fallback</strong> via Groq (llama-3.1-70b) for borderline scores (40-60)
+        &#x2462; <strong>LLM Fallback</strong> via Groq (llama-3.3-70b) for borderline scores (40-60)
       </p>
     </div>
 
@@ -312,68 +342,121 @@ tr:hover td{background:rgba(56,189,248,.03)}
   </div>
 
   <!-- ──── TRANSACTIONS ──── -->
-  <div id="page-transactions" class="page">
-    <h2 class="page-title">Transactions</h2>
-    <p class="page-desc">Record buy/sell transactions — auto-scored by ML risk engine</p>
+  <!-- Shared datalists for type-ahead dropdowns -->
+  <datalist id="dl-symbols">
+    <option value="AAPL"><option value="MSFT"><option value="GOOGL"><option value="AMZN">
+    <option value="META"><option value="NVDA"><option value="TSLA"><option value="JPM">
+    <option value="V"><option value="MA"><option value="BTC"><option value="ETH">
+    <option value="SOL"><option value="SPY"><option value="QQQ"><option value="VTI">
+  </datalist>
 
-    <div class="card">
-      <h3>&#128176; New Transaction</h3>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Portfolio ID</label>
-          <input type="number" id="txn-pid" placeholder="1" value="1">
-        </div>
-        <div class="form-group">
-          <label>Symbol</label>
-          <input type="text" id="txn-symbol" placeholder="AAPL" value="AAPL">
-        </div>
-        <div class="form-group">
-          <label>Type</label>
-          <select id="txn-type">
-            <option value="buy">Buy</option>
-            <option value="sell">Sell</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Quantity</label>
-          <input type="number" id="txn-qty" placeholder="10" value="10">
-        </div>
-        <div class="form-group">
-          <label>Price ($)</label>
-          <input type="number" id="txn-price" placeholder="150.00" step="0.01" value="182.30">
-        </div>
-        <div class="form-group">
-          <label>Fees ($)</label>
-          <input type="number" id="txn-fees" placeholder="4.99" step="0.01" value="4.99">
-        </div>
-        <div class="form-group">
-          <label>Sender Country</label>
-          <input type="text" id="txn-sender" placeholder="US" value="US">
-        </div>
-        <div class="form-group">
-          <label>Receiver Country</label>
-          <input type="text" id="txn-receiver" placeholder="US" value="US">
-        </div>
-        <div class="form-group full">
-          <label>Notes</label>
-          <input type="text" id="txn-notes" placeholder="Optional note about this transaction">
-        </div>
-      </div>
-      <div class="btn-group">
-        <button class="btn btn-primary" onclick="addTransaction()">Submit Transaction</button>
-      </div>
-      <div id="txn-result"></div>
-    </div>
-  </div>
+  <!--
+    Shared <select> template for symbol pickers. Any <select class="symbol-picker">
+    gets populated on load from window.SYMBOL_GROUPS. Add new tickers in one place.
+  -->
+  <template id="tpl-symbol-options">
+    <optgroup label="Tech (Mega-cap)">
+      <option value="AAPL">AAPL — Apple</option>
+      <option value="MSFT">MSFT — Microsoft</option>
+      <option value="GOOGL">GOOGL — Alphabet</option>
+      <option value="AMZN">AMZN — Amazon</option>
+      <option value="META">META — Meta Platforms</option>
+      <option value="NVDA">NVDA — NVIDIA</option>
+      <option value="TSLA">TSLA — Tesla</option>
+      <option value="NFLX">NFLX — Netflix</option>
+      <option value="ORCL">ORCL — Oracle</option>
+      <option value="AMD">AMD — AMD</option>
+      <option value="INTC">INTC — Intel</option>
+      <option value="CRM">CRM — Salesforce</option>
+      <option value="ADBE">ADBE — Adobe</option>
+      <option value="AVGO">AVGO — Broadcom</option>
+    </optgroup>
+    <optgroup label="Financials">
+      <option value="JPM">JPM — JPMorgan Chase</option>
+      <option value="BAC">BAC — Bank of America</option>
+      <option value="GS">GS — Goldman Sachs</option>
+      <option value="MS">MS — Morgan Stanley</option>
+      <option value="C">C — Citigroup</option>
+      <option value="WFC">WFC — Wells Fargo</option>
+      <option value="V">V — Visa</option>
+      <option value="MA">MA — Mastercard</option>
+      <option value="AXP">AXP — American Express</option>
+      <option value="PYPL">PYPL — PayPal</option>
+    </optgroup>
+    <optgroup label="Consumer / Healthcare / Energy">
+      <option value="WMT">WMT — Walmart</option>
+      <option value="COST">COST — Costco</option>
+      <option value="KO">KO — Coca-Cola</option>
+      <option value="PEP">PEP — PepsiCo</option>
+      <option value="PG">PG — Procter &amp; Gamble</option>
+      <option value="JNJ">JNJ — Johnson &amp; Johnson</option>
+      <option value="UNH">UNH — UnitedHealth</option>
+      <option value="PFE">PFE — Pfizer</option>
+      <option value="LLY">LLY — Eli Lilly</option>
+      <option value="XOM">XOM — ExxonMobil</option>
+      <option value="CVX">CVX — Chevron</option>
+    </optgroup>
+    <optgroup label="ETFs / Index">
+      <option value="SPY">SPY — S&amp;P 500 ETF</option>
+      <option value="QQQ">QQQ — Nasdaq 100 ETF</option>
+      <option value="VTI">VTI — Total Market ETF</option>
+      <option value="IWM">IWM — Russell 2000 ETF</option>
+      <option value="DIA">DIA — Dow Jones ETF</option>
+      <option value="GLD">GLD — Gold ETF</option>
+      <option value="TLT">TLT — 20Y Treasury ETF</option>
+    </optgroup>
+    <optgroup label="Crypto">
+      <option value="BTC">BTC — Bitcoin</option>
+      <option value="ETH">ETH — Ethereum</option>
+      <option value="SOL">SOL — Solana</option>
+      <option value="XRP">XRP — Ripple</option>
+      <option value="USDT">USDT — Tether</option>
+      <option value="USDC">USDC — USD Coin</option>
+      <option value="BNB">BNB — Binance Coin</option>
+      <option value="DOGE">DOGE — Dogecoin</option>
+    </optgroup>
+  </template>
+  <datalist id="dl-countries">
+    <option value="US">United States</option><option value="GB">United Kingdom</option>
+    <option value="CA">Canada</option><option value="AU">Australia</option>
+    <option value="DE">Germany</option><option value="FR">France</option>
+    <option value="NL">Netherlands</option><option value="IE">Ireland</option>
+    <option value="CH">Switzerland</option><option value="SE">Sweden</option>
+    <option value="SG">Singapore</option><option value="HK">Hong Kong</option>
+    <option value="JP">Japan</option><option value="KR">South Korea</option>
+    <option value="IN">India</option><option value="CN">China</option>
+    <option value="BR">Brazil</option><option value="MX">Mexico</option>
+    <option value="AE">UAE</option><option value="ZA">South Africa</option>
+    <option value="NG">Nigeria</option><option value="RU">Russia (high-risk)</option>
+    <option value="IR">Iran (sanctioned)</option><option value="KP">North Korea (sanctioned)</option>
+    <option value="SY">Syria (sanctioned)</option><option value="CU">Cuba (sanctioned)</option>
+    <option value="VE">Venezuela (high-risk)</option><option value="AF">Afghanistan (high-risk)</option>
+  </datalist>
+  <datalist id="dl-currencies">
+    <option value="USD"><option value="EUR"><option value="GBP"><option value="JPY">
+    <option value="CNY"><option value="AUD"><option value="CAD"><option value="SGD">
+    <option value="INR"><option value="CHF"><option value="HKD"><option value="BRL">
+    <option value="MXN"><option value="ZAR"><option value="AED"><option value="RUB">
+  </datalist>
 
-  <!-- ──── RISK SCORING ──── -->
+  <!-- ──── TRANSACTION RISK ANALYSIS ──── -->
   <div id="page-risk" class="page">
-    <h2 class="page-title">&#9888;&#65039; Risk Scoring</h2>
-    <p class="page-desc">Pre-screen transactions with the hybrid ML pipeline (Rules + ML + LLM)</p>
+    <h2 class="page-title">&#128176; Transaction Risk Analysis</h2>
+    <p class="page-desc">Record and score a transaction through the hybrid pipeline (Rules + ML + LLM). Scores ≥ 55 auto-open an investigation case.</p>
 
     <div class="card">
-      <h3>Score a Transaction</h3>
+      <h3>Record &amp; Score a Transaction</h3>
+
       <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio *</label>
+          <select id="risk-pid"><option value="">— Loading… —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Symbol *</label>
+          <select id="risk-symbol" class="symbol-picker"></select>
+        </div>
+
         <div class="form-group">
           <label>Amount ($)</label>
           <input type="number" id="risk-amount" placeholder="50000" value="50000" step="0.01">
@@ -386,8 +469,19 @@ tr:hover td{background:rgba(56,189,248,.03)}
             <option value="transfer">Transfer</option>
             <option value="withdrawal">Withdrawal</option>
             <option value="deposit">Deposit</option>
+            <option value="dividend">Dividend</option>
           </select>
         </div>
+
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="risk-qty" value="1" step="0.0001">
+        </div>
+        <div class="form-group">
+          <label>Fees ($)</label>
+          <input type="number" id="risk-fees" value="0" step="0.01">
+        </div>
+
         <div class="form-group">
           <label>Asset Type</label>
           <select id="risk-asset-type">
@@ -399,17 +493,19 @@ tr:hover td{background:rgba(56,189,248,.03)}
           </select>
         </div>
         <div class="form-group">
+          <label>Currency</label>
+          <input type="text" id="risk-currency" list="dl-currencies" value="USD">
+        </div>
+
+        <div class="form-group">
           <label>Sender Country</label>
-          <input type="text" id="risk-sender" placeholder="US" value="US">
+          <input type="text" id="risk-sender" list="dl-countries" value="US">
         </div>
         <div class="form-group">
           <label>Receiver Country</label>
-          <input type="text" id="risk-receiver" placeholder="US" value="US">
+          <input type="text" id="risk-receiver" list="dl-countries" value="US">
         </div>
-        <div class="form-group">
-          <label>Currency</label>
-          <input type="text" id="risk-currency" placeholder="USD" value="USD">
-        </div>
+
         <div class="form-group">
           <label>Channel</label>
           <select id="risk-channel">
@@ -418,6 +514,7 @@ tr:hover td{background:rgba(56,189,248,.03)}
             <option value="api">API</option>
             <option value="wire">Wire</option>
             <option value="atm">ATM</option>
+            <option value="branch">Branch</option>
           </select>
         </div>
         <div class="form-group">
@@ -426,8 +523,10 @@ tr:hover td{background:rgba(56,189,248,.03)}
             <option value="desktop">Desktop</option>
             <option value="mobile">Mobile</option>
             <option value="tablet">Tablet</option>
+            <option value="api">API/Server</option>
           </select>
         </div>
+
         <div class="form-group">
           <label>Is New Payee?</label>
           <select id="risk-new-payee"><option value="0">No</option><option value="1">Yes</option></select>
@@ -436,6 +535,7 @@ tr:hover td{background:rgba(56,189,248,.03)}
           <label>Account Age (days)</label>
           <input type="number" id="risk-acct-age" value="365">
         </div>
+
         <div class="form-group">
           <label>Customer Avg Txn ($)</label>
           <input type="number" id="risk-avg-txn" value="5000" step="0.01">
@@ -444,6 +544,7 @@ tr:hover td{background:rgba(56,189,248,.03)}
           <label>Txn Count (30d)</label>
           <input type="number" id="risk-txn-count" value="10">
         </div>
+
         <div class="form-group">
           <label>Failed Logins (24h)</label>
           <input type="number" id="risk-failed-logins" value="0">
@@ -452,6 +553,7 @@ tr:hover td{background:rgba(56,189,248,.03)}
           <label>IP Country Match</label>
           <select id="risk-ip-match"><option value="1">Yes</option><option value="0">No</option></select>
         </div>
+
         <div class="form-group">
           <label>PEP Flag</label>
           <select id="risk-pep"><option value="0">No</option><option value="1">Yes</option></select>
@@ -460,10 +562,17 @@ tr:hover td{background:rgba(56,189,248,.03)}
           <label>Is Sanctioned Country</label>
           <select id="risk-sanctioned"><option value="0">No</option><option value="1">Yes</option></select>
         </div>
+
+        <div class="form-group full">
+          <label>Notes</label>
+          <input type="text" id="risk-notes" placeholder="Optional note on this transaction">
+        </div>
       </div>
+
       <div class="btn-group">
-        <button class="btn btn-danger" onclick="scoreRisk()">&#9888;&#65039; Score Risk</button>
+        <button class="btn btn-danger" onclick="scoreRisk()">&#9888;&#65039; Record &amp; Score</button>
         <button class="btn btn-secondary" onclick="loadSuspiciousTxn()">Load Suspicious Example</button>
+        <button class="btn btn-secondary" onclick="loadPortfoliosForRisk()">Refresh Portfolios</button>
       </div>
       <div id="risk-result"></div>
     </div>
@@ -500,11 +609,13 @@ tr:hover td{background:rgba(56,189,248,.03)}
       <div class="form-grid">
         <div class="form-group">
           <label>Portfolio ID</label>
-          <input type="number" id="rec-pid" value="1">
+          <input type="number" id="rec-pid" value="1" onchange="loadPortfolioSymbols()">
         </div>
         <div class="form-group">
           <label>Symbol</label>
-          <input type="text" id="rec-symbol" placeholder="AAPL" value="AAPL">
+          <select id="rec-symbol">
+            <option value="">— Select a symbol —</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Risk Profile</label>
@@ -630,13 +741,76 @@ tr:hover td{background:rgba(56,189,248,.03)}
       <div class="form-grid">
         <div class="form-group">
           <label>Symbol</label>
-          <input type="text" id="sent-symbol" placeholder="AAPL" value="AAPL">
+          <select id="sent-symbol" class="symbol-picker"></select>
         </div>
       </div>
       <div class="btn-group">
         <button class="btn btn-primary" onclick="getSentiment()">Analyze Sentiment</button>
       </div>
       <div id="sent-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── CASES ──── -->
+  <div id="page-cases" class="page">
+    <h2 class="page-title">&#128196; Case Queue</h2>
+    <p class="page-desc">Investigation queue for flagged transactions. Cases auto-open when a transaction scores ≥ 55.</p>
+
+    <div class="card">
+      <div class="btn-group" style="margin-bottom:8px">
+        <input type="password" id="cases-token" placeholder="Bearer token (optional — if AUTH_ENFORCED is on)" style="flex:1;min-width:260px;padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee">
+        <button class="btn btn-secondary" onclick="saveToken()">Save Token</button>
+      </div>
+      <div class="btn-group">
+        <select id="cases-state" style="padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee">
+          <option value="">All states</option>
+          <option value="open" selected>Open only</option>
+          <option value="new">new</option>
+          <option value="under_review">under_review</option>
+          <option value="escalated">escalated</option>
+          <option value="closed_cleared">closed_cleared</option>
+          <option value="closed_sar_filed">closed_sar_filed</option>
+          <option value="closed_false_positive">closed_false_positive</option>
+        </select>
+        <select id="cases-assignee" style="padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee">
+          <option value="">Anyone</option>
+          <option value="me">Assigned to me</option>
+          <option value="unassigned">Unassigned</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadCases()">Refresh</button>
+      </div>
+      <div id="cases-list" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card" id="case-detail-card" style="display:none">
+      <h3 id="case-detail-title">Case</h3>
+      <div id="case-detail-body"></div>
+
+      <h4 style="margin-top:14px">State transitions</h4>
+      <div class="btn-group" style="flex-wrap:wrap" id="case-detail-actions"></div>
+
+      <h4 style="margin-top:14px">Re-run AI analysis</h4>
+      <div class="btn-group" style="flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="analyzeCase('risk')">Risk reassessment</button>
+        <button class="btn btn-secondary" onclick="analyzeCase('compliance')">Compliance review</button>
+        <button class="btn btn-secondary" onclick="analyzeCase('portfolio')">Portfolio review</button>
+        <button class="btn btn-secondary" onclick="analyzeCase('recommendation')">Lightweight recommendation</button>
+        <span id="case-analyze-status" style="color:#888;margin-left:8px"></span>
+      </div>
+
+      <h4 style="margin-top:14px">Customer 360</h4>
+      <div id="case-customer-360"><em style="color:#888">Loading…</em></div>
+
+      <div style="margin-top:12px">
+        <textarea id="case-note-body" placeholder="Add a note…" style="width:100%;min-height:70px;padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee"></textarea>
+        <div class="btn-group" style="margin-top:6px">
+          <button class="btn btn-secondary" onclick="addCaseNote()">Add note</button>
+          <button class="btn btn-secondary" onclick="exportSar('json')">Export SAR (JSON)</button>
+          <button class="btn btn-secondary" onclick="exportSar('pdf')">Export SAR (PDF)</button>
+        </div>
+      </div>
+      <h4 style="margin-top:14px">Timeline</h4>
+      <div id="case-timeline" class="md"></div>
     </div>
   </div>
 
@@ -655,6 +829,13 @@ function showPage(name) {
   document.querySelectorAll('.sidebar nav button').forEach(b => b.classList.remove('active'));
   const btns = document.querySelectorAll('.sidebar nav button');
   btns.forEach(b => { if (b.textContent.toLowerCase().includes(name.split('-')[0]) || b.getAttribute('onclick')?.includes(name)) b.classList.add('active'); });
+  if (name === 'risk' && typeof loadPortfoliosForRisk === 'function') {
+    loadPortfoliosForRisk();
+    populateSymbolPickers();
+  }
+  if (name === 'portfolios' && typeof populateSymbolPickers === 'function') populateSymbolPickers();
+  if (name === 'sentiment' && typeof populateSymbolPickers === 'function') populateSymbolPickers();
+  if (name === 'analysis' && typeof loadPortfolioSymbols === 'function') loadPortfolioSymbols();
 }
 
 function switchTab(btn, tabId) {
@@ -676,6 +857,8 @@ function toast(msg, type='success') {
 // ── API helper ──
 async function api(path, method='GET', body=null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const tok = localStorage.getItem('finguard_token');
+  if (tok) opts.headers['Authorization'] = 'Bearer ' + tok;
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(API + path, opts);
   const data = await res.json();
@@ -696,11 +879,113 @@ function riskBadge(label) {
 }
 
 function jsonBlock(obj) {
-  return escapeHtml(JSON.stringify(obj, null, 2));
+  return `<pre style="background:#0b1120;border:1px solid var(--border);border-radius:6px;padding:12px;margin:8px 0;overflow-x:auto;font-family:ui-monospace,Menlo,monospace;font-size:.78rem;color:#cbd5e1;white-space:pre">${escapeHtml(JSON.stringify(obj, null, 2))}</pre>`;
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Markdown renderer (light) ──
+// Normalizes literal `\n` escape sequences and renders headers, bold, italics,
+// bullets, horizontal rules, code/pre, and paragraphs into clean HTML.
+function renderMarkdown(raw) {
+  if (raw == null) return '';
+  let text = String(raw);
+
+  // If the text came through with literal `\n` / `\t` escape sequences
+  // (e.g. from a JSON round-trip), turn them back into real whitespace.
+  text = text.replace(/\\r\\n/g, '\n')
+             .replace(/\\n/g, '\n')
+             .replace(/\\t/g, '  ')
+             .replace(/\\"/g, '"');
+
+  // Extract fenced code blocks first so their contents aren't touched.
+  const codeBlocks = [];
+  text = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+    codeBlocks.push(code.replace(/^\n/, '').replace(/\n$/, ''));
+    return `§§CODE${codeBlocks.length - 1}§§`;
+  });
+
+  // Escape everything; we re-insert structural HTML below.
+  text = escapeHtml(text);
+
+  // Inline formatting
+  text = text.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  text = text.replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+
+  // Block structure — walk line by line
+  const lines = text.split('\n');
+  const out = [];
+  let listOpen = false;
+  const closeList = () => { if (listOpen) { out.push('</ul>'); listOpen = false; } };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) { closeList(); out.push(''); continue; }
+
+    // Horizontal rule — "---" or a run of "─"
+    if (/^(-{3,}|─{3,}|═{3,})$/.test(trimmed)) {
+      closeList(); out.push('<hr>'); continue;
+    }
+
+    // Headers (ignore leading # inside already-escaped text)
+    const h = /^(#{1,4})\s+(.+)$/.exec(trimmed);
+    if (h) {
+      closeList();
+      const level = h[1].length;
+      out.push(`<h${level}>${h[2]}</h${level}>`);
+      continue;
+    }
+
+    // Section separator lines like "── Section ──"
+    const sep = /^[─=—]+\s*(.+?)\s*[─=—]+$/.exec(trimmed);
+    if (sep) { closeList(); out.push(`<h4>${sep[1]}</h4>`); continue; }
+
+    // Bullets: "- ", "* ", "• "
+    if (/^[-*•]\s+/.test(trimmed)) {
+      if (!listOpen) { out.push('<ul>'); listOpen = true; }
+      out.push(`<li>${trimmed.replace(/^[-*•]\s+/, '')}</li>`);
+      continue;
+    }
+
+    // Numbered list — render as bullets (keeps the number in text)
+    if (/^\d+\.\s+/.test(trimmed)) {
+      if (!listOpen) { out.push('<ul>'); listOpen = true; }
+      out.push(`<li>${trimmed}</li>`);
+      continue;
+    }
+
+    closeList();
+    out.push(`<p>${line}</p>`);
+  }
+  closeList();
+
+  let html = out.join('\n');
+
+  // Restore fenced code blocks
+  html = html.replace(/§§CODE(\d+)§§/g, (_, idx) =>
+    `<pre>${escapeHtml(codeBlocks[+idx])}</pre>`);
+
+  // Collapse runs of empty paragraphs
+  html = html.replace(/(<p><\/p>\s*){2,}/g, '<p></p>');
+
+  return `<div class="md">${html}</div>`;
+}
+
+// ── Metadata pill row (for analysis/recommendation headers) ──
+function metaRow(pills) {
+  const items = pills.filter(Boolean).map(p =>
+    `<span class="meta-pill ${p.tone || ''}">${escapeHtml(p.label)}</span>`
+  ).join('');
+  return items ? `<div class="meta-row">${items}</div>` : '';
+}
+
+function fmtTimestamp(iso) {
+  try { return new Date(iso).toLocaleString(); } catch { return iso || ''; }
 }
 
 // ── Dashboard ──
@@ -825,50 +1110,103 @@ async function addAsset() {
   } catch(e) { resultHtml('asset-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
 }
 
-// ── Transaction ──
-async function addTransaction() {
-  loadingHtml('txn-result');
+// ── Transaction Risk Analysis ──
+// Loads portfolios into the risk form dropdown.
+async function loadPortfoliosForRisk() {
+  const sel = document.getElementById('risk-pid');
+  if (!sel) return;
   try {
-    const pid = document.getElementById('txn-pid').value;
-    const d = await api('/portfolio/' + pid + '/transaction', 'POST', {
-      symbol:           document.getElementById('txn-symbol').value,
-      type:             document.getElementById('txn-type').value,
-      quantity:         +document.getElementById('txn-qty').value,
-      price:            +document.getElementById('txn-price').value,
-      fees:             +document.getElementById('txn-fees').value,
-      sender_country:   document.getElementById('txn-sender').value,
-      receiver_country: document.getElementById('txn-receiver').value,
-      notes:            document.getElementById('txn-notes').value || undefined,
-    });
-    let html = `<strong>✅ Transaction Recorded!</strong>\n\n` +
-      `<strong>ID:</strong>     #${d.id}\n` +
-      `<strong>Symbol:</strong> ${escapeHtml(d.symbol)}\n` +
-      `<strong>Type:</strong>   ${d.type}\n` +
-      `<strong>Amount:</strong> $${Number(d.amount).toLocaleString()}\n` +
-      `<strong>Time:</strong>   ${d.timestamp}`;
-    if (d.risk) {
-      html += `\n\n── ML Risk Assessment ─────────────\n` +
-        `<strong>Risk Score:</strong>  ${d.risk.risk_score}/100 ${riskBadge(d.risk.risk_label)}\n` +
-        `<strong>Method:</strong>      ${d.risk.method}\n` +
-        `<strong>Hard Block:</strong>  ${d.risk.hard_block ? '🚫 YES' : '✅ No'}\n` +
-        `<strong>Flags:</strong>       ${d.risk.flags?.length ? d.risk.flags.join(', ') : 'None'}`;
+    const resp = await api('/portfolios');
+    const list = Array.isArray(resp) ? resp : (resp.portfolios || []);
+    if (list.length === 0) {
+      sel.innerHTML = '<option value="">— No portfolios, create one first —</option>';
+      return;
     }
-    resultHtml('txn-result', html);
-    toast('Transaction recorded' + (d.risk ? ` — Risk: ${d.risk.risk_label}` : ''));
-  } catch(e) { resultHtml('txn-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+    sel.innerHTML = list.map(p =>
+      `<option value="${p.id}">#${p.id} — ${escapeHtml(p.name || 'Portfolio')} (user ${escapeHtml(String(p.user_id))})</option>`
+    ).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="">— Failed to load portfolios —</option>';
+    toast('Could not load portfolios: ' + e.message, 'error');
+  }
 }
 
-// ── Risk Scoring ──
+// Populate all symbol picker selects with options from template
+async function populateSymbolPickers() {
+  const template = document.getElementById('tpl-symbol-options');
+  if (!template) return;
+  
+  const pickers = document.querySelectorAll('.symbol-picker');
+  if (pickers.length === 0) return;
+  
+  try {
+    // Get HTML from template
+    let templateHtml = template.innerHTML;
+    
+    // Populate each picker with the template content
+    pickers.forEach(picker => {
+      // Only populate if empty
+      if (picker.options.length <= 1) {
+        picker.innerHTML = templateHtml;
+        picker.parentElement.style.cursor = 'pointer';
+      }
+    });
+  } catch(e) {
+    console.warn('Failed to populate symbol pickers:', e.message);
+    // Fallback: Add basic options manually
+    const basicSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'JPM', 'JNJ', 'WMT', 'PFE'];
+    pickers.forEach(picker => {
+      if (picker.options.length <= 1) {
+        basicSymbols.forEach(sym => {
+          const opt = document.createElement('option');
+          opt.value = sym;
+          opt.textContent = sym;
+          picker.appendChild(opt);
+        });
+      }
+    });
+  }
+}
+
+new MutationObserver(() => {
+  // When DOM changes, ensure symbol pickers are still populated
+  const pickers = document.querySelectorAll('.symbol-picker:not([data-populated])');
+  if (pickers.length > 0) {
+    const template = document.getElementById('tpl-symbol-options');
+    if (template) {
+      pickers.forEach(picker => {
+        if (picker.options.length <= 1) {
+          picker.innerHTML = template.innerHTML;
+          picker.setAttribute('data-populated', 'true');
+        }
+      });
+    }
+  }
+}).observe(document.body, { childList: true, subtree: true });
+
+
 async function scoreRisk() {
   loadingHtml('risk-result');
   try {
-    const d = await api('/transaction/score-risk', 'POST', {
-      amount:                    +document.getElementById('risk-amount').value,
-      transaction_type:          document.getElementById('risk-type').value,
+    const pid = document.getElementById('risk-pid').value;
+    if (!pid) { resultHtml('risk-result', '❌ Select a portfolio first', 'error'); return; }
+
+    const amount = +document.getElementById('risk-amount').value;
+    const qty    = +document.getElementById('risk-qty').value || 1;
+    // Derive price so quantity * price ≈ amount (keeps ledger consistent).
+    const price  = qty > 0 ? amount / qty : amount;
+
+    const payload = {
+      symbol:                    document.getElementById('risk-symbol').value,
+      type:                      document.getElementById('risk-type').value,
+      quantity:                  qty,
+      price:                     price,
+      fees:                      +document.getElementById('risk-fees').value || 0,
+      notes:                     document.getElementById('risk-notes').value || undefined,
       asset_type:                document.getElementById('risk-asset-type').value,
+      currency:                  document.getElementById('risk-currency').value,
       sender_country:            document.getElementById('risk-sender').value,
       receiver_country:          document.getElementById('risk-receiver').value,
-      currency:                  document.getElementById('risk-currency').value,
       channel:                   document.getElementById('risk-channel').value,
       device_type:               document.getElementById('risk-device').value,
       is_new_payee:              +document.getElementById('risk-new-payee').value,
@@ -879,31 +1217,110 @@ async function scoreRisk() {
       ip_country_match:          +document.getElementById('risk-ip-match').value,
       pep_flag:                  +document.getElementById('risk-pep').value,
       is_sanctioned_country:     +document.getElementById('risk-sanctioned').value,
-    });
-    let html = `<strong>ML Risk Assessment</strong>\n\n` +
-      `  Score:          <strong style="font-size:1.5rem;color:${d.risk_score >= 55 ? 'var(--red)' : d.risk_score >= 30 ? 'var(--orange)' : 'var(--green)'}">${d.risk_score}/100</strong>  ${riskBadge(d.risk_label)}\n` +
-      `  Method:         ${d.method}\n` +
-      `  Hard Block:     ${d.hard_block ? '🚫 YES — Transaction blocked' : '✅ No'}\n` +
-      `  LLM Review:     ${d.needs_llm_review ? '⚠️ Yes — Borderline score' : 'No'}\n` +
-      `  Flags:          ${d.flags?.length ? d.flags.join(', ') : 'None'}\n` +
-      `\n── Rule Engine Details ─────────────\n` +
-      `  Rule Score:     ${d.rule_details.rule_score}/100\n` +
-      `  Rule Flags:     ${d.rule_details.flags?.length ? d.rule_details.flags.join(', ') : 'None'}\n`;
-    if (d.rule_details.details) {
-      Object.entries(d.rule_details.details).forEach(([k,v]) => {
-        if (v) html += `  ${k}: ${v}\n`;
-      });
+    };
+
+    const d = await api('/portfolio/' + pid + '/transaction', 'POST', payload);
+    const r = d.risk || {};
+    const score = r.risk_score;
+    const tone  = score >= 55 ? 'error' : 'success';
+
+    let html = `<strong>✅ Transaction Recorded</strong>\n\n` +
+      `  Txn ID:         #${d.id}\n` +
+      `  Symbol:         ${escapeHtml(d.symbol)}\n` +
+      `  Type:           ${d.type}\n` +
+      `  Amount:         $${Number(d.amount).toLocaleString()}\n` +
+      `  Time:           ${new Date(d.timestamp).toLocaleString()}\n`;
+
+    if (r && score != null) {
+      html += `\n── Hybrid Risk Assessment ─────────────\n` +
+        `  Score:          <strong style="font-size:1.5rem;color:${score >= 55 ? 'var(--red)' : score >= 30 ? 'var(--orange)' : 'var(--green)'}">${score}/100</strong>  ${riskBadge(r.risk_label)}\n` +
+        `  Method:         ${r.method}\n` +
+        `  Hard Block:     ${r.hard_block ? '🚫 YES — Transaction blocked' : '✅ No'}\n` +
+        `  LLM Review:     ${r.needs_llm_review ? '⚠️ Yes — Borderline score' : 'No'}\n` +
+        `  Flags:          ${r.flags?.length ? r.flags.join(', ') : 'None'}\n`;
+
+      if (r.case_id) {
+        html += `  Case Opened:    <strong>#${r.case_id}</strong> — <a href="#" onclick="showPage('cases');loadCases();return false;">View in Cases</a>\n`;
+      }
+
+      if (r.rule_details) {
+        html += `\n── Rule Engine Details ─────────────\n` +
+          `  Rule Score:     ${r.rule_details.rule_score}/100\n` +
+          `  Rule Flags:     ${r.rule_details.flags?.length ? r.rule_details.flags.join(', ') : 'None'}\n`;
+        if (r.rule_details.details) {
+          Object.entries(r.rule_details.details).forEach(([k,v]) => {
+            if (v) html += `  ${k}: ${v}\n`;
+          });
+        }
+      }
+
+      if (r.ml_details) {
+        html += `\n── ML Model Details ─────────────\n` +
+          `  ML Risk Score:    ${r.ml_details.ml_risk_score ?? 'N/A'}\n` +
+          `  ML Risk Label:    ${r.ml_details.ml_risk_label ?? 'N/A'}\n` +
+          `  Fraud Flag:       ${r.ml_details.ml_fraud_flag ? '🚨 YES' : '✅ No'}\n` +
+          `  Anomaly Score:    ${r.ml_details.ml_anomaly_score != null ? Number(r.ml_details.ml_anomaly_score).toFixed(4) : 'N/A'}\n` +
+          `  Confidence:       ${r.ml_details.ml_confidence != null ? (Number(r.ml_details.ml_confidence)*100).toFixed(1)+'%' : 'N/A'}`;
+      }
+    } else {
+      html += `\n<em>Risk engine unavailable — transaction was recorded but not scored.</em>`;
     }
-    html += `\n── ML Model Details ─────────────\n` +
-      `  ML Risk Score:    ${d.ml_details.ml_risk_score ?? 'N/A'}\n` +
-      `  ML Risk Label:    ${d.ml_details.ml_risk_label ?? 'N/A'}\n` +
-      `  Fraud Flag:       ${d.ml_details.ml_fraud_flag ? '🚨 YES' : '✅ No'}\n` +
-      `  Anomaly Score:    ${d.ml_details.ml_anomaly_score != null ? Number(d.ml_details.ml_anomaly_score).toFixed(4) : 'N/A'}\n` +
-      `  Confidence:       ${d.ml_details.ml_confidence != null ? (Number(d.ml_details.ml_confidence)*100).toFixed(1)+'%' : 'N/A'}`;
-    resultHtml('risk-result', html, d.risk_score >= 55 ? 'error' : 'success');
-    toast(`Risk Score: ${d.risk_score}/100 (${d.risk_label})`, d.risk_score >= 55 ? 'error' : 'success');
+
+    resultHtml('risk-result', html, tone);
+    toast(
+      score != null
+        ? `Recorded #${d.id} — Risk ${score}/100 (${r.risk_label})${r.case_id ? ` — Case #${r.case_id}` : ''}`
+        : `Recorded #${d.id}`,
+      tone
+    );
+
+    if (r && score != null) {
+      await getTransactionAIInsights(
+        { risk_score: score, rule_details: r.rule_details || { details: {} } },
+        {
+          amount:            amount,
+          transaction_type:  payload.type,
+          asset_type:        payload.asset_type,
+          receiver_country:  payload.receiver_country,
+        }
+      );
+    }
   } catch(e) { resultHtml('risk-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
 }
+
+// ── AI Insights for Transaction ──
+async function getTransactionAIInsights(scoreData, transactionData) {
+  try {
+    const insightsData = await api('/transaction/get-ai-insights', 'POST', {
+      transaction: transactionData,
+      score: scoreData.risk_score,
+      factors: scoreData.rule_details.details || {}
+    });
+    
+    // Format insights as nice HTML
+    let insightsHtml = formatAIInsights(insightsData.insights, insightsData.success);
+    
+    // Append to existing results
+    let resultBox = document.getElementById('risk-result');
+    let newContent = resultBox.innerHTML + insightsHtml;
+    resultBox.innerHTML = newContent;
+    
+  } catch(e) {
+    // Silent fail - AI insights are optional
+    console.log('AI insights unavailable:', e.message);
+  }
+}
+
+// Format AI-generated insight/recommendation/sentiment text as rich markdown
+function formatAIInsights(insightsText, isSuccess) {
+  const body = renderMarkdown(insightsText);
+  const header = `<div class="meta-row"><span class="meta-pill">🤖 AI Agent Analysis</span>${isSuccess === false ? '<span class="meta-pill orange">Fallback mode</span>' : ''}</div>`;
+  const footer = isSuccess === false
+    ? `<div class="callout warn">Limited AI service — the analysis above is rule-based.</div>`
+    : '';
+  return header + body + footer;
+}
+
 
 function loadSuspiciousTxn() {
   document.getElementById('risk-amount').value = 950000;
@@ -935,31 +1352,113 @@ async function runAnalysis() {
   document.getElementById('ai-result').innerHTML = `<div class="result-box info"><span class="spinner"></span> Running full 9-agent CrewAI pipeline on Portfolio #${pid}...\nThis involves: Alert Intake → Context → Risk → Explanation → Escalation → Portfolio → Detection → Market → Compliance\n\n<strong>Please wait 1-3 minutes...</strong></div>`;
   try {
     const d = await api('/portfolio/' + pid + '/analyze', 'POST');
-    let html = '<strong>✅ AI Analysis Complete!</strong>\n\n';
+    let html = '';
     if (typeof d === 'string') {
-      html += escapeHtml(d);
+      html = renderMarkdown(d);
     } else {
-      html += jsonBlock(d);
+      const pills = [
+        { label: '✅ Analysis Complete', tone: 'green' },
+        d.portfolio_id != null ? { label: `Portfolio #${d.portfolio_id}` } : null,
+        d.agents_used ? { label: `${d.agents_used} agents` } : null,
+        d.crews_run ? { label: `${d.crews_run} crews run` } : null,
+        d.rate_limited ? { label: 'Rate limited', tone: 'orange' } : null,
+        d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+      ];
+      html = metaRow(pills);
+      if (d.crew_output) {
+        html += renderMarkdown(d.crew_output);
+      } else {
+        // Fallback — render any other string fields, then JSON for the rest
+        const stringFields = Object.entries(d).filter(([, v]) => typeof v === 'string' && v.length > 60);
+        for (const [, v] of stringFields) html += renderMarkdown(v);
+        const leftover = Object.fromEntries(
+          Object.entries(d).filter(([k]) => !['crew_output','timestamp','portfolio_id','agents_used','crews_run','rate_limited'].includes(k))
+        );
+        if (Object.keys(leftover).length && !stringFields.length) html += jsonBlock(leftover);
+      }
     }
-    resultHtml('ai-result', html);
+    document.getElementById('ai-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
     toast('AI Analysis complete!');
-  } catch(e) { resultHtml('ai-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+  } catch(e) {
+    let errorMsg = e.message || 'Analysis failed';
+    let userFriendlyMsg = errorMsg;
+    
+    // Parse detailed errors from API response
+    if (errorMsg.includes('rate limit') || errorMsg.includes('429')) {
+      userFriendlyMsg = 'Rate limit exceeded - please wait a moment and try again';
+    } else if (errorMsg.includes('API key') || errorMsg.includes('401')) {
+      userFriendlyMsg = 'API authentication failed - check GROQ_API_KEY';
+    } else if (errorMsg.includes('Connection') || errorMsg.includes('503')) {
+      userFriendlyMsg = 'AI service temporarily unavailable - please try again later';
+    }
+    
+    resultHtml('ai-result', `<div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 6px;"><div style="color: #fca5a5; font-weight: 600; margin-bottom: 8px;">⚠️ Analysis Failed</div><div style="color: #fee2e2; line-height: 1.6;">${escapeHtml(userFriendlyMsg)}</div></div>`, 'error');
+    toast(userFriendlyMsg, 'error');
+  }
   btn.disabled = false;
   btn.innerHTML = '🤖 Run Full AI Analysis';
+}
+
+// Load portfolio symbols for recommendation
+async function loadPortfolioSymbols() {
+  const pid = document.getElementById('rec-pid').value;
+  const sel = document.getElementById('rec-symbol');
+  
+  if (!pid) {
+    sel.innerHTML = '<option value="">— Select a portfolio first —</option>';
+    return;
+  }
+  
+  try {
+    sel.innerHTML = '<option value="">— Loading symbols… —</option>';
+    const resp = await api('/portfolio/' + pid + '/assets');
+    const assets = resp.assets || [];
+    
+    if (assets.length === 0) {
+      sel.innerHTML = '<option value="">— No assets in this portfolio —</option>';
+      toast('Portfolio has no assets', 'info');
+      return;
+    }
+    
+    // Build options from portfolio assets
+    let html = '<option value="">— Select a symbol —</option>';
+    assets.forEach(asset => {
+      html += `<option value="${escapeHtml(asset.symbol)}">${escapeHtml(asset.symbol)} — ${escapeHtml(asset.name || asset.symbol)}</option>`;
+    });
+    
+    sel.innerHTML = html;
+    toast(`Loaded ${assets.length} symbols from portfolio`, 'success');
+  } catch(e) {
+    sel.innerHTML = '<option value="">— Failed to load symbols —</option>';
+    toast('Could not load portfolio assets: ' + e.message, 'error');
+  }
 }
 
 async function getRecommendation() {
   loadingHtml('rec-result');
   try {
     const pid = document.getElementById('rec-pid').value;
+    const symbol = document.getElementById('rec-symbol').value;
+    
+    if (!symbol) {
+      resultHtml('rec-result', '❌ Please select a symbol first', 'error');
+      return;
+    }
+    
     const d = await api('/portfolio/' + pid + '/recommendation', 'POST', {
-      symbol: document.getElementById('rec-symbol').value,
+      symbol: symbol,
       risk_profile: document.getElementById('rec-risk').value,
     });
-    let html = '<strong>✅ AI Recommendation</strong>\n\n';
-    if (typeof d === 'string') html += escapeHtml(d);
-    else html += jsonBlock(d);
-    resultHtml('rec-result', html);
+    const pills = [
+      { label: '✅ Recommendation', tone: 'green' },
+      d.symbol ? { label: d.symbol } : null,
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    let html = metaRow(pills);
+    if (typeof d === 'string')        html += renderMarkdown(d);
+    else if (d.recommendation)        html += renderMarkdown(d.recommendation);
+    else                              html += jsonBlock(d);
+    document.getElementById('rec-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
     toast('Recommendation received!');
   } catch(e) { resultHtml('rec-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
 }
@@ -1026,13 +1525,24 @@ async function runSearch() {
       resultHtml('search-result', 'No results found. Try a different query or run an AI analysis first to populate the knowledge base.', 'info');
       return;
     }
-    let html = `<strong>Found ${d.results.length} results</strong>\n\n`;
+    let html = metaRow([{ label: `Found ${d.results.length} results`, tone: 'green' }]);
     d.results.forEach((r, i) => {
-      html += `── Result ${i+1} ──────────────\n`;
-      if (typeof r === 'string') html += escapeHtml(r) + '\n\n';
-      else html += jsonBlock(r) + '\n\n';
+      html += `<h3>Result ${i+1}</h3>`;
+      if (typeof r === 'string') {
+        html += renderMarkdown(r);
+      } else if (r && typeof r === 'object') {
+        const textField = r.content || r.text || r.analysis || r.document;
+        if (typeof textField === 'string') html += renderMarkdown(textField);
+        const meta = Object.entries(r).filter(([k, v]) => typeof v !== 'object' && k !== 'content' && k !== 'text' && k !== 'analysis' && k !== 'document');
+        if (meta.length) {
+          html += '<dl class="kv">';
+          for (const [k, v] of meta) html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`;
+          html += '</dl>';
+        }
+        if (!textField && !meta.length) html += jsonBlock(r);
+      }
     });
-    resultHtml('search-result', html);
+    document.getElementById('search-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
     toast(`Found ${d.results.length} results`);
   } catch(e) { resultHtml('search-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
 }
@@ -1044,12 +1554,272 @@ async function getSentiment() {
   loadingHtml('sent-result');
   try {
     const d = await api('/sentiment/' + sym.toUpperCase());
-    let html = `<strong>📊 Market Sentiment: ${sym.toUpperCase()}</strong>\n\n`;
-    if (typeof d === 'string') html += escapeHtml(d);
-    else html += jsonBlock(d);
-    resultHtml('sent-result', html);
+    const pills = [
+      { label: `📊 Market Sentiment`, tone: 'green' },
+      { label: sym.toUpperCase() },
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    let html = metaRow(pills);
+    if (typeof d === 'string')         html += renderMarkdown(d);
+    else if (d.sentiment_analysis)     html += renderMarkdown(d.sentiment_analysis);
+    else                               html += jsonBlock(d);
+    document.getElementById('sent-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
     toast('Sentiment loaded for ' + sym.toUpperCase());
   } catch(e) { resultHtml('sent-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Cases ──
+function saveToken() {
+  const v = (document.getElementById('cases-token').value || '').trim();
+  if (v) { localStorage.setItem('finguard_token', v); toast('Token saved'); }
+  else   { localStorage.removeItem('finguard_token'); toast('Token cleared'); }
+}
+
+let _currentCase = null;
+
+async function loadCases() {
+  const state = document.getElementById('cases-state').value;
+  const assignee = document.getElementById('cases-assignee').value;
+  const params = new URLSearchParams();
+  if (state) params.set('state', state);
+  if (assignee) params.set('assignee', assignee);
+  params.set('per_page', '50');
+  try {
+    const d = await api('/cases?' + params.toString());
+    const rows = d.items || [];
+    if (!rows.length) {
+      document.getElementById('cases-list').innerHTML =
+        '<p style="color:#888">No cases match these filters.</p>';
+      return;
+    }
+    const html = [
+      '<table style="width:100%;border-collapse:collapse">',
+      '<thead><tr style="text-align:left;border-bottom:1px solid #334">',
+      '<th style="padding:6px">ID</th><th style="padding:6px">Title</th>',
+      '<th style="padding:6px">Risk</th><th style="padding:6px">State</th>',
+      '<th style="padding:6px">Priority</th><th style="padding:6px">Opened</th>',
+      '<th style="padding:6px">Assignee</th><th></th>',
+      '</tr></thead><tbody>',
+      ...rows.map(c => {
+        const tone = c.risk_label === 'critical' ? '#e74c3c'
+                   : c.risk_label === 'high'     ? '#e67e22'
+                   : c.risk_label === 'medium'   ? '#f1c40f' : '#7f8c8d';
+        return `<tr style="border-bottom:1px solid #222">
+          <td style="padding:6px">#${c.id}</td>
+          <td style="padding:6px">${escapeHtml(c.title || '')}</td>
+          <td style="padding:6px;color:${tone}">${c.risk_score}/100 ${c.risk_label || ''}</td>
+          <td style="padding:6px">${c.state}</td>
+          <td style="padding:6px">${c.priority}</td>
+          <td style="padding:6px">${c.opened_at ? fmtTimestamp(c.opened_at) : ''}</td>
+          <td style="padding:6px">${escapeHtml(c.assignee_email || '—')}</td>
+          <td style="padding:6px"><button class="btn btn-secondary" onclick="openCase(${c.id})">Open</button></td>
+        </tr>`;
+      }),
+      '</tbody></table>',
+      `<p style="color:#888;margin-top:6px">${d.total} total</p>`,
+    ].join('');
+    document.getElementById('cases-list').innerHTML = html;
+  } catch (e) {
+    document.getElementById('cases-list').innerHTML =
+      `<div class="result-box error">❌ ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function openCase(id) {
+  try {
+    const c = await api('/cases/' + id);
+    _currentCase = c;
+    document.getElementById('case-detail-card').style.display = 'block';
+    document.getElementById('case-detail-title').textContent =
+      `Case #${c.id} — ${c.title}`;
+    const fields = [
+      ['State', c.state], ['Priority', c.priority],
+      ['Risk', `${c.risk_score}/100 ${c.risk_label || ''}`],
+      ['Symbol', c.symbol || '—'], ['Amount', c.amount ?? '—'],
+      ['Subject', c.subject_user || '—'],
+      ['Opened', c.opened_at || '—'], ['SLA due', c.sla_due_at || '—'],
+      ['Assignee', c.assignee_email || '—'],
+      ['Flags', (c.flags || []).join(', ') || '—'],
+    ];
+    document.getElementById('case-detail-body').innerHTML =
+      '<table style="width:100%">' +
+      fields.map(([k, v]) =>
+        `<tr><td style="padding:4px;color:#888;width:140px">${k}</td>
+              <td style="padding:4px">${escapeHtml(String(v))}</td></tr>`
+      ).join('') + '</table>';
+
+    // Available transitions
+    const legal = {
+      new: ['under_review', 'closed_false_positive', 'closed_cleared'],
+      under_review: ['escalated', 'closed_cleared', 'closed_sar_filed', 'closed_false_positive'],
+      escalated: ['closed_sar_filed', 'closed_cleared', 'closed_false_positive'],
+    };
+    const targets = legal[c.state] || [];
+    const actions = document.getElementById('case-detail-actions');
+    actions.innerHTML = '';
+    if (!targets.length) {
+      actions.innerHTML = '<span style="color:#888">Closed — no further transitions.</span>';
+    } else {
+      targets.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'btn btn-primary';
+        b.textContent = '→ ' + t;
+        b.onclick = () => transitionCase(t);
+        actions.appendChild(b);
+      });
+      const assignBtn = document.createElement('button');
+      assignBtn.className = 'btn btn-secondary';
+      assignBtn.textContent = 'Assign to me';
+      assignBtn.onclick = assignToMe;
+      actions.appendChild(assignBtn);
+    }
+
+    // Customer 360 (async, doesn't block timeline render)
+    loadCustomer360(c.id);
+
+    // Timeline
+    const tl = (c.events || []).map(e => {
+      const head = `**${e.event_type}** · ${fmtTimestamp(e.timestamp)} · ${escapeHtml(e.actor_email || 'system')}`;
+      const body = e.body ? escapeHtml(e.body) : '';
+      const states = (e.from_state || e.to_state)
+        ? `\n   ${e.from_state || '∅'} → ${e.to_state || '∅'}` : '';
+      return `- ${head}${states}${body ? '\n   ' + body : ''}`;
+    }).join('\n') || '_(no events)_';
+    document.getElementById('case-timeline').innerHTML = renderMarkdown(tl);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function transitionCase(to_state) {
+  if (!_currentCase) return;
+  const reason = prompt(`Reason for transition to ${to_state}:`, '') || '';
+  try {
+    await api(`/cases/${_currentCase.id}/transition`, 'POST', { to_state, reason });
+    toast('Transitioned to ' + to_state);
+    await openCase(_currentCase.id);
+    loadCases();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function assignToMe() {
+  if (!_currentCase) return;
+  try {
+    await api(`/cases/${_currentCase.id}/assign`, 'POST', { assignee_id: 'me' });
+    toast('Assigned to you');
+    await openCase(_currentCase.id);
+    loadCases();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function addCaseNote() {
+  if (!_currentCase) return;
+  const body = document.getElementById('case-note-body').value.trim();
+  if (!body) { toast('Note is empty', 'error'); return; }
+  try {
+    await api(`/cases/${_currentCase.id}/notes`, 'POST', { body });
+    document.getElementById('case-note-body').value = '';
+    toast('Note added');
+    openCase(_currentCase.id);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function analyzeCase(action) {
+  if (!_currentCase) return;
+  const status = document.getElementById('case-analyze-status');
+  status.textContent = `Running ${action}…`;
+  try {
+    const r = await api(`/cases/${_currentCase.id}/analyze`, 'POST', { action });
+    status.textContent = `${r.label} complete.`;
+    toast(r.label + ' complete');
+    // Refresh the detail view so the new timeline entry shows up.
+    openCase(_currentCase.id);
+  } catch (e) {
+    status.textContent = '';
+    toast(e.message, 'error');
+  }
+}
+
+async function loadCustomer360(caseId) {
+  const host = document.getElementById('case-customer-360');
+  host.innerHTML = '<em style="color:#888">Loading…</em>';
+  try {
+    const d = await api(`/cases/${caseId}/customer-360`);
+    const s = d.summary || {};
+    const topFlags = (s.top_flags || [])
+      .map(([f, n]) => `<span class="pill">${escapeHtml(f)} × ${n}</span>`).join(' ');
+
+    const priorRows = (d.prior_cases || []).slice(0, 10).map(c => {
+      const tone = c.risk_label === 'critical' ? '#e74c3c'
+                 : c.risk_label === 'high'     ? '#e67e22'
+                 : c.risk_label === 'medium'   ? '#f1c40f' : '#7f8c8d';
+      return `<tr style="border-bottom:1px solid #222">
+        <td style="padding:4px">#${c.id}</td>
+        <td style="padding:4px">${escapeHtml(c.title || '')}</td>
+        <td style="padding:4px">${c.state}</td>
+        <td style="padding:4px;color:${tone}">${c.risk_score}/100</td>
+        <td style="padding:4px">${c.opened_at ? fmtTimestamp(c.opened_at) : ''}</td>
+        <td style="padding:4px"><button class="btn btn-secondary" onclick="openCase(${c.id})">Open</button></td>
+      </tr>`;
+    }).join('');
+
+    const priorHtml = d.prior_cases && d.prior_cases.length
+      ? `<table style="width:100%;border-collapse:collapse;margin-top:6px">
+           <thead><tr style="text-align:left;border-bottom:1px solid #334">
+             <th style="padding:4px">ID</th><th style="padding:4px">Title</th>
+             <th style="padding:4px">State</th><th style="padding:4px">Risk</th>
+             <th style="padding:4px">Opened</th><th></th>
+           </tr></thead><tbody>${priorRows}</tbody></table>`
+      : '<p style="color:#888">No prior cases for this subject.</p>';
+
+    const txn = d.transaction_summary;
+    const txnHtml = txn
+      ? `<p>${txn.count} transactions · total $${txn.total_amount.toFixed(2)} · avg $${txn.avg_amount.toFixed(2)} · max $${txn.max_amount.toFixed(2)} · ${d.alerts_count} alerts</p>`
+      : '<p style="color:#888">No portfolio linked to this case.</p>';
+
+    host.innerHTML = `
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px">
+        <div><b>Prior cases:</b> ${s.prior_case_count || 0}</div>
+        <div><b>Open:</b> ${s.open_case_count || 0}</div>
+        <div><b>SAR filed:</b> ${s.sar_filed_count || 0}</div>
+        <div><b>False positives:</b> ${s.false_positive_count || 0}</div>
+      </div>
+      <div style="margin-bottom:8px">${topFlags || '<span style="color:#888">No flags recorded.</span>'}</div>
+      ${txnHtml}
+      <h5 style="margin-top:10px">Prior cases</h5>
+      ${priorHtml}
+    `;
+  } catch (e) {
+    host.innerHTML = `<div class="result-box error">❌ ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function exportSar(fmt) {
+  if (!_currentCase) return;
+  const url = `${API}/sar/${_currentCase.id}.${fmt}`;
+  const tok = localStorage.getItem('finguard_token');
+  try {
+    const res = await fetch(url, { headers: tok ? { 'Authorization': 'Bearer ' + tok } : {} });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${res.status}`);
+    }
+    if (fmt === 'pdf') {
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `SAR_case_${_currentCase.id}.pdf`;
+      link.click();
+    } else {
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `SAR_case_${_currentCase.id}.json`;
+      link.click();
+    }
+    toast('SAR exported');
+  } catch (e) { toast(e.message, 'error'); }
 }
 </script>
 </body>

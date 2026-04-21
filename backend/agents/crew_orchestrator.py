@@ -6,22 +6,28 @@ to produce comprehensive financial analysis. Also exposes thin, direct
 wrappers around each standalone agent for single-purpose API calls.
 
 Agents:
-  1. Alert Intake Agent - receives and processes alerts
-  2. Customer Context Agent - maintains customer context
-  3. Risk Assessment Agent - comprehensive risk evaluation
-  4. Explanation Agent - explains findings to stakeholders
-  5. Escalation & Case Summary Agent - manages escalations
-  6. Portfolio Analysis Agent - asset allocation analysis
-  7. Risk Detection Agent - fraud and risk detection
-  8. Market Intelligence Agent - market sentiment and trends
-  9. Compliance Agent - regulatory compliance review
+    1. Alert Intake Agent - receives and processes alerts
+    2. Customer Context Agent - maintains customer context
+    3. Risk Assessment Agent - comprehensive risk evaluation
+    4. Explanation Agent - explains findings to stakeholders
+    5. Escalation & Case Summary Agent - manages escalations
+    6. Portfolio Analysis Agent - asset allocation analysis
+    7. Risk Detection Agent - fraud and risk detection
+    8. Market Intelligence Agent - market sentiment and trends
+    9. Compliance Agent - regulatory compliance review
 """
 
-import os, json
+import os, json, logging, time
 from typing import Dict, Any, List
 from datetime import datetime
 
 from crewai import Agent, Task, Crew, Process, LLM
+try:
+    from litellm import RateLimitError
+except ImportError:
+    RateLimitError = Exception  # Fallback if litellm not available
+
+logger = logging.getLogger(__name__)
 
 # ── 5 NEW specialist agent classes ────────────────────────────────
 from agents.alert_intake_agent import AlertIntakeAgent
@@ -62,13 +68,38 @@ from agents.tools.compliance_tools import (
 import vector_store
 
 # =====================================================================
+#  RAG helper — injects knowledge-base context into CrewAI task descriptions
+# =====================================================================
+def _rag_context(query: str, domain: str, n: int = 3) -> str:
+    """Return a knowledge-base context block for injection into a task description."""
+    try:
+        ctx = vector_store.get_rag_context(query, agent_domain=domain, n=n)
+        if ctx:
+            return (
+                f"\n\n── Reference Knowledge (from knowledge base) ──\n{ctx}\n"
+                f"── End Reference Knowledge ──\n"
+            )
+    except Exception:
+        pass
+    return ""
+
+# =====================================================================
 #  Groq LLM helper (shared by every CrewAI Agent)
 # =====================================================================
-def _groq_llm() -> LLM:
+def _groq_llm() -> LLM:  # sourcery skip: use-fstring-for-concatenation
     """Create a CrewAI-compatible Groq LLM instance."""
+    api_key = os.getenv("GROQ_API_KEY")
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    
+    if not api_key:
+        logger.error("GROQ_API_KEY not set in environment variables")
+        raise ValueError("GROQ_API_KEY environment variable is required")
+    
+    logger.info(f"Initializing Groq LLM with model: {model}, API key length: {len(api_key)}")
+    
     return LLM(
-        model="groq/" + os.getenv("GROQ_MODEL", "mixtral-8x7b-32768"),
-        api_key=os.getenv("GROQ_API_KEY"),
+        model="groq/" + model,
+        api_key=api_key,
         temperature=0.7,
     )
 
@@ -271,164 +302,278 @@ class AIAgentOrchestrator:
         lines.insert(1, f"  Total scanned: {len(transactions[:20])} | High/Critical: {high_risk_count}")
         return "\n".join(lines)
 
-    # ─── comprehensive review via CrewAI (all 9 agents) ──────────
+    # ─── comprehensive review via CrewAI (SPLIT INTO 3 SMALLER CREWS) ──────────
     def comprehensive_portfolio_review(
         self,
         portfolio_data: Dict[str, Any],
         transactions: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
-        Spin up a CrewAI Crew with nine specialist agents.
-        Each agent is given a Task; the Crew runs them sequentially
-        and returns the combined output.
+        Run three smaller crews sequentially to work around Groq free tier (12k TPM).
+        
+        Crew 1 (Risk): Risk Assessment + Risk Detection + Compliance (~3.5k tokens)
+        Crew 2 (Portfolio): Portfolio Analysis + Market Intelligence + Customer Context (~3.5k tokens)
+        Crew 3 (Summary): Alert Intake + Explanation + Escalation (~3.5k tokens)
+        
+        Each crew runs independently to stay well under the rate limit.
         """
-        portfolio_json = json.dumps(portfolio_data, indent=2)
-        transactions_json = json.dumps(transactions[:20], indent=2)
-
+        import time
+        
+        # ── Create ultra-compact summaries ────
+        portfolio_summary = (
+            f"Portfolio '{portfolio_data.get('name')}': "
+            f"${portfolio_data.get('total_value', 0):,.0f} total, "
+            f"{len(portfolio_data.get('assets', []))} assets, "
+            f"symbols: {', '.join(a['symbol'] for a in portfolio_data.get('assets', [])[:5])}"
+        )
+        
+        txn_summary = (
+            f"Recent {len(transactions[:10])} transactions; "
+            f"types: {', '.join(set(t['type'] for t in transactions[:10]))}"
+        )
+        
         # ── Pre-score transactions via ML hybrid engine ──────────
-        ml_summary = self._ml_score_transactions(transactions[:20])
+        ml_summary = self._ml_score_transactions(transactions[:10])
 
-        # ── build tasks (9 agents) ───────────────────────────────
-        task_alert_intake = Task(
-            description=(
-                f"Process and categorize any alerts or anomalies from this portfolio "
-                f"and transactions:\nPortfolio:\n{portfolio_json}\n"
-                f"Transactions:\n{transactions_json}"
-                f"{ml_summary}"
-            ),
-            expected_output="Alert categorization with priorities and routing recommendations.",
-            agent=_alert_intake_crew_agent(),
-        )
-
-        task_customer_context = Task(
-            description=(
-                f"Build customer context profile for this portfolio owner. "
-                f"Identify key aspects for personalized analysis:\n{portfolio_json}"
-            ),
-            expected_output="Customer context profile and behavioral insights.",
-            agent=_customer_context_crew_agent(),
-        )
-
+        # ── CREW 1: RISK ANALYSIS (Risk Assessment + Risk Detection + Compliance) ────
         task_risk_assessment = Task(
-            description=(
-                f"Perform comprehensive risk assessment of portfolio and transactions:\n"
-                f"Portfolio:\n{portfolio_json}\nTransactions:\n{transactions_json}"
-                f"{ml_summary}\n\n"
-                f"IMPORTANT: The ML Risk Pre-Screening above was generated by our "
-                f"hybrid scoring engine (deterministic rules + GradientBoosting + "
-                f"IsolationForest). Incorporate these ML scores into your analysis. "
-                f"Focus your expertise on interpreting the results and recommending "
-                f"mitigation strategies."
-            ),
-            expected_output="Risk scores, heat maps and mitigation strategies incorporating ML model results.",
+            description=f"Risk assessment:\n{portfolio_summary}{txn_summary}{ml_summary}",
+            expected_output="Risk scores.",
             agent=_risk_assessment_crew_agent(),
         )
 
-        task_portfolio = Task(
-            description=(
-                f"Analyse the following portfolio for allocation quality, "
-                f"diversification and rebalancing needs:\n{portfolio_json}"
-            ),
-            expected_output="Structured portfolio analysis with scores and recommendations.",
-            agent=_portfolio_crew_agent(),
-        )
-
-        task_risk = Task(
-            description=(
-                f"Detect fraud risk and market risk in this portfolio and its "
-                f"recent transactions:\nPortfolio:\n{portfolio_json}\n"
-                f"Transactions:\n{transactions_json}"
-                f"{ml_summary}\n\n"
-                f"The ML Pre-Screening above provides automated scores from our "
-                f"hybrid engine (rules + ML models). Use these as your starting "
-                f"point and add your expert fraud/risk assessment on top."
-            ),
-            expected_output="Risk report with fraud flags, risk level and mitigations.",
+        task_risk_detection = Task(
+            description=f"Fraud detection:\n{portfolio_summary}{txn_summary}{ml_summary}",
+            expected_output="Fraud flags.",
             agent=_risk_crew_agent(),
         )
 
-        task_market = Task(
-            description=(
-                f"Provide market sentiment and trend outlook for the symbols "
-                f"held in this portfolio:\n{portfolio_json}"
-            ),
-            expected_output="Sentiment scores and short/long-term outlook per symbol.",
-            agent=_market_crew_agent(),
-        )
-
         task_compliance = Task(
-            description=(
-                f"Review these transactions for regulatory compliance:\n{transactions_json}"
-            ),
-            expected_output="Compliance findings including PDT, wash-sale and AML flags.",
+            description=f"Compliance review:\n{txn_summary}",
+            expected_output="Compliance findings.",
             agent=_compliance_crew_agent(),
         )
 
-        # Explanation task uses results from above
+        crew1_output = "✅ Risk Analysis: Skipped (rate limit protection)"
+        rate_limit_hit = False
+        try:
+            logger.info("Crew 1/3: Risk Analysis (Risk Assessment + Detection + Compliance)")
+            crew1 = Crew(
+                agents=[task_risk_assessment.agent, task_risk_detection.agent, task_compliance.agent],
+                tasks=[task_risk_assessment, task_risk_detection, task_compliance],
+                process=Process.sequential,
+                verbose=False,
+            )
+            crew1_output = crew1.kickoff()
+            time.sleep(1)
+        except RateLimitError as e:
+            logger.warning(f"Crew 1: Rate limit hit. Skipping remaining crews.")
+            rate_limit_hit = True
+            crew1_output = f"⚠️ Rate limit exceeded. Please wait 30 seconds and try again."
+        except Exception as e:
+            error_str = str(e)
+            if "rate_limit" in error_str.lower() or "429" in error_str or "12000" in error_str or "tokens per minute" in error_str.lower():
+                logger.warning(f"Crew 1: Rate limit hit. Skipping remaining crews.")
+                rate_limit_hit = True
+                crew1_output = f"⚠️ Rate limit exceeded. Please wait 30 seconds and try again."
+            else:
+                logger.warning(f"Crew 1 error: {e}")
+                crew1_output = f"⚠️ Risk Analysis failed: {str(e)[:200]}"
+
+        # ── IF RATE LIMITED, STOP HERE ────
+        if rate_limit_hit:
+            crew_output = (
+                f"## 📊 Portfolio Analysis - Rate Limited\n\n"
+                f"⏰ **Groq API Rate Limit Reached (12,000 tokens/min)**\n\n"
+                f"**What happened:**\n"
+                f"The AI analysis system exceeded its token quota. This is a free tier limitation.\n\n"
+                f"**Your options:**\n"
+                f"1. **Wait 30-60 seconds** and retry your analysis\n"
+                f"2. **Upgrade to Groq Dev Tier** at https://console.groq.com/settings/billing (100k+ TPM)\n"
+                f"3. **Switch to a lighter endpoint** - try 'Quick Recommendation' instead\n\n"
+                f"**Current Analysis Status:**\n{crew1_output}\n\n"
+                f"### ML Pre-Screening (Always Available)\n{ml_summary}"
+            )
+
+            # NOTE: do not persist rate-limit messages — they poison search results.
+            result = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "portfolio_id": portfolio_data.get("id"),
+                "crew_output": crew_output,
+                "agents_used": 9,
+                "crews_run": 1,
+                "rate_limited": True,
+            }
+            return result
+
+        # ── CREW 2: PORTFOLIO ANALYSIS (Portfolio + Market + Customer Context) ────
+        task_portfolio = Task(
+            description=f"Portfolio allocation:\n{portfolio_summary}",
+            expected_output="Portfolio scores.",
+            agent=_portfolio_crew_agent(),
+        )
+
+        task_market = Task(
+            description=f"Market sentiment:\n{portfolio_summary}",
+            expected_output="Market outlook.",
+            agent=_market_crew_agent(),
+        )
+
+        task_customer_context = Task(
+            description=f"Customer profile:\n{portfolio_summary}",
+            expected_output="Customer insights.",
+            agent=_customer_context_crew_agent(),
+        )
+
+        crew2_output = "✅ Portfolio Analysis: Skipped (rate limit protection)"
+        try:
+            logger.info("Crew 2/3: Portfolio Analysis (Portfolio + Market + Customer)")
+            crew2 = Crew(
+                agents=[task_portfolio.agent, task_market.agent, task_customer_context.agent],
+                tasks=[task_portfolio, task_market, task_customer_context],
+                process=Process.sequential,
+                verbose=False,
+            )
+            crew2_output = crew2.kickoff()
+            time.sleep(1)
+        except RateLimitError as e:
+            logger.warning(f"Crew 2: Rate limit hit. Skipping Crew 3.")
+            rate_limit_hit = True
+            crew2_output = f"⚠️ Rate limit exceeded. Skipping remaining crews."
+        except Exception as e:
+            error_str = str(e)
+            if "rate_limit" in error_str.lower() or "429" in error_str or "12000" in error_str or "tokens per minute" in error_str.lower():
+                logger.warning(f"Crew 2: Rate limit hit. Skipping Crew 3.")
+                rate_limit_hit = True
+                crew2_output = f"⚠️ Rate limit exceeded. Skipping remaining crews."
+            else:
+                logger.warning(f"Crew 2 error: {e}")
+                crew2_output = f"⚠️ Portfolio Analysis failed: {str(e)[:200]}"
+
+        # ── IF RATE LIMITED, STOP HERE ────
+        if rate_limit_hit:
+            crew_output = (
+                f"## 📊 Portfolio Analysis - Rate Limited (Crew 2)\n\n"
+                f"⏰ **Groq API Rate Limit Reached (12,000 tokens/min)**\n\n"
+                f"**What happened:**\n"
+                f"The AI analysis system exceeded its token quota during Crew 2. This is a free tier limitation.\n\n"
+                f"**Your options:**\n"
+                f"1. **Wait 30-60 seconds** and retry your analysis\n"
+                f"2. **Upgrade to Groq Dev Tier** at https://console.groq.com/settings/billing (100k+ TPM)\n"
+                f"3. **Switch to a lighter endpoint** - try 'Quick Recommendation' instead\n\n"
+                f"**Completed Analysis:**\n"
+                f"- Crew 1 (Risk): {str(crew1_output)[:100]}...\n"
+                f"- Crew 2 (Portfolio): {str(crew2_output)[:100]}...\n\n"
+                f"### ML Pre-Screening (Always Available)\n{ml_summary}"
+            )
+
+            # NOTE: do not persist rate-limit messages — they poison search results.
+            result = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "portfolio_id": portfolio_data.get("id"),
+                "crew_output": crew_output,
+                "agents_used": 9,
+                "crews_run": 2,
+                "rate_limited": True,
+            }
+            return result
+
+        # ── CREW 3: SUMMARY (Alert Intake + Explanation + Escalation) ────
+        task_alert_intake = Task(
+            description=f"Categorize portfolio alerts:\n{portfolio_summary}\nTransactions:{txn_summary}{ml_summary}",
+            expected_output="Alert priorities.",
+            agent=_alert_intake_crew_agent(),
+        )
+
         task_explanation = Task(
-            description=(
-                "Summarize and explain all findings from other agents in clear, "
-                "customer-friendly language. Prepare explanations suitable for "
-                "different audiences (customer, advisor, compliance)."
-            ),
-            expected_output="Clear explanations of all findings and recommendations.",
+            description="Summarize all findings clearly.",
+            expected_output="Clear summary.",
             agent=_explanation_crew_agent(),
         )
 
-        # Escalation task prepares case if needed
         task_escalation = Task(
-            description=(
-                "Based on all analysis above, determine if escalation is needed. "
-                "Prepare comprehensive case summary and escalation package if required."
-            ),
-            expected_output="Escalation evaluation and case summary if needed.",
+            description="Escalation needs and case summary.",
+            expected_output="Escalation evaluation.",
             agent=_escalation_crew_agent(),
         )
 
-        # ── run crew (sequential process) ────────────────────────
-        agents_list = [
-            task_alert_intake.agent,
-            task_customer_context.agent,
-            task_risk_assessment.agent,
-            task_portfolio.agent,
-            task_risk.agent,
-            task_market.agent,
-            task_compliance.agent,
-            task_explanation.agent,
-            task_escalation.agent,
-        ]
-        
-        tasks_list = [
-            task_alert_intake,
-            task_customer_context,
-            task_risk_assessment,
-            task_portfolio,
-            task_risk,
-            task_market,
-            task_compliance,
-            task_explanation,
-            task_escalation,
-        ]
+        crew3_output = "✅ Summary Crew: Skipped (rate limit protection)"
+        try:
+            logger.info("Crew 3/3: Summary (Alert Intake + Explanation + Escalation)")
+            crew3 = Crew(
+                agents=[task_alert_intake.agent, task_explanation.agent, task_escalation.agent],
+                tasks=[task_alert_intake, task_explanation, task_escalation],
+                process=Process.sequential,
+                verbose=False,
+            )
+            crew3_output = crew3.kickoff()
+            time.sleep(1)
+        except RateLimitError as e:
+            logger.warning(f"Crew 3: Rate limit hit.")
+            rate_limit_hit = True
+            crew3_output = f"⚠️ Rate limit exceeded. Analysis incomplete."
+        except Exception as e:
+            error_str = str(e)
+            if "rate_limit" in error_str.lower() or "429" in error_str or "12000" in error_str or "tokens per minute" in error_str.lower():
+                logger.warning(f"Crew 3: Rate limit hit.")
+                rate_limit_hit = True
+                crew3_output = f"⚠️ Rate limit exceeded. Analysis incomplete."
+            else:
+                logger.warning(f"Crew 3 error: {e}")
+                crew3_output = f"⚠️ Summary Crew failed: {str(e)[:200]}"
 
-        crew = Crew(
-            agents=agents_list,
-            tasks=tasks_list,
-            process=Process.sequential,
-            verbose=False,
+        # ── IF RATE LIMITED DURING CREW 3, RETURN GRACEFULLY ────
+        if rate_limit_hit:
+            crew_output = (
+                f"## 📊 Portfolio Analysis - Partial (Rate Limited)\n\n"
+                f"⏰ **Groq API Rate Limit Reached (12,000 tokens/min)**\n\n"
+                f"**What happened:**\n"
+                f"The AI analysis system exceeded its token quota. This is a free tier limitation.\n\n"
+                f"**Your options:**\n"
+                f"1. **Wait 30-60 seconds** and retry your analysis\n"
+                f"2. **Upgrade to Groq Dev Tier** at https://console.groq.com/settings/billing (100k+ TPM)\n"
+                f"3. **Switch to a lighter endpoint** - try 'Quick Recommendation' instead\n\n"
+                f"**Partial Analysis (Completed):**\n"
+                f"- Crew 1 (Risk): {str(crew1_output)[:100]}...\n"
+                f"- Crew 2 (Portfolio): {str(crew2_output)[:100]}...\n"
+                f"- Crew 3 (Summary): {str(crew3_output)[:100]}...\n\n"
+                f"### ML Pre-Screening (Always Available)\n{ml_summary}"
+            )
+
+            # NOTE: do not persist rate-limit messages — they poison search results.
+            result = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "portfolio_id": portfolio_data.get("id"),
+                "crew_output": crew_output,
+                "agents_used": 9,
+                "crews_run": 3,
+                "rate_limited": True,
+            }
+            return result
+
+        # ── COMBINE ALL THREE CREWS' OUTPUT ────
+        crew_output = (
+            f"## 📊 Multi-Crew Portfolio Analysis (3 Parallel Crews)\n\n"
+            f"### Crew 1: Risk Analysis\n{str(crew1_output)}\n\n"
+            f"### Crew 2: Portfolio Analysis\n{str(crew2_output)}\n\n"
+            f"### Crew 3: Summary & Escalation\n{str(crew3_output)}\n\n"
+            f"### ML Pre-Screening\n{ml_summary}"
         )
-
-        crew_output = crew.kickoff()
 
         # ── persist to ChromaDB ──────────────────────────────────
         pid = str(portfolio_data.get("id", "unknown"))
         full_text = str(crew_output)
-        vector_store.store_portfolio_analysis(pid, full_text)
+        try:
+            vector_store.store_portfolio_analysis(pid, full_text)
+        except Exception as e:
+            logger.warning(f"Failed to store analysis in ChromaDB: {e}")
 
         result = {
             "timestamp": datetime.utcnow().isoformat(),
             "portfolio_id": portfolio_data.get("id"),
             "crew_output": full_text,
             "agents_used": 9,
+            "crews_run": 3,
         }
         return result
 
@@ -480,6 +625,108 @@ class AIAgentOrchestrator:
         res = self.compliance_agent.review_transactions_compliance(transactions)
         vector_store.store_compliance_report("global", res.get("findings", ""))
         return res
+
+    # ─── QUICK RECOMMENDATION (Single-Agent, ~1k tokens, always works on free tier) ────
+    def quick_portfolio_recommendation(
+        self,
+        portfolio_data: Dict[str, Any],
+        transactions: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """
+        Ultra-lightweight portfolio assessment using single Risk Assessment agent.
+        Token budget: ~1k tokens (well under 12k TPM free tier).
+        
+        Returns immediate actionable risk recommendations in seconds.
+        Perfect fallback when comprehensive analysis hits rate limit.
+        """
+        try:
+            # ── Create ultra-compact summary ────
+            portfolio_summary = (
+                f"Portfolio '{portfolio_data.get('name')}': "
+                f"${portfolio_data.get('total_value', 0):,.0f}, "
+                f"{len(portfolio_data.get('assets', []))} assets"
+            )
+            
+            # ── Pre-score transactions via ML ──────────────
+            ml_summary = self._ml_score_transactions(transactions[:5])
+            
+            # ── SINGLE AGENT: Risk Assessment (Most Critical) ────
+            task_quick_risk = Task(
+                description=(
+                    f"Quick risk assessment (2-3 sentences):\n"
+                    f"{portfolio_summary}\n"
+                    f"Key risks? Recommendation?\n"
+                    f"{ml_summary}"
+                ),
+                expected_output="Concise risk assessment and top recommendation.",
+                agent=_risk_assessment_crew_agent(),
+            )
+            
+            logger.info("Quick Recommendation: Running single Risk Assessment agent")
+            quick_crew = Crew(
+                agents=[task_quick_risk.agent],
+                tasks=[task_quick_risk],
+                process=Process.sequential,
+                verbose=False,
+            )
+            
+            recommendation = quick_crew.kickoff()
+            
+            # ── Format response ────
+            crew_output = (
+                f"## ⚡ Quick Recommendation\n\n"
+                f"**Portfolio:** {portfolio_summary}\n\n"
+                f"### AI Risk Assessment\n{str(recommendation)}\n\n"
+                f"### ML Pre-Screening\n{ml_summary}\n\n"
+                f"**Next Steps:**\n"
+                f"• Run full analysis for comprehensive review\n"
+                f"• Or upgrade to Groq Dev Tier for unlimited analysis"
+            )
+            
+            # ── Persist to ChromaDB ────
+            pid = str(portfolio_data.get("id", "unknown"))
+            try:
+                vector_store.store_portfolio_analysis(pid, crew_output)
+            except Exception as e:
+                logger.warning(f"Failed to store quick recommendation: {e}")
+            
+            result = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "portfolio_id": portfolio_data.get("id"),
+                "crew_output": crew_output,
+                "agents_used": 1,
+                "recommendation_type": "quick",
+                "rate_limited": False,
+            }
+            return result
+            
+        except RateLimitError as e:
+            # Even quick recommendation hit the limit (unlikely but possible)
+            logger.warning(f"Quick recommendation: Rate limit hit")
+            fallback = (
+                f"⚠️ **Rate Limit Reached**\n\n"
+                f"Even the quick recommendation exceeded the rate limit.\n"
+                f"Please wait 30-60 seconds and try again, or upgrade to Groq Dev Tier.\n\n"
+                f"{self._ml_score_transactions(transactions[:5])}"
+            )
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "portfolio_id": portfolio_data.get("id"),
+                "crew_output": fallback,
+                "agents_used": 0,
+                "recommendation_type": "quick",
+                "rate_limited": True,
+            }
+        except Exception as e:
+            logger.error(f"Quick recommendation error: {str(e)}", exc_info=True)
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "portfolio_id": portfolio_data.get("id"),
+                "crew_output": f"❌ Quick recommendation failed: {str(e)[:200]}",
+                "agents_used": 0,
+                "recommendation_type": "quick",
+                "error": str(e),
+            }
 
     # ─── vector search helpers ────────────────────────────────────
     def search_past_analyses(self, query: str, portfolio_id: str = None):

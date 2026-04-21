@@ -33,6 +33,10 @@ class AlertIntakeAgent(FinancialBaseAgent):
     Transaction alerts are automatically enriched with ML risk scores.
     """
 
+    AGENT_DOMAIN = "alert_intake"
+
+    AGENT_DOMAIN = "alert_intake"
+
     def __init__(self):
         super().__init__("AlertIntake")
 

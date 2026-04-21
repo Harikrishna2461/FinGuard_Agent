@@ -205,15 +205,30 @@ class MLScorer:
             logger.warning("ML models not found at %s — run train_risk_model.py first", MODEL_DIR)
             return
 
-        with open(meta_path) as f:
-            self.metadata = json.load(f)
+        try:
+            with open(meta_path) as f:
+                self.metadata = json.load(f)
 
-        self.risk_clf       = joblib.load(os.path.join(MODEL_DIR, "risk_classifier.joblib"))
-        self.fraud_det      = joblib.load(os.path.join(MODEL_DIR, "fraud_detector.joblib"))
-        self.scaler         = joblib.load(os.path.join(MODEL_DIR, "scaler.joblib"))
-        self.label_encoders = joblib.load(os.path.join(MODEL_DIR, "label_encoders.joblib"))
-        self.loaded = True
-        logger.info("ML models loaded successfully from %s", MODEL_DIR)
+            try:
+                self.risk_clf       = joblib.load(os.path.join(MODEL_DIR, "risk_classifier.joblib"))
+                self.fraud_det      = joblib.load(os.path.join(MODEL_DIR, "fraud_detector.joblib"))
+                self.scaler         = joblib.load(os.path.join(MODEL_DIR, "scaler.joblib"))
+                self.label_encoders = joblib.load(os.path.join(MODEL_DIR, "label_encoders.joblib"))
+                self.loaded = True
+                logger.info("ML models loaded successfully from %s", MODEL_DIR)
+            except (ImportError, AttributeError, ValueError) as e:
+                logger.warning(
+                    "Failed to load ML models due to version incompatibility: %s\n"
+                    "This typically means the models were trained with a different scikit-learn/numpy version.\n"
+                    "Falling back to rules-based scoring only.\n"
+                    "To fix: pip install --upgrade scikit-learn numpy, then run: python backend/ml/train_risk_model.py",
+                    e
+                )
+                self.loaded = False
+                return
+        except Exception as e:
+            logger.error("Error loading model metadata: %s", e)
+            self.loaded = False
 
     def _prepare_features(self, txn: dict) -> Optional[pd.DataFrame]:
         """Build feature vector from transaction dict — mirrors training pipeline."""
@@ -400,10 +415,25 @@ class TransactionRiskEngine:
             final_score = int(round(0.4 * rule_score + 0.6 * ml_score))
             method      = "hybrid"
 
-            # If ML detects fraud, boost score
+            # ── Anomaly-based adjustment ─────────────────────────────
+            # IsolationForest's fraud_flag (-1) fires whenever a txn falls
+            # outside its training distribution — it does NOT mean fraud.
+            # Applying a hard `max(score, 80)` on that signal alone was
+            # producing false criticals for routine transactions. Instead,
+            # scale the adjustment by the actual anomaly magnitude and only
+            # treat it as critical when the anomaly is genuinely strong.
             if ml_result.get("ml_fraud_flag"):
-                final_score = max(final_score, 80)
-                rule_result["flags"].append("ML_FRAUD_DETECTED")
+                anomaly = float(ml_result.get("ml_anomaly_score") or 0.0)
+                if anomaly >= 0.20:
+                    # Strong outlier — treat as probable fraud.
+                    final_score = max(final_score, 80)
+                    rule_result["flags"].append("ML_FRAUD_DETECTED")
+                elif anomaly >= 0.10:
+                    # Meaningful anomaly — bump a bit but cap below critical.
+                    final_score = min(max(final_score + 15, final_score), 70)
+                    rule_result["flags"].append("ML_ANOMALY")
+                # Otherwise (anomaly < 0.10) the outlier signal is too weak
+                # to change the verdict — ignore it.
         else:
             # ML unavailable — use rules only
             final_score = rule_score

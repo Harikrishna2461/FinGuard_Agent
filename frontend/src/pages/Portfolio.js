@@ -7,6 +7,9 @@ function Portfolio({ user }) {
     { id: 1, symbol: 'AAPL', name: 'Apple Inc.', quantity: 50, price: 189.50, value: 9475, sector: 'Technology', date: '2024-01-15' },
     { id: 2, symbol: 'MSFT', name: 'Microsoft Corp.', quantity: 30, price: 378.90, value: 11367, sector: 'Technology', date: '2024-02-20' },
     { id: 3, symbol: 'JNJ', name: 'Johnson & Johnson', quantity: 25, price: 158.40, value: 3960, sector: 'Healthcare', date: '2024-03-10' },
+    { id: 4, symbol: 'GOOGL', name: 'Alphabet Inc.', quantity: 20, price: 139.80, value: 2796, sector: 'Technology', date: '2024-01-25' },
+    { id: 5, symbol: 'TSLA', name: 'Tesla Inc.', quantity: 15, price: 242.50, value: 3637.5, sector: 'Technology', date: '2024-02-10' },
+    { id: 6, symbol: 'JPM', name: 'JPMorgan Chase', quantity: 40, price: 165.25, value: 6610, sector: 'Finance', date: '2024-03-01' },
   ]);
 
   const [showForm, setShowForm] = useState(false);

@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import Portfolio from './pages/Portfolio';
 import Analytics from './pages/Analytics';
+import SentimentAnalysis from './pages/SentimentAnalysis';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import './App.css';
@@ -44,6 +45,7 @@ function App() {
             <Route path="/" element={<Dashboard user={user} />} />
             <Route path="/portfolio" element={<Portfolio user={user} />} />
             <Route path="/analytics" element={<Analytics user={user} />} />
+            <Route path="/sentiment" element={<SentimentAnalysis user={user} />} />
             <Route path="/alerts" element={<Alerts user={user} />} />
             <Route path="/settings" element={<Settings user={user} />} />
           </Routes>

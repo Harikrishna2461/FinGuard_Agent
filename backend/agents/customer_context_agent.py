@@ -5,6 +5,10 @@ from agents.base_agent import FinancialBaseAgent
 
 class CustomerContextAgent(FinancialBaseAgent):
 
+    AGENT_DOMAIN = "customer_context"
+
+    AGENT_DOMAIN = "customer_context"
+
     def __init__(self):
         super().__init__("CustomerContext")
     """

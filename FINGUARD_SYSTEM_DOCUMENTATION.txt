@@ -1,0 +1,2727 @@
+FINGUARD AGENT - COMPREHENSIVE SYSTEM DOCUMENTATION
+
+Date: April 22, 2026
+Version: 1.0
+Format: Professional Documentation
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. Product Overview
+2. Technology Stack
+3. System Architecture
+4. AI Agents
+5. User Interface Pages
+6. API Endpoints
+7. User Interaction Logic
+8. Agent Interfaces
+9. Database Models
+10. Implementation Guide
+
+================================================================================
+1. PRODUCT OVERVIEW
+================================================================================
+
+1.1 What is FinGuard Agent?
+
+FinGuard Agent is an artificial intelligence-powered financial portfolio management system designed to monitor user investments, detect financial risks, analyze market trends, and provide intelligent investment recommendations.
+
+1.2 Primary Objectives
+
+- Monitor and manage user stock portfolios
+- Detect fraudulent activities and risky transactions
+- Analyze market trends and provide sentiment analysis
+- Ensure compliance with regulatory requirements
+- Deliver intelligent investment recommendations
+
+1.3 Target Users
+
+- Individual investors managing their own portfolios
+- Financial advisors providing client guidance
+- Compliance officers monitoring regulatory adherence
+- Portfolio managers analyzing multi-asset allocations
+
+1.4 Core Features
+
+Feature                          Description
+================================================================================
+Real-time Portfolio Tracking     View aggregated portfolio value and performance
+                                 metrics with up-to-date asset pricing
+
+Risk Detection System            Automatically identify fraudulent patterns and
+                                 suspicious transactions using ML algorithms
+
+AI-Powered Analysis              Nine specialized AI agents analyze different
+                                 aspects of portfolio management
+
+Market Intelligence              Stock sentiment analysis and identification of
+                                 emerging market trends
+
+Compliance Verification          Automatic checking against tax laws and
+                                 regulatory requirements
+
+User Interface                   Modern web-based dashboard with charts,
+                                 visualizations, and real-time updates
+
+
+================================================================================
+2. TECHNOLOGY STACK
+================================================================================
+
+2.1 Backend Technologies
+
+Web Framework
+- Flask 3.0.0: Python web framework handling HTTP requests and API endpoints
+- Gunicorn: Production-grade application server for deployment
+
+Database Management
+- SQLAlchemy 2.0.23: Object-relational mapper for database abstraction
+- SQLite: Lightweight relational database for data persistence
+
+Artificial Intelligence and Machine Learning
+- Groq API: Fast large language model inference service
+  Model: llama-3.3-70b (70 billion parameter model)
+  Purpose: Generates analysis, recommendations, and explanations
+- CrewAI 0.108.0: Framework for orchestrating multiple AI agents
+- ChromaDB 0.6.3: Vector database for semantic search and knowledge retrieval
+- langchain-groq 0.3.2: Groq integration for LangChain
+
+Machine Learning Libraries
+- scikit-learn 1.8.0: Classification and clustering algorithms
+- NumPy 1.26.0: Numerical computing operations
+- Pandas 2.1.3: Data manipulation and analysis
+- joblib 1.3.0: Model persistence and serialization
+
+Additional Utilities
+- ReportLab 4.0.0: PDF document generation
+- python-dateutil 2.8.2: Date and time utilities
+- requests 2.31.0: HTTP client library
+- PyJWT 2.8.0: JSON Web Token authentication
+- python-dotenv 1.0.0: Environment variable management
+- Werkzeug 3.0.1: WSGI utilities
+
+2.2 Frontend Technologies
+
+Web Framework
+- React 18.2.0: Component-based UI library
+- React Router DOM 6.16.0: Client-side routing and navigation
+
+Data Visualization
+- Recharts 2.10.0: Composable React charting library
+- CSS Grid and Flexbox: Layout systems
+
+Styling and Design
+- TailwindCSS 3.3.5: Utility-first CSS framework
+- Custom CSS: Component-level styling and theme system
+
+HTTP Communication
+- Axios 1.6.0: Promise-based HTTP client
+
+User Interface Components
+- React Icons 4.12.0: Icon library for visual elements
+- Custom React Components: Reusable UI building blocks
+
+2.3 Infrastructure and Security
+
+Authentication
+- PyJWT 2.8.0: Token-based authentication
+- JWT tokens: Stateless authentication mechanism
+
+Environment Configuration
+- python-dotenv 1.0.0: Secure management of sensitive configuration
+- Environment variables: API keys, database URLs, model selection
+
+2.4 Development and Testing
+
+Version Control
+- Git: Distributed version control system
+
+Testing and Quality
+- Unit tests: Individual component validation
+- Integration tests: End-to-end workflow verification
+- API testing: Endpoint functionality validation
+
+
+================================================================================
+3. SYSTEM ARCHITECTURE
+================================================================================
+
+3.1 High-Level Architecture
+
+The system follows a three-tier architecture:
+
+Presentation Layer (Frontend)
+- React-based user interface
+- Responsive web design
+- Real-time data visualization
+
+Application Layer (Backend)
+- Flask API server
+- Business logic and orchestration
+- AI agent coordination
+
+Data Layer
+- SQLite database for relational data
+- ChromaDB for vector embeddings
+- Groq API for LLM inference
+
+3.2 Component Communication Flow
+
+User Action in Browser
+  |
+  | HTTP Request
+  v
+React Component -> Flask API Route
+  |
+  | Route Processing
+  v
+Application Logic Layer
+  |
+  | Decision Point
+  ├─> Database Query (SQLAlchemy)
+  ├─> AI Agent Invocation (CrewAI)
+  ├─> ML Risk Scoring (scikit-learn)
+  └─> API Calls (Groq)
+  |
+  | Response Generation
+  v
+JSON Response
+  |
+  | HTTP Response
+  v
+Frontend Update and Render
+
+
+3.3 Data Processing Pipeline
+
+1. Data Ingestion
+   - Receive portfolio data, transactions, market data from frontend
+   - Validate input parameters and data types
+   - Log all incoming requests
+
+2. Processing Layer
+   - Route to appropriate handler (ML scoring, AI analysis, database update)
+   - Execute parallel operations where possible
+   - Manage concurrent requests
+
+3. Analysis Phase
+   - Run machine learning models for risk scoring
+   - Execute AI agents for intelligent analysis
+   - Aggregate results from multiple sources
+
+4. Response Generation
+   - Format results for frontend consumption
+   - Include metadata and timestamps
+   - Handle error conditions gracefully
+
+5. Frontend Rendering
+   - Update React components with new data
+   - Re-render UI elements
+   - Display visualizations and alerts
+
+
+================================================================================
+4. AI AGENTS
+================================================================================
+
+The FinGuard system includes nine specialized AI agents, each with distinct responsibilities. All agents inherit from FinancialBaseAgent and use Groq API for language model inference.
+
+4.1 Portfolio Analysis Agent
+
+Purpose: Assess portfolio composition, diversification, and allocation strategy
+
+Responsibilities:
+- Calculate asset allocation percentages by sector and asset class
+- Compute diversification metrics and scores (0-100 scale)
+- Evaluate portfolio concentration risks
+- Analyze historical performance trends
+- Generate rebalancing recommendations
+
+Processing Method:
+- Groq LLM receives portfolio data and analysis requirements
+- Agent performs calculations on allocation percentages
+- Generates structured recommendations with rationale
+
+Input Data Structure:
+{
+  "holdings": [
+    {
+      "symbol": "AAPL",
+      "quantity": 100,
+      "current_price": 180,
+      "sector": "Technology"
+    }
+  ],
+  "total_value": 500000,
+  "target_allocation": {...}
+}
+
+Output Data Structure:
+{
+  "diversification_score": 75,
+  "sector_allocation": {
+    "Technology": "40%",
+    "Finance": "30%",
+    "Healthcare": "20%",
+    "Other": "10%"
+  },
+  "concentration_risk": "Medium",
+  "recommendations": [
+    "Reduce Technology sector exposure",
+    "Increase Healthcare holdings"
+  ]
+}
+
+
+4.2 Risk Detection Agent
+
+Purpose: Identify fraudulent patterns, anomalies, and financial risks
+
+Responsibilities:
+- Screen transactions for fraud indicators using ML models
+- Detect unusual trading patterns and behavioral anomalies
+- Assess market-based risks and volatility
+- Analyze concentration risks across holdings
+- Flag compliance violations
+
+Processing Method:
+Two-stage approach:
+Stage 1 - Machine Learning Pre-Screening
+- Rules-based scoring: Apply hardcoded financial rules
+- Gradient Boosting: Predict fraud probability from trained model
+- Isolation Forest: Identify statistical anomalies
+
+Stage 2 - LLM Expert Analysis
+- Pass ML results and transaction context to Groq
+- Provide expert interpretation and contextual analysis
+- Generate final risk assessment
+
+Input Data Structure:
+{
+  "transaction_history": [
+    {
+      "symbol": "AAPL",
+      "quantity": 1000,
+      "price": 180,
+      "type": "BUY",
+      "timestamp": "2026-04-22T10:00:00"
+    }
+  ],
+  "portfolio_data": {...}
+}
+
+Output Data Structure:
+{
+  "final_score": 85,
+  "risk_label": "HIGH",
+  "method": "ensemble",
+  "flags": [
+    "large_quantity",
+    "unusual_timing",
+    "concentration_increase"
+  ],
+  "expert_analysis": "Large purchase detected..."
+}
+
+
+4.3 Market Intelligence Agent
+
+Purpose: Analyze market sentiment and provide trend-based recommendations
+
+Responsibilities:
+- Evaluate stock sentiment from multiple sources (bullish/bearish)
+- Identify emerging market trends and technical patterns
+- Analyze news sentiment and market events
+- Generate price predictions and probability estimates
+- Provide buy/sell/hold recommendations
+
+Processing Method:
+- Multi-source data aggregation
+- Groq LLM analyzes sentiment signals
+- Technical indicator calculation
+- Probability-weighted recommendation generation
+
+Output Example:
+{
+  "AAPL": {
+    "sentiment": "BULLISH",
+    "score": 0.82,
+    "trend": "upward",
+    "key_events": [
+      "Product announcement scheduled",
+      "Strong earnings reported"
+    ]
+  },
+  "GOOGL": {
+    "sentiment": "NEUTRAL",
+    "score": 0.55,
+    "trend": "sideways"
+  }
+}
+
+
+4.4 Compliance Agent
+
+Purpose: Ensure adherence to regulatory and tax requirements
+
+Responsibilities:
+- Review transactions against Pattern Day Trader rules
+- Identify wash sale violations
+- Screen for Anti-Money Laundering concerns
+- Detect insider trading indicators
+- Generate tax reports and optimization suggestions
+- Track regulatory reporting requirements
+
+Processing Method:
+- Rule-based compliance checking against known regulations
+- Groq LLM provides expert regulatory interpretation
+- Tax calculations based on transaction history
+
+Output Structure:
+{
+  "violations": [
+    {
+      "type": "wash_sale",
+      "severity": "high",
+      "description": "Sale followed by repurchase within 30 days",
+      "transaction_ids": [123, 124]
+    }
+  ],
+  "compliance_score": 85,
+  "tax_recommendations": [
+    "Consider tax-loss harvesting",
+    "Review long-term holding strategies"
+  ]
+}
+
+
+4.5 Alert Intake Agent
+
+Purpose: Receive, categorize, and prioritize alerts from all sources
+
+Responsibilities:
+- Process alerts from transactions, portfolio changes, and market events
+- Categorize alerts by type and urgency
+- Assign priority levels (Critical, High, Medium, Low)
+- Enrich alerts with contextual information
+- Remove duplicate or redundant alerts
+- Route alerts to appropriate specialists
+
+Processing Method:
+- Groq LLM evaluates alert significance
+- Automatic priority assignment based on risk factors
+- Alert aggregation and deduplication
+
+Alert Types:
+- Price Alerts: Stock price crosses specified threshold
+- Performance Alerts: Portfolio returns exceed thresholds
+- Volatility Alerts: Trading volume or price movements spike
+- Fraud Alerts: Risk engine detects suspicious activity
+
+
+4.6 Customer Context Agent
+
+Purpose: Maintain and provide relevant customer information for personalized analysis
+
+Responsibilities:
+- Build and maintain customer profile information
+- Track customer investment history and preferences
+- Assess current customer financial needs
+- Extract behavioral patterns from interaction history
+- Determine customer segment and risk profile
+
+Processing Method:
+- Groq LLM builds psychological profile from interaction history
+- Stores preferences and constraints
+- Applies customer context to all subsequent analyses
+
+Data Stored:
+{
+  "customer_id": "user_123",
+  "profile": {
+    "risk_tolerance": "moderate",
+    "investment_horizon": "10_years",
+    "income_level": "high",
+    "experience_level": "intermediate"
+  },
+  "preferences": {
+    "alert_frequency": "daily",
+    "notification_channels": ["email", "dashboard"],
+    "preferred_sectors": ["technology", "healthcare"]
+  },
+  "history": [...]
+}
+
+
+4.7 Explanation Agent
+
+Purpose: Translate complex AI analysis into accessible language for different audiences
+
+Responsibilities:
+- Explain AI-generated recommendations in clear language
+- Tailor explanations to audience type (customer, advisor, compliance, executive)
+- Simplify technical findings without losing accuracy
+- Provide reasoning behind recommendations
+- Generate compliance-friendly documentation
+
+Processing Method:
+- Groq LLM adapts explanation complexity
+- Audience-specific terminology and terminology
+- Balance between transparency and simplicity
+
+Output Example:
+Customer Audience:
+"We recommend holding your Apple stock based on strong earnings
+performance and positive market sentiment. The stock shows upward
+momentum with moderate volatility, suitable for your investment profile."
+
+Compliance Audience:
+"Position holds no regulatory violations. Concentration in Technology
+sector is within acceptable limits (40% vs 50% maximum). No wash sale
+or PDT rule violations detected in transaction history."
+
+
+4.8 Risk Assessment Agent
+
+Purpose: Perform comprehensive risk evaluation across multiple dimensions
+
+Responsibilities:
+- Calculate market risk metrics (beta, correlation)
+- Evaluate portfolio volatility and Value at Risk
+- Assess liquidity risk across holdings
+- Analyze credit risk for bond holdings
+- Identify systemic risk exposures
+- Generate risk scorecards
+
+Processing Method:
+- Quantitative risk calculations
+- Groq LLM contextualizes results
+- Multi-factor risk scoring
+
+Risk Dimensions Evaluated:
+- Market Risk: Exposure to market movements
+- Concentration Risk: Over-exposure to single stocks/sectors
+- Liquidity Risk: Ability to exit positions quickly
+- Credit Risk: Counterparty default risk
+- Regulatory Risk: Compliance violation exposure
+
+
+4.9 Escalation and Case Summary Agent
+
+Purpose: Identify critical issues, manage escalations, and prepare handoff documentation
+
+Responsibilities:
+- Evaluate incidents for escalation necessity
+- Determine appropriate escalation level and team
+- Generate comprehensive case summaries
+- Prepare escalation packages with context
+- Track and document escalation outcomes
+- Identify patterns for process improvement
+
+Processing Method:
+- Groq LLM evaluates escalation criteria
+- Systematic case documentation
+- Automated handoff package generation
+
+Escalation Criteria:
+- Fraud detection above confidence threshold
+- Regulatory compliance violations
+- Unusual or complex situations
+- Customer complaints or disputes
+- System errors or anomalies
+
+Output Structure:
+{
+  "escalation_level": "critical",
+  "target_team": "compliance",
+  "case_id": "CASE_2026_04_022_001",
+  "summary": "Large transaction detected...",
+  "required_actions": [
+    "Verify customer identity",
+    "Block transaction pending review"
+  ],
+  "deadline": "2026-04-22T16:00:00"
+}
+
+
+================================================================================
+5. USER INTERFACE PAGES
+================================================================================
+
+The FinGuard frontend consists of six main pages, each with distinct functionality and user interactions.
+
+5.1 Dashboard (Home Page)
+
+Purpose: Provide at-a-glance portfolio overview and key metrics
+
+Components Displayed:
+- Portfolio Summary Card
+  Total portfolio value
+  Today's gain/loss (absolute and percentage)
+  Performance trend (7-day, 30-day, 1-year)
+
+- Statistics Grid
+  Number of holdings
+  Number of active alerts
+  Portfolio risk level
+  Cash balance
+
+- Holdings Summary
+  Top 5 holdings by value
+  Sector distribution
+  Asset type breakdown
+
+- Recent Activity
+  Latest transactions (5 most recent)
+  Active alerts (3 highest priority)
+  Completed actions
+
+- Performance Charts
+  Pie chart: Sector allocation
+  Line chart: Portfolio performance over time
+  Bar chart: Top performers
+
+User Actions:
+- Create new portfolio
+- View detailed holdings list
+- Navigate to analytics page
+- Check and manage alerts
+- Access portfolio optimization recommendations
+
+Data Loaded on Page Load:
+GET /api/portfolios
+GET /api/portfolio/<id>/assets
+GET /api/portfolio/<id>/transactions
+GET /api/portfolio/<id>/alerts
+
+Response Time Target: < 2 seconds
+
+
+5.2 Portfolio Page
+
+Purpose: Manage individual holdings and transactions
+
+Sub-sections:
+
+Holdings Management
+- Display table of all portfolio holdings
+  Column: Symbol, Company Name, Quantity, Purchase Price, Current Price,
+          Gain/Loss (amount), Gain/Loss (percentage), Sector
+  
+- Sorting capabilities: By value, by gain/loss, by sector
+- Search functionality: Find holdings by symbol or company name
+- Add new holding button with form
+
+Transaction Management
+- Record new buy/sell/dividend transactions
+- Transaction history table with filters
+- Transaction details popup showing risk scoring results
+
+Holdings Operations:
+- Add Holdings
+  Form fields:
+    Stock Symbol (dropdown with 30+ stocks)
+    Company Name (auto-filled)
+    Quantity (numeric input)
+    Purchase Price (decimal input)
+    Current Price (decimal input)
+    Sector (auto-filled)
+
+- Edit Holdings
+  Update current price to reflect market changes
+  Adjust quantity for fractional shares
+  Update notes or tags
+
+- Delete Holdings
+  Confirmation dialog before deletion
+  Automatic portfolio value recalculation
+
+Portfolio Statistics:
+- Total investment amount
+- Current portfolio value
+- Total gain/loss
+- Best performing holding
+- Worst performing holding
+- Average holding period
+
+Data Management:
+GET /api/portfolio/<id>/assets
+POST /api/portfolio/<id>/asset
+PUT /api/portfolio/<id>/asset/<id>
+DELETE /api/portfolio/<id>/asset/<id>
+
+
+5.3 Analytics Page
+
+Purpose: Provide advanced analysis tools and AI-generated insights
+
+Sub-sections:
+
+Transaction Risk Analysis
+This tool analyzes individual transactions for risk.
+
+Process:
+1. User enters transaction details
+   - Stock symbol (from dropdown)
+   - Transaction type (BUY, SELL, DIVIDEND)
+   - Quantity (numeric)
+   - Price per share (decimal)
+   - Transaction fees (optional)
+
+2. System processes the transaction
+   - ML Risk Scoring (< 0.5 seconds)
+     Rules-based scoring
+     Gradient Boosting model prediction
+     Isolation Forest anomaly detection
+   - Risk Score Generated (0-100 scale)
+   - Risk Label Assigned (LOW, MEDIUM, HIGH)
+   - Risk Flags Identified
+
+3. AI Analysis Phase
+   - Groq LLM analyzes ML results with context
+   - Explains risk factors
+   - Provides recommendations
+
+4. Results Display
+   Risk Score: 75/100
+   Risk Level: MEDIUM
+   Confidence: 92%
+   
+   Risk Factors:
+   - Large transaction quantity relative to average
+   - Time of day matches fraud patterns
+   - Price volatility elevated
+   
+   Recommendations:
+   - Verify transaction details
+   - Consider splitting into smaller orders
+   - Monitor account for related activity
+
+Quick Recommendation Tool
+This provides investment recommendations for specific stocks.
+
+Process:
+1. Portfolio Selection
+   User selects portfolio from dropdown
+   On change: loadPortfolioSymbols() function executes
+   API Call: GET /api/portfolio/<id>/assets
+   
+2. Symbol Filtering
+   Symbol dropdown populates with portfolio holdings only
+   User cannot recommend stocks not in portfolio
+   Filters applied to sidebar dropdowns
+
+3. Risk Profile Selection
+   Options: Conservative, Moderate, Aggressive
+   Affects recommendation weighting
+
+4. Analysis
+   Groq LLM analyzes:
+   - Current stock price
+   - Technical indicators
+   - Market sentiment
+   - Portfolio fit and diversification
+   - Risk compatibility with profile
+   - Customer history and preferences
+
+5. Recommendation Output
+   Action: BUY, SELL, or HOLD
+   Confidence Level: 0-100%
+   Key Reasons: 3-5 main factors
+   Risk Assessment: Expected volatility
+   Time Horizon: Short, Medium, or Long term
+
+
+5.4 Sentiment Analysis Page
+
+Purpose: Analyze market sentiment across multiple stocks simultaneously
+
+Features:
+- Multi-symbol support (up to 10 stocks simultaneously)
+- Symbol selection via interactive chips
+- Real-time sentiment scoring
+
+Process:
+
+1. Symbol Selection
+   - Symbols automatically load from /api/symbols
+   - User clicks on symbol chips to select/deselect
+   - Each selection is tracked in component state
+   - Maximum 10 symbols enforced
+   - Selected chips highlight visually
+
+2. Analysis Trigger
+   - User clicks "Analyze Sentiment" button
+   - API Call: GET /api/sentiment?symbols=AAPL,GOOGL,MSFT,TSLA,NVDA
+   - Loading state displays while processing
+   - Timeout protection prevents stuck requests
+
+3. Results Processing
+   - Multiple agents analyze sentiment data:
+     Market data retrieval
+     News sentiment analysis
+     Technical indicator evaluation
+     Probability calculation
+   - Results aggregated across symbols
+
+4. Results Display
+   Summary Section:
+   - Overall market sentiment (Bullish/Neutral/Bearish)
+   - Average sentiment score (0-100)
+   - Number of positive vs negative signals
+   - Recommendation: BUY, HOLD, or SELL
+   
+   Individual Stock Analysis:
+   For each selected stock:
+   - Stock symbol and name
+   - Sentiment: BULLISH/NEUTRAL/BEARISH
+   - Confidence score: 0-100
+   - Trend direction: Upward/Sideways/Downward
+   - Key events and news
+   - Technical indicators
+   - Recent price action
+   
+   AI Recommendations:
+   - Portfolio-level recommendations
+   - Sector rotation opportunities
+   - Specific entry/exit points
+   - Risk warnings
+   - Timing considerations
+
+Data Source:
+GET /api/symbols (for symbol list)
+GET /api/sentiment?symbols=... (for analysis)
+
+
+5.5 Alerts Page
+
+Purpose: Manage portfolio alerts and notifications
+
+Alert Types Supported:
+- Price Alerts: Alert when stock crosses price threshold
+- Performance Alerts: Alert when portfolio gains/loses specified percentage
+- Volatility Alerts: Alert when trading volume or volatility exceeds threshold
+- Fraud Alerts: Automatically triggered by risk detection engine
+- Compliance Alerts: Regulatory or tax-related issues flagged
+
+Alert Management:
+
+View Active Alerts:
+- Table display with columns:
+  Symbol
+  Type (Price/Performance/Volatility/Fraud)
+  Condition (e.g., "Price above $200")
+  Status (Active/Triggered/Completed)
+  Created date
+  Last checked time
+  Next check scheduled
+
+Filter and Sort:
+- Filter by alert type
+- Filter by status
+- Sort by severity
+- Sort by creation date
+
+Create New Alert:
+- Launch alert creation form
+- Select symbol from dropdown
+- Select alert type
+- Set trigger condition and value
+- Optionally set expiration date
+- Submit POST /api/portfolio/<id>/alert
+
+Modify Alert:
+- Edit trigger value
+- Pause/resume alert
+- Change notification settings
+- Delete alert with confirmation
+
+Alert Notifications:
+- Desktop notifications when alert triggers
+- Email notifications (if enabled)
+- Dashboard badge showing alert count
+- Alert log with historical record
+
+System Processing:
+- Background monitoring of all active alerts
+- Continuous comparison against market data
+- Automatic alert triggering when conditions met
+- Alert history maintained for auditing
+
+
+5.6 Settings Page
+
+Purpose: Configure user preferences and system behavior
+
+Configuration Sections:
+
+Portfolio Settings:
+- Default portfolio selection
+- Portfolio display preferences
+- Currency selection (USD, EUR, INR, etc.)
+- Number display format
+
+Alert Preferences:
+- Alert frequency (Daily, Weekly, Never)
+- Alert types to receive
+- Notification channels (Email, Dashboard, SMS)
+- Do Not Disturb hours
+
+Display Settings:
+- Chart type preferences (candlestick, line, bar)
+- Dashboard layout customization
+- Color scheme selection (Light, Dark, Auto)
+- Number of items per page
+
+Analysis Preferences:
+- Default risk analysis sensitivity
+- Preferred analysis depth (Quick, Detailed, Comprehensive)
+- Historical data retention period
+- Report format preferences
+
+Risk Profile:
+- Risk tolerance level (Conservative, Moderate, Aggressive)
+- Investment horizon (Short/Medium/Long term)
+- Maximum sector concentration
+- Margin usage preference
+
+Notification Management:
+- Email notification settings
+  Email address for alerts
+  Digest frequency (Daily, Weekly, Never)
+  Types of emails to receive
+  
+- Dashboard notifications
+  Toast notification display time
+  Sound alerts enabled/disabled
+  
+- SMS notifications (if enabled)
+  Phone number verification
+  Message frequency limits
+
+Data Privacy:
+- Data retention preferences
+- Third-party data sharing opt-in/opt-out
+- Download personal data
+- Delete account option
+
+
+================================================================================
+6. API ENDPOINTS
+================================================================================
+
+The FinGuard backend exposes 22 RESTful API endpoints for frontend consumption. All endpoints require HTTP requests and return JSON responses.
+
+6.1 Portfolio Management Endpoints
+
+ENDPOINT: POST /api/portfolio
+METHOD: POST
+PURPOSE: Create a new portfolio
+AUTHENTICATION: Required
+RATE LIMIT: 10 requests per minute per user
+
+REQUEST BODY:
+{
+  "user_id": "user_123",
+  "name": "My Investment Portfolio",
+  "initial_investment": 100000
+}
+
+RESPONSE (201 Created):
+{
+  "id": 1,
+  "user_id": "user_123",
+  "name": "My Investment Portfolio",
+  "total_value": 100000,
+  "cash_balance": 100000,
+  "created_at": "2026-04-22T10:00:00Z",
+  "updated_at": "2026-04-22T10:00:00Z"
+}
+
+ERROR RESPONSES:
+- 400 Bad Request: Missing required fields
+- 401 Unauthorized: User not authenticated
+- 409 Conflict: User already has portfolio with same name
+
+
+ENDPOINT: GET /api/portfolios
+METHOD: GET
+PURPOSE: List all portfolios for authenticated user
+AUTHENTICATION: Required
+
+QUERY PARAMETERS:
+- sort_by: created_at, name, total_value (default: created_at)
+- order: asc, desc (default: desc)
+- limit: 1-100 (default: 50)
+- offset: 0+ (default: 0)
+
+RESPONSE (200 OK):
+{
+  "portfolios": [
+    {
+      "id": 1,
+      "user_id": "user_123",
+      "name": "My Investment Portfolio",
+      "total_value": 110000,
+      "cash_balance": 5000,
+      "assets_count": 5,
+      "created_at": "2026-04-22T10:00:00Z",
+      "updated_at": "2026-04-22T14:30:00Z"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
+
+
+ENDPOINT: GET /api/portfolio/<id>
+METHOD: GET
+PURPOSE: Retrieve details for specific portfolio
+AUTHENTICATION: Required
+
+PATH PARAMETERS:
+- id: Portfolio ID (integer)
+
+RESPONSE (200 OK):
+{
+  "id": 1,
+  "user_id": "user_123",
+  "name": "My Investment Portfolio",
+  "total_value": 110000,
+  "cash_balance": 5000,
+  "assets_count": 5,
+  "created_at": "2026-04-22T10:00:00Z",
+  "updated_at": "2026-04-22T14:30:00Z"
+}
+
+ERROR RESPONSES:
+- 404 Not Found: Portfolio does not exist
+- 403 Forbidden: User does not own portfolio
+
+
+6.2 Asset Management Endpoints
+
+ENDPOINT: POST /api/portfolio/<id>/asset
+METHOD: POST
+PURPOSE: Add new holding to portfolio
+AUTHENTICATION: Required
+
+REQUEST BODY:
+{
+  "symbol": "AAPL",
+  "name": "Apple Inc",
+  "quantity": 100,
+  "purchase_price": 150.50,
+  "current_price": 180.75,
+  "asset_type": "stock",
+  "sector": "Technology"
+}
+
+RESPONSE (201 Created):
+{
+  "id": 1,
+  "portfolio_id": 1,
+  "symbol": "AAPL",
+  "name": "Apple Inc",
+  "quantity": 100,
+  "purchase_price": 150.50,
+  "current_price": 180.75,
+  "gain_loss": 3025.00,
+  "gain_loss_percent": 20.10,
+  "created_at": "2026-04-22T10:00:00Z"
+}
+
+
+ENDPOINT: GET /api/portfolio/<id>/assets
+METHOD: GET
+PURPOSE: Get all assets in portfolio
+AUTHENTICATION: Required
+
+RESPONSE (200 OK):
+{
+  "assets": [
+    {
+      "id": 1,
+      "symbol": "AAPL",
+      "name": "Apple Inc",
+      "quantity": 100,
+      "purchase_price": 150.50,
+      "current_price": 180.75,
+      "asset_type": "stock",
+      "sector": "Technology",
+      "gain_loss": 3025.00,
+      "gain_loss_percent": 20.10
+    }
+  ],
+  "total_assets": 1,
+  "total_value": 18075.00
+}
+
+
+6.3 Transaction Endpoints
+
+ENDPOINT: POST /api/portfolio/<id>/transaction
+METHOD: POST
+PURPOSE: Record buy/sell/dividend transaction
+AUTHENTICATION: Required
+
+REQUEST BODY:
+{
+  "symbol": "AAPL",
+  "transaction_type": "buy",
+  "quantity": 50,
+  "price": 180.00,
+  "fees": 50.00,
+  "notes": "Purchased for portfolio rebalancing"
+}
+
+RESPONSE (201 Created):
+{
+  "id": 1,
+  "portfolio_id": 1,
+  "symbol": "AAPL",
+  "transaction_type": "buy",
+  "quantity": 50,
+  "price": 180.00,
+  "total_amount": 9000.00,
+  "fees": 50.00,
+  "risk_score": 45,
+  "risk_label": "LOW",
+  "created_at": "2026-04-22T10:00:00Z"
+}
+
+PROCESSING:
+- Immediate ML risk scoring
+- Portfolio balance update
+- Alert generation if risk high
+- Background AI analysis
+
+
+ENDPOINT: POST /api/transaction/score-risk
+METHOD: POST
+PURPOSE: Calculate ML risk score for transaction
+AUTHENTICATION: Required
+
+REQUEST BODY:
+{
+  "symbol": "AAPL",
+  "transaction_type": "buy",
+  "quantity": 1000,
+  "price": 180.00,
+  "customer_profile": {
+    "account_age_days": 30,
+    "transaction_frequency": "high",
+    "account_balance": 500000
+  }
+}
+
+RESPONSE (200 OK):
+{
+  "final_score": 75,
+  "risk_label": "MEDIUM",
+  "method": "ensemble",
+  "confidence": 0.87,
+  "flags": [
+    "large_quantity",
+    "account_young",
+    "high_frequency"
+  ],
+  "ml_scores": {
+    "rules_score": 70,
+    "gradient_boosting_score": 78,
+    "isolation_forest_score": 72
+  },
+  "reasoning": "Large transaction quantity detected on young account..."
+}
+
+
+ENDPOINT: GET /api/portfolio/<id>/transactions
+METHOD: GET
+PURPOSE: Get transaction history for portfolio
+AUTHENTICATION: Required
+
+QUERY PARAMETERS:
+- symbol: Filter by stock symbol (optional)
+- type: Filter by transaction type (optional)
+- start_date: Filter by date range (optional)
+- end_date: Filter by date range (optional)
+- limit: Number of results (default: 50)
+
+RESPONSE (200 OK):
+{
+  "transactions": [
+    {
+      "id": 1,
+      "symbol": "AAPL",
+      "transaction_type": "buy",
+      "quantity": 100,
+      "price": 150.00,
+      "total_amount": 15000,
+      "fees": 50,
+      "risk_score": 45,
+      "created_at": "2026-04-22T10:00:00Z"
+    }
+  ],
+  "total": 50,
+  "limit": 50
+}
+
+
+6.4 Analysis and Intelligence Endpoints
+
+ENDPOINT: POST /api/portfolio/<id>/analyze
+METHOD: POST
+PURPOSE: Run comprehensive portfolio analysis with all AI agents
+AUTHENTICATION: Required
+TIMEOUT: 60 seconds
+
+RESPONSE (200 OK):
+{
+  "portfolio_id": 1,
+  "timestamp": "2026-04-22T10:00:00Z",
+  "crews_run": 3,
+  "agents_used": 9,
+  "results": {
+    "crew_1_risk_analysis": {
+      "risk_assessment": "...",
+      "fraud_detection": "...",
+      "compliance_review": "..."
+    },
+    "crew_2_portfolio_analysis": {
+      "portfolio_analysis": "...",
+      "market_intelligence": "...",
+      "customer_context": "..."
+    },
+    "crew_3_summary": {
+      "alert_intake": "...",
+      "explanation": "...",
+      "escalation": "..."
+    }
+  },
+  "execution_time_seconds": 35,
+  "rate_limited": false
+}
+
+
+ENDPOINT: POST /api/portfolio/<id>/quick-recommendation
+METHOD: POST
+PURPOSE: Generate recommendation for specific stock
+AUTHENTICATION: Required
+TIMEOUT: 20 seconds
+
+REQUEST BODY:
+{
+  "symbol": "AAPL",
+  "risk_profile": "moderate"
+}
+
+RESPONSE (200 OK):
+{
+  "symbol": "AAPL",
+  "recommendation": "BUY",
+  "confidence": 0.82,
+  "time_horizon": "medium_term",
+  "price_target": 195.00,
+  "reasoning": [
+    "Strong fundamental metrics",
+    "Positive market sentiment",
+    "Technical support at current levels",
+    "Sector momentum positive"
+  ],
+  "risk_level": "moderate",
+  "alternatives": ["MSFT", "NVDA"]
+}
+
+
+ENDPOINT: GET /api/sentiment
+ENDPOINT: GET /api/sentiment/<symbol>
+METHOD: GET
+PURPOSE: Get market sentiment for stocks
+AUTHENTICATION: Optional
+
+QUERY PARAMETERS (for multi-symbol):
+- symbols: Comma-separated list (AAPL,GOOGL,MSFT)
+
+RESPONSE (200 OK):
+{
+  "sentiments": [
+    {
+      "symbol": "AAPL",
+      "sentiment": "BULLISH",
+      "score": 0.82,
+      "trend": "upward",
+      "confidence": 0.91,
+      "key_events": [
+        "Strong earnings expected",
+        "New product launch scheduled"
+      ],
+      "technical_signals": {
+        "moving_average_50d": "bullish",
+        "momentum": "positive",
+        "support_level": 175.00
+      }
+    }
+  ],
+  "overall_sentiment": "BULLISH",
+  "data_freshness": "real-time"
+}
+
+
+ENDPOINT: POST /api/transaction/get-ai-insights
+METHOD: POST
+PURPOSE: Get AI analysis for transaction
+AUTHENTICATION: Required
+
+REQUEST BODY:
+{
+  "transaction_id": 1,
+  "portfolio_id": 1
+}
+
+RESPONSE (200 OK):
+{
+  "transaction_id": 1,
+  "analysis": {
+    "market_context": "AAPL trading near 52-week highs",
+    "risk_assessment": "Transaction size is 2x user average",
+    "compliance_check": "No violations detected",
+    "timing_analysis": "Good entry point based on technical setup",
+    "portfolio_impact": "Reduces diversification by 3%"
+  },
+  "recommendations": [
+    "Consider scaling into position",
+    "Set stop loss at 170.00"
+  ]
+}
+
+
+6.5 Stock Data Endpoints
+
+ENDPOINT: GET /api/symbols
+METHOD: GET
+PURPOSE: Get all available stock symbols
+AUTHENTICATION: Optional
+
+RESPONSE (200 OK):
+{
+  "symbols": [
+    "AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NVDA", "META", "JPM",
+    "V", "JNJ", "UNH", "PG", "XOM", "CVX", "WMT", "PEP", "MCD",
+    "COST", "AMT", "PLD", "DIS", "BA", "GE", "IBM", "CSCO"
+  ],
+  "default_symbols": ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN", "NVDA"],
+  "total": 30
+}
+
+
+ENDPOINT: GET /api/symbols/sectors
+METHOD: GET
+PURPOSE: Get symbols grouped by sector
+AUTHENTICATION: Optional
+
+RESPONSE (200 OK):
+{
+  "sectors": {
+    "Technology": ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA", "META"],
+    "Finance": ["JPM", "BAC", "GS", "WFC", "C"],
+    "Healthcare": ["UNH", "JNJ", "PFE", "AZN"],
+    "Consumer": ["WMT", "PG", "PEP", "KO"],
+    "Energy": ["XOM", "CVX", "COP"],
+    "Real Estate": ["AMT", "PLD", "ARE"]
+  }
+}
+
+
+6.6 Alert Management Endpoints
+
+ENDPOINT: POST /api/portfolio/<id>/alert
+METHOD: POST
+PURPOSE: Create new alert
+AUTHENTICATION: Required
+
+REQUEST BODY:
+{
+  "symbol": "AAPL",
+  "alert_type": "price",
+  "condition": "above",
+  "value": 200.00,
+  "notification_method": "email"
+}
+
+RESPONSE (201 Created):
+{
+  "id": 1,
+  "portfolio_id": 1,
+  "symbol": "AAPL",
+  "alert_type": "price",
+  "condition": "above",
+  "value": 200.00,
+  "status": "active",
+  "created_at": "2026-04-22T10:00:00Z",
+  "expires_at": null
+}
+
+
+ENDPOINT: GET /api/portfolio/<id>/alerts
+METHOD: GET
+PURPOSE: Get alerts for portfolio
+AUTHENTICATION: Required
+
+QUERY PARAMETERS:
+- status: active, triggered, completed
+- type: price, performance, volatility, fraud
+
+RESPONSE (200 OK):
+{
+  "alerts": [
+    {
+      "id": 1,
+      "symbol": "AAPL",
+      "alert_type": "price",
+      "condition": "above",
+      "value": 200.00,
+      "status": "active",
+      "created_at": "2026-04-22T10:00:00Z"
+    }
+  ],
+  "active_count": 5,
+  "triggered_count": 2
+}
+
+
+6.7 System Endpoints
+
+ENDPOINT: GET /api/health
+METHOD: GET
+PURPOSE: Check system health and availability
+AUTHENTICATION: Optional
+
+RESPONSE (200 OK):
+{
+  "status": "operational",
+  "database": "connected",
+  "groq_api": "available",
+  "chromadb": "connected",
+  "uptime_seconds": 86400,
+  "timestamp": "2026-04-22T10:00:00Z"
+}
+
+
+================================================================================
+7. USER INTERACTION LOGIC
+================================================================================
+
+7.1 User Authentication Flow
+
+System Start
+  |
+  v
+React Application Loads
+  |
+  ├─ Check localStorage for user data
+  |
+  v
+User Exists?
+  |
+  ├─ YES: Load user object from storage
+  ├─ NO: Generate new user ID
+  |
+  v
+Save to localStorage
+  |
+  v
+Set React State with User Data
+  |
+  v
+Render Dashboard
+  |
+  v
+Ready for User Interaction
+
+
+User Data Structure:
+{
+  "id": "user_1714033200000",
+  "name": "Investor",
+  "email": "investor@finguard.com",
+  "created_at": "2026-04-22T10:00:00Z"
+}
+
+7.2 Portfolio Creation Workflow
+
+User Action: Click "Create New Portfolio"
+  |
+  v
+Creation Form Displayed
+  (Fields: Portfolio Name, Initial Investment Amount)
+  |
+  v
+User Fills Form
+  |
+  v
+User Clicks "Create Portfolio" Button
+  |
+  v
+Form Validation
+  Portfolio name non-empty
+  Initial investment > 0
+  |
+  v
+Submit POST /api/portfolio
+Request Body:
+{
+  "user_id": "user_1234567890",
+  "name": "My Investment Portfolio",
+  "initial_investment": 100000
+}
+  |
+  v
+Backend Processing
+  - Validate request structure
+  - Create Portfolio record in SQLite
+  - Set cash_balance = initial_investment
+  - Generate unique portfolio ID
+  - Return portfolio details
+  |
+  v
+Response Success (201 Created)
+Response contains:
+  - portfolio_id (primary key)
+  - creation timestamp
+  - initial values
+  |
+  v
+Frontend Updates
+  - Store portfolio ID in state
+  - Navigate to Portfolio page
+  - Display success notification
+  - Load portfolio details
+
+
+7.3 Adding Holdings to Portfolio
+
+User Action: Navigate to Portfolio Page
+  |
+  v
+Page Loads
+  - GET /api/portfolio/<id>/assets
+  - Display current holdings in table
+  |
+  v
+User Clicks "Add Holding" Button
+  |
+  v
+Form Modal Opens
+Fields Required:
+  - Stock Symbol (dropdown with 30+ options)
+  - Quantity (numeric input)
+  - Purchase Price (decimal input)
+  - Current Price (optional, decimal input)
+  |
+  v
+User Fills Form
+Symbol: AAPL
+Quantity: 100
+Purchase Price: 150.00
+Current Price: 180.00 (auto-filled from latest data)
+  |
+  v
+User Clicks "Add" Button
+  |
+  v
+Form Validation
+  - Symbol selected
+  - Quantity > 0
+  - Purchase Price > 0
+  - Current Price > 0
+  |
+  v
+Submit POST /api/portfolio/<id>/asset
+Request Body:
+{
+  "symbol": "AAPL",
+  "name": "Apple Inc",
+  "quantity": 100,
+  "purchase_price": 150.00,
+  "current_price": 180.00,
+  "sector": "Technology"
+}
+  |
+  v
+Backend Processing
+  - Create Asset record in database
+  - Calculate gains/losses
+  - Update portfolio total value
+  - Identify sector automatically
+  |
+  v
+Response (201 Created)
+Returns:
+  - Asset ID
+  - All asset details
+  - Calculated gain/loss
+  |
+  v
+Frontend Updates
+  - Close form modal
+  - Refresh assets table
+  - Update portfolio statistics
+  - Display success message
+  |
+  v
+Holdings List Updated
+User sees new AAPL holding in the table
+
+
+7.4 Transaction Risk Analysis Workflow
+
+User Action: Navigate to Analytics Page
+  |
+  v
+Transaction Risk Analysis Section
+  |
+  v
+User Fills Transaction Details
+Fields:
+  Symbol: AAPL (dropdown)
+  Type: BUY (radio button)
+  Quantity: 1000 (numeric)
+  Price: 180.00 (decimal)
+  Fees: 50.00 (optional)
+  |
+  v
+User Clicks "Analyze Risk" Button
+  |
+  v
+Frontend Validation
+  - All required fields filled
+  - Numeric fields valid
+  - Quantity and price > 0
+  |
+  v
+Submit POST /api/transaction/score-risk
+Request Body:
+{
+  "symbol": "AAPL",
+  "transaction_type": "buy",
+  "quantity": 1000,
+  "price": 180.00,
+  "customer_profile": {
+    "account_age_days": 30,
+    "transaction_frequency": "high"
+  }
+}
+  |
+  v
+Backend Processing - Stage 1: ML Risk Scoring
+  |
+  ├─ Rules Engine (< 100ms)
+  |  - Check quantity thresholds
+  |  - Check velocity limits
+  |  - Check account age
+  |  - Check price movements
+  |  - Generate rules_score
+  |
+  ├─ Gradient Boosting Model (< 200ms)
+  |  - Load trained model from joblib
+  |  - Extract features from transaction
+  |  - Generate fraud probability
+  |  - Output gradient_boosting_score
+  |
+  ├─ Isolation Forest (< 100ms)
+  |  - Detect statistical anomalies
+  |  - Compare against historical data
+  |  - Generate anomaly_score
+  |
+  └─ Ensemble Scoring (< 50ms)
+     - Combine three scores
+     - Weight by confidence
+     - Generate final_score (0-100)
+     - Assign risk_label
+     - Extract flags
+  |
+  v
+Backend Processing - Stage 2: LLM Expert Analysis
+  |
+  - Prepare context with ML results
+  - Send to Groq LLM (llama-3.3-70b)
+  - LLM analyzes results with expertise
+  - Generates detailed explanation
+  - Returns structured analysis
+  |
+  v
+Backend Response (200 OK)
+Response Contains:
+{
+  "final_score": 75,
+  "risk_label": "MEDIUM",
+  "method": "ensemble",
+  "confidence": 0.87,
+  "flags": ["large_quantity", "account_young"],
+  "ml_scores": {...},
+  "ai_analysis": "..."
+}
+  |
+  v
+Frontend Display Results
+  - Risk Score: 75/100
+  - Risk Level: MEDIUM (displayed in color)
+  - Confidence: 87%
+  - Risk Flags listed
+  - AI Analysis explanation
+  - Recommendations displayed
+  |
+  v
+User Can
+  - View detailed analysis
+  - Proceed with or cancel transaction
+  - Modify transaction parameters and re-analyze
+
+
+7.5 Portfolio Analysis with All AI Agents
+
+User Action: View Portfolio Page
+  |
+  v
+User Clicks "Comprehensive Analysis" Button
+  |
+  v
+Loading Indicator Appears
+Message: "Analyzing portfolio with AI agents..."
+  |
+  v
+Submit POST /api/portfolio/<id>/analyze
+Backend Initiates Orchestrator
+  |
+  v
+Orchestrator Loads Portfolio Data
+  - Get all portfolio assets
+  - Get transaction history
+  - Get customer profile
+  - Calculate portfolio metrics
+  |
+  v
+Execute Crew 1: Risk Analysis (Parallel Execution)
+Time: ~10 seconds
+  
+Agents: Risk Assessment, Risk Detection, Compliance
+  
+Tasks:
+  1. Risk Assessment Agent
+     - Evaluate market risk dimensions
+     - Calculate risk scores
+     - Identify concentration risks
+     
+  2. Risk Detection Agent
+     - Screen transactions with ML engine
+     - Identify fraud patterns
+     - Assess anomalies
+     
+  3. Compliance Agent
+     - Check tax compliance
+     - Identify violations
+     - Generate tax recommendations
+
+Results: Risk findings, fraud flags, compliance issues
+  |
+  v
+Execute Crew 2: Portfolio Analysis (Parallel Execution)
+Time: ~10 seconds
+  
+Agents: Portfolio Analysis, Market Intelligence, Customer Context
+
+Tasks:
+  1. Portfolio Analysis Agent
+     - Analyze asset allocation
+     - Calculate diversification
+     - Generate rebalancing recommendations
+     
+  2. Market Intelligence Agent
+     - Analyze sentiment for holdings
+     - Identify market trends
+     - Generate buy/sell recommendations
+     
+  3. Customer Context Agent
+     - Build customer profile
+     - Assess alignment with needs
+     - Extract preferences
+
+Results: Portfolio assessment, market outlook, customer insights
+  |
+  v
+Execute Crew 3: Summary (Parallel Execution)
+Time: ~10 seconds
+
+Agents: Alert Intake, Explanation, Escalation
+
+Tasks:
+  1. Alert Intake Agent
+     - Categorize findings
+     - Prioritize alerts
+     - Create action items
+     
+  2. Explanation Agent
+     - Translate findings to plain language
+     - Tailor to customer audience
+     - Generate recommendations
+     
+  3. Escalation Agent
+     - Evaluate escalation needs
+     - Prepare case summaries
+     - Flag critical items
+
+Results: Summarized findings, explanations, escalations
+  |
+  v
+Combine Results from All Crews
+Merge into unified report
+  |
+  v
+Format for Frontend Display
+Generate JSON response
+  |
+  v
+Response Sent (200 OK)
+Backend returns combined analysis from all 9 agents
+Time elapsed: ~30-35 seconds
+  |
+  v
+Frontend Displays Results
+  - Risk Analysis section (Crew 1 output)
+  - Portfolio Assessment section (Crew 2 output)
+  - Summary and Recommendations (Crew 3 output)
+  - Each section has expandable details
+  - Color-coded risk levels
+  - Action buttons for key recommendations
+
+
+7.6 Quick Recommendation Workflow (Portfolio-Filtered)
+
+User Action: Portfolio Page
+  |
+  v
+User Sees "Quick Recommendation" Section
+  |
+  v
+User Selects Portfolio from Dropdown
+Portfolio ID dropdown change event fires
+  |
+  v
+Event Handler: loadPortfolioSymbols()
+Function executes immediately
+  |
+  v
+Symbol Dropdown Initialization
+Send GET /api/portfolio/<id>/assets
+  |
+  v
+Backend Response
+Returns list of assets in portfolio:
+[
+  {
+    "id": 1,
+    "symbol": "AAPL",
+    "name": "Apple Inc",
+    "quantity": 100,
+    "sector": "Technology"
+  },
+  {
+    "id": 2,
+    "symbol": "GOOGL",
+    "name": "Alphabet Inc",
+    "quantity": 50,
+    "sector": "Technology"
+  }
+]
+  |
+  v
+Frontend Updates Symbol Dropdown
+Populates with portfolio holdings ONLY
+- AAPL - Apple Inc
+- GOOGL - Alphabet Inc
+(No other symbols available for selection)
+  |
+  v
+User Selects Symbol
+Example: AAPL selected from dropdown
+  |
+  v
+User Selects Risk Profile
+Options: Conservative, Moderate, Aggressive
+User chooses: Moderate
+  |
+  v
+User Clicks "Get Recommendation" Button
+  |
+  v
+Form Validation
+- Portfolio ID selected
+- Symbol selected
+- Risk profile selected
+  |
+  v
+Frontend Submits POST /api/portfolio/<id>/quick-recommendation
+Request Body:
+{
+  "symbol": "AAPL",
+  "risk_profile": "moderate"
+}
+  |
+  v
+Backend Processing
+Portfolio Analysis Agent analyzes:
+- Current holding of AAPL in portfolio
+- Current AAPL stock price
+- Market sentiment for AAPL
+- Technical indicators
+- Portfolio fit and diversification impact
+- Customer risk profile (moderate)
+- Recent performance data
+- Competitor analysis
+  |
+  v
+Groq LLM Analysis
+- Generates recommendation (BUY/SELL/HOLD)
+- Calculates confidence level
+- Identifies key reasoning factors
+- Estimates price target
+- Evaluates risk level
+  |
+  v
+Response (200 OK)
+{
+  "symbol": "AAPL",
+  "recommendation": "BUY",
+  "confidence": 0.82,
+  "price_target": 195.00,
+  "reasoning": [
+    "Strong fundamental metrics",
+    "Positive market sentiment"
+  ],
+  "risk_level": "moderate",
+  "time_horizon": "3_months"
+}
+  |
+  v
+Frontend Displays Recommendation
+Large card showing:
+- Recommendation: BUY (green background)
+- Confidence: 82%
+- Price Target: $195.00
+- Key Reasons listed
+- Risk Assessment
+- Action buttons: "Act on This" or "Show More"
+
+
+7.7 Sentiment Analysis Multi-Symbol Workflow
+
+User Action: Navigate to Sentiment Analysis Page
+  |
+  v
+Page Loads
+Fetch GET /api/symbols
+Display available symbols as selectable chips
+  |
+  v
+User Selects Stocks Using Chips
+Click on AAPL chip → selected (visual highlight)
+Click on GOOGL chip → selected
+Click on MSFT chip → selected
+Click on TSLA chip → selected
+Click on NVDA chip → selected
+(Can select up to 10 symbols)
+  |
+  v
+User Clicks "Analyze Sentiment" Button
+  |
+  v
+Frontend Validation
+- Minimum 1 symbol selected
+- Maximum 10 symbols selected
+  |
+  v
+Frontend Submits GET /api/sentiment
+Query Parameters:
+?symbols=AAPL,GOOGL,MSFT,TSLA,NVDA
+  |
+  v
+Backend Processing
+Multiple AI agents analyze simultaneously:
+  
+1. Data Aggregation
+   - Market data collection for each symbol
+   - News sentiment analysis
+   - Technical indicators
+   - Recent price action
+   
+2. Sentiment Analysis
+   For each symbol:
+   - Bullish signals vs Bearish signals
+   - Sentiment score calculation (0-100)
+   - Confidence level estimation
+   - Trend direction analysis
+   
+3. Cross-Symbol Analysis
+   - Sector trends
+   - Correlation between symbols
+   - Portfolio-level sentiment
+   
+4. Recommendation Generation
+   - Portfolio-level action (BUY/HOLD/SELL)
+   - Individual stock recommendations
+   - Timing considerations
+  |
+  v
+Backend Response (200 OK)
+Multiple responses combined:
+{
+  "analysis_date": "2026-04-22",
+  "symbols_analyzed": 5,
+  "overall_sentiment": "BULLISH",
+  "average_score": 0.75,
+  "sentiments": [
+    {
+      "symbol": "AAPL",
+      "sentiment": "BULLISH",
+      "score": 0.82,
+      "confidence": 0.88,
+      "trend": "upward",
+      "key_events": [...]
+    },
+    {
+      "symbol": "GOOGL",
+      "sentiment": "BULLISH",
+      "score": 0.78,
+      "confidence": 0.85,
+      "trend": "upward"
+    },
+    // ... other symbols
+  ],
+  "portfolio_recommendation": "BUY",
+  "timing": "Good entry point for new positions"
+}
+  |
+  v
+Frontend Displays Results
+  
+Summary Section at Top:
+- Overall Market Sentiment: BULLISH
+- Number of Bullish signals: 5
+- Number of Bearish signals: 0
+- Average Sentiment Score: 75%
+- Portfolio Recommendation: BUY
+
+Individual Stock Cards:
+For each stock:
+- Stock name and symbol
+- Sentiment sentiment: BULLISH/NEUTRAL/BEARISH
+- Confidence percentage
+- Trend direction with arrow
+- Key factors driving sentiment
+- Recent news summaries
+
+AI Recommendations Section:
+- What action to take
+- Why it makes sense
+- Timeline for action
+- Risk considerations
+  |
+  v
+User Can
+- View individual stock details
+- Read full analysis reports
+- Create alerts for price levels
+- share analysis with others
+
+
+7.8 Alert Creation and Monitoring
+
+User Action: Navigate to Alerts Page
+  |
+  v
+Current Alerts Section Displays
+Table with:
+- Symbol
+- Alert Type
+- Trigger Condition
+- Status (Active/Triggered/Completed)
+- Creation date
+  |
+  v
+User Clicks "Create New Alert" Button
+  |
+  v
+Alert Creation Form Opens
+Fields:
+  1. Stock Symbol (dropdown)
+  2. Alert Type (radio buttons)
+     - Price: Alert at specific price level
+     - Performance: Alert at portfolio change %
+     - Volatility: Alert on volume/volatility change
+     - Fraud: Auto-triggered by system
+  3. Condition (e.g., "Price above", "Portfolio down")
+  4. Value (e.g., "$200.00", "5%")
+  5. Expiration (optional)
+  |
+  v
+User Fills Form
+Symbol: AAPL
+Type: Price
+Condition: Price above $200
+  |
+  v
+User Clicks "Create Alert"
+  |
+  v
+Form Validation
+- All required fields filled
+- Value is valid number
+  |
+  v
+Submit POST /api/portfolio/<id>/alert
+Request Body:
+{
+  "symbol": "AAPL",
+  "alert_type": "price",
+  "condition": "above",
+  "value": 200.00
+}
+  |
+  v
+Backend Processing
+- Create Alert record in database
+- Set status = "active"
+- Schedule monitoring task
+- Return alert details
+  |
+  v
+Response (201 Created)
+{
+  "id": 1,
+  "symbol": "AAPL",
+  "alert_type": "price",
+  "condition": "above",
+  "value": 200.00,
+  "status": "active",
+  "created_at": "2026-04-22T10:00:00Z"
+}
+  |
+  v
+Frontend Updates
+- Close form modal
+- Add alert to active alerts table
+- Show success notification
+  |
+  v
+Backend Monitoring (Continuous)
+Background process continuously:
+- Check current AAPL price
+- Compare against threshold (200.00)
+- When price crosses threshold:
+  - Trigger alert
+  - Generate notification
+  - Update alert status to "triggered"
+  - Create alert history record
+  |
+  v
+User Receives Alert Notification
+- Desktop notification pops up
+- Email sent (if configured)
+- Dashboard badge shows alert count
+- Alert moves to "Triggered" section
+  |
+  v
+User Can
+- View alert details
+- Dismiss alert
+- Create position based on alert
+- Delete alert
+
+
+7.9 Transaction Recording and ML Scoring
+
+User Action: Add Transaction
+  |
+  v
+Transaction Form
+Fields:
+  - Symbol (AAPL)
+  - Type (BUY)
+  - Quantity (100)
+  - Price (180.00)
+  - Fees (optional)
+  - Date (optional, defaults to today)
+  |
+  v
+User Submits Form
+  |
+  v
+Frontend Validation
+  - All fields valid
+  - Quantity > 0
+  - Price > 0
+  |
+  v
+Submit POST /api/portfolio/<id>/transaction
+Request Body:
+{
+  "symbol": "AAPL",
+  "transaction_type": "buy",
+  "quantity": 100,
+  "price": 180.00,
+  "fees": 50.00
+}
+  |
+  v
+Backend Processing - Immediate (Synchronous)
+1. Transaction Record Creation
+   - Insert transaction into database
+   - Calculate total_amount (100 * 180 = 18000)
+   - Generate transaction ID
+   - Record timestamp
+
+2. Portfolio Balance Update
+   - Subtract total cost from cash_balance
+   - If AAPL already exists: increase quantity
+   - If AAPL new: create asset record
+   - Recalculate total portfolio value
+
+3. Database Commit
+   - Persist all changes
+   - Record audit log entry
+  |
+  v
+Backend Processing - Immediate (ML Scoring)
+1. Load ML Risk Engine
+   - Load trained models from disk
+   - Load feature scalers
+   - Load label encoders
+
+2. Extract Features
+   From transaction data:
+   - Quantity relative to portfolio
+   - Price relative to recent history
+   - Volume relative to average
+   - Account age
+   - Transaction frequency
+   - Time of day
+   - Day of week
+
+3. Run ML Models (Parallel Execution)
+   
+   Model 1: Rules-Based Scoring
+   - Check quantity thresholds
+   - Check price movement limits
+   - Check account age requirements
+   - Check velocity limits
+   - Output: score 0-100
+   
+   Model 2: Gradient Boosting Classifier
+   - Feed features to trained model
+   - Generate fraud probability
+   - Output: probability 0-1 and score 0-100
+   
+   Model 3: Isolation Forest Anomaly Detection
+   - Identify statistical outliers
+   - Compare against historical data
+   - Output: anomaly score 0-100
+
+4. Ensemble Scoring
+   - Combine three model outputs
+   - Weight by model confidence
+   - Generate final risk_score (0-100)
+   - Assign risk_label (LOW/MEDIUM/HIGH)
+   - Extract risk flags
+
+5. Update Transaction Record
+   - Save risk_score to database
+   - Save risk_label
+   - Save risk_flags
+   |
+  v
+Backend Response (201 Created)
+Immediate response to frontend:
+{
+  "id": 1,
+  "symbol": "AAPL",
+  "transaction_type": "buy",
+  "quantity": 100,
+  "price": 180.00,
+  "total_amount": 18000,
+  "fees": 50,
+  "risk_score": 45,
+  "risk_label": "LOW",
+  "confidence": 0.92,
+  "created_at": "2026-04-22T10:00:00Z"
+}
+  |
+  v
+Backend Processing - Background (AI Analysis)
+Asynchronous processing continues:
+1. Groq LLM Analysis
+   - Get transaction details
+   - Get portfolio context
+   - Get customer profile
+   - Analyze market conditions
+   - Provide expert commentary
+
+2. Alert Generation (if needed)
+   - Is risk_score > threshold? If yes, create alert
+   - Are there red flags? If yes, escalate
+   - Should compliance review? If yes, notify
+
+3. Audit Logging
+   - Log all analysis results
+   - Record decision factors
+   - Track processing time
+  |
+  v
+Frontend Display Immediate Results
+- Transaction confirmed
+- Risk score displayed
+- Risk level shown in color
+- Flags if any (warnings)
+- Success notification
+  |
+  v
+Later: User Can
+- View full AI analysis
+- See compliance status
+- Check generated alerts
+- View audit trail
+
+
+================================================================================
+8. AGENT INTERFACES
+================================================================================
+
+8.1 Portfolio Analysis Agent Interface
+
+Purpose: Analyze portfolio composition and provide optimization recommendations
+
+Methods:
+
+analyze_portfolio(portfolio_data: Dict) -> Dict
+  Input:
+    {
+      "holdings": [
+        {"symbol": "AAPL", "quantity": 100, "value": 18000},
+        ...
+      ],
+      "total_value": 100000,
+      "cash_balance": 10000
+    }
+  
+  Processing:
+    1. Calculate sector allocation percentages
+    2. Calculate concentration metrics
+    3. Analyze historical performance
+    4. Generate diversification score
+    5. Identify concentration risks
+    6. Create improvement recommendations
+  
+  Output:
+    {
+      "allocation_score": 75,
+      "diversification_score": 78,
+      "concentration_risk": "medium",
+      "recommendations": [
+        "Reduce Technology to 35%",
+        "Increase Healthcare to 25%"
+      ]
+    }
+
+rebalance_portfolio(portfolio: Dict, target: Dict) -> Dict
+  Input:
+    portfolio: current holdings
+    target: target allocation percentages
+  
+  Output:
+    {
+      "actions": [
+        {"symbol": "AAPL", "action": "SELL", "quantity": 20},
+        {"symbol": "UNH", "action": "BUY", "quantity": 50}
+      ],
+      "estimated_cost": 500,
+      "time_to_execute": "1-2 hours"
+    }
+
+
+8.2 Risk Detection Agent Interface
+
+detect_fraud_risk(
+  transaction_history: List[Dict],
+  portfolio_data: Dict,
+  ml_pre_scores: List[Dict] = None
+) -> Dict
+  
+  Process:
+    Stage 1: ML Pre-Screening
+      - Apply rules engine
+      - Run GradientBoosting model
+      - Run IsolationForest anomaly detection
+      - Generate ML scores
+    
+    Stage 2: LLM Analysis
+      - Pass ML results to Groq
+      - Provide expert interpretation
+      - Generate fraud assessment
+  
+  Output:
+    {
+      "fraud_risk_score": 85,
+      "risk_label": "HIGH",
+      "flags": ["large_transaction", "unusual_timing"],
+      "ml_components": {...},
+      "expert_analysis": "..."
+    }
+
+
+8.3 Market Intelligence Agent Interface
+
+analyze_sentiment(symbols: List[str]) -> Dict
+  Input: ["AAPL", "GOOGL", "MSFT"]
+  
+  Output:
+    {
+      "AAPL": {
+        "sentiment": "BULLISH",
+        "score": 0.82,
+        "trend": "upward",
+        "technical_signals": {...}
+      },
+      ...
+    }
+
+identify_trends(symbol: str) -> Dict
+  Returns technical trend analysis
+
+generate_recommendations(symbols: List[str], portfolio: Dict) -> Dict
+  Returns BUY/SELL/HOLD recommendations
+
+
+8.4 Compliance Agent Interface
+
+review_transactions_compliance(transactions: List[Dict]) -> Dict
+  Output:
+    {
+      "violations": [
+        {
+          "type": "wash_sale",
+          "severity": "high",
+          "details": "..."
+        }
+      ],
+      "compliance_score": 85
+    }
+
+generate_tax_report(transactions: List[Dict], year: int) -> Dict
+  Output:
+    {
+      "capital_gains": 15000,
+      "capital_losses": 5000,
+      "short_term_gains": 10000,
+      "long_term_gains": 5000,
+      "estimated_tax": 2500,
+      "tax_loss_harvesting_opportunities": [...]
+    }
+
+
+8.5 Alert Intake Agent Interface
+
+process_alert(alert_source: str, alert_data: Dict) -> Dict
+  Input:
+    source: "transaction", "market", "portfolio"
+    data: alert details
+  
+  Output:
+    {
+      "alert_id": "ALERT_001",
+      "priority": "HIGH",
+      "category": "fraud_detection",
+      "enriched_context": {...}
+    }
+
+
+8.6 Explanation Agent Interface
+
+explain_alert(alert: Dict, audience: str) -> Dict
+  Audiences: "customer", "advisor", "compliance", "executive"
+  
+  Output:
+    {
+      "explanation": "Clear explanation tailored to audience",
+      "key_points": [...],
+      "action_recommended": "..."
+    }
+
+
+================================================================================
+9. DATABASE MODELS
+================================================================================
+
+9.1 Portfolio Model
+
+Table: portfolios
+
+Columns:
+  - id (Integer, Primary Key)
+  - user_id (String, Unique, Foreign Key)
+  - name (String): Portfolio name
+  - total_value (Float): Current total value in dollars
+  - cash_balance (Float): Available cash
+  - created_at (DateTime): Portfolio creation timestamp
+  - updated_at (DateTime): Last modification timestamp
+
+Relationships:
+  - One Portfolio has many Assets
+  - One Portfolio has many Transactions
+  - One Portfolio has many Alerts
+
+
+9.2 Asset Model
+
+Table: assets
+
+Columns:
+  - id (Integer, Primary Key)
+  - portfolio_id (Integer, Foreign Key to portfolios)
+  - symbol (String): Stock ticker symbol
+  - name (String): Company name
+  - quantity (Float): Number of shares held
+  - purchase_price (Float): Average purchase price
+  - current_price (Float): Most recent market price
+  - asset_type (String): "stock", "etf", "bond", "crypto"
+  - sector (String): Industry sector
+  - created_at (DateTime)
+  - updated_at (DateTime)
+
+Relationships:
+  - Many Assets belong to one Portfolio
+
+
+9.3 Transaction Model
+
+Table: transactions
+
+Columns:
+  - id (Integer, Primary Key)
+  - portfolio_id (Integer, Foreign Key)
+  - symbol (String): Stock symbol
+  - transaction_type (String): "buy", "sell", "dividend"
+  - quantity (Float): Number of shares
+  - price (Float): Price per share
+  - total_amount (Float): Quantity * Price
+  - fees (Float): Transaction fees
+  - risk_score (Integer): ML risk score (0-100)
+  - risk_label (String): "LOW", "MEDIUM", "HIGH"
+  - risk_flags (JSON): Array of risk indicators
+  - created_at (DateTime)
+  - timestamp (DateTime): Transaction execution time
+
+Relationships:
+  - Many Transactions belong to one Portfolio
+
+
+9.4 Alert Model
+
+Table: alerts
+
+Columns:
+  - id (Integer, Primary Key)
+  - portfolio_id (Integer, Foreign Key)
+  - symbol (String): Stock symbol
+  - alert_type (String): "price", "performance", "volatility", "fraud"
+  - condition (String): "above", "below", "equals"
+  - threshold_value (Float): Trigger value
+  - current_value (Float): Last checked value
+  - status (String): "active", "triggered", "completed"
+  - is_active (Boolean): Active/inactive flag
+  - triggered_at (DateTime): When alert was triggered
+  - created_at (DateTime)
+  - expires_at (DateTime): Optional expiration date
+
+Relationships:
+  - Many Alerts belong to one Portfolio
+
+
+9.5 Risk Assessment Model
+
+Table: risk_assessments
+
+Columns:
+  - id (Integer, Primary Key)
+  - portfolio_id (Integer, Foreign Key)
+  - market_risk_score (Integer): 0-100
+  - concentration_risk_score (Integer): 0-100
+  - liquidity_risk_score (Integer): 0-100
+  - credit_risk_score (Integer): 0-100
+  - systemic_risk_score (Integer): 0-100
+  - overall_risk_score (Integer): 0-100
+  - risk_level (String): "LOW", "MEDIUM", "HIGH"
+  - created_at (DateTime)
+  - analysis_details (JSON): Detailed risk breakdown
+
+Relationships:
+  - Many Risk Assessments belong to one Portfolio
+
+
+9.6 Audit Log Model
+
+Table: audit_logs
+
+Columns:
+  - id (Integer, Primary Key)
+  - portfolio_id (Integer, Foreign Key)
+  - user_id (String)
+  - action (String): Action type ("transaction", "analysis", "alert")
+  - action_details (JSON): Full action details
+  - results (JSON): Action results
+  - changes_made (JSON): Database changes
+  - created_at (DateTime)
+  - execution_time_ms (Integer): Processing time
+
+Purposes:
+  - Compliance tracking
+  - User activity logging
+  - System audit trail
+  - Performance monitoring
+
+
+================================================================================
+10. IMPLEMENTATION GUIDE
+================================================================================
+
+10.1 Backend Setup
+
+Prerequisites:
+- Python 3.9+
+- pip package manager
+- SQLite3
+- Environment variables configured
+
+Installation Steps:
+
+1. Install Dependencies
+   cd backend
+   pip install -r requirements.txt
+
+2. Configure Environment
+   Create .env file:
+   GROQ_API_KEY=your_api_key_here
+   GROQ_MODEL=llama-3.3-70b
+   FLASK_ENV=development
+   DATABASE_URL=sqlite:///finguard.db
+   LOG_LEVEL=INFO
+
+3. Initialize Database
+   python -c "from app import db; db.create_all()"
+
+4. Load Knowledge Base
+   python load_knowledge_base.py
+
+5. Start Backend Server
+   python run.py
+   Server will run on http://localhost:5000
+
+
+10.2 Frontend Setup
+
+Prerequisites:
+- Node.js 16+
+- npm or yarn
+- Modern web browser
+
+Installation Steps:
+
+1. Install Dependencies
+   cd frontend
+   npm install
+
+2. Configure Environment
+   Create .env file:
+   REACT_APP_API_URL=http://localhost:5000
+
+3. Start Development Server
+   npm start
+   Application will open at http://localhost:3000
+
+
+10.3 Integration Testing
+
+Test Portfolio Creation:
+1. Navigate to Dashboard
+2. Click "Create Portfolio"
+3. Fill in portfolio name and amount
+4. Verify portfolio appears in list
+
+Test Holdings Management:
+1. Go to Portfolio page
+2. Click "Add Holding"
+3. Select AAPL, quantity 100, price 150
+4. Verify holding appears in table
+
+Test Risk Analysis:
+1. Go to Analytics page
+2. Fill in transaction form
+3. Click analyze
+4. Verify risk score appears
+
+Test Portfolio Analysis:
+1. Click "Analyze Portfolio"
+2. Wait for AI agents to complete
+3. Verify results display
+
+
+10.4 Production Deployment
+
+Backend Deployment:
+- Use Gunicorn application server
+- Configure for multiple workers
+- Set up error logging
+- Enable HTTPS/SSL
+- Configure CORS properly
+- Set appropriate database (PostgreSQL recommended)
+
+Frontend Deployment:
+- Build for production: npm run build
+- Deploy to static hosting (Vercel, Netlify, S3)
+- Configure API endpoint to production backend
+- Enable caching and CDN
+- Set up error tracking
+
+
+10.5 Monitoring and Maintenance
+
+System Health Monitoring:
+- Monitor API response times
+- Track database query performance
+- Monitor ML model accuracy over time
+- Track Groq API usage and rate limits
+- Monitor user activity patterns
+
+Error Handling:
+- Implement comprehensive logging
+- Set up error alerting
+- Track error rates by endpoint
+- Maintain error logs for debugging
+
+Performance Optimization:
+- Cache frequently accessed data
+- Optimize database queries
+- Implement pagination for large datasets
+- Profile code for bottlenecks
+- Monitor memory usage
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+
+Date Generated: April 22, 2026
+Document Version: 1.0
+Format: Professional Plain English
+Total Pages: Comprehensive Reference
+

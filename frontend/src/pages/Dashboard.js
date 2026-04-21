@@ -23,6 +23,7 @@ function Dashboard({ user }) {
           { symbol: 'GOOGL', name: 'Google', quantity: 20, price: 139.80, value: 2796, change: 3.2 },
           { symbol: 'TSLA', name: 'Tesla', quantity: 15, price: 242.50, value: 3637.5, change: -1.5 },
           { symbol: 'AMZN', name: 'Amazon', quantity: 10, price: 172.30, value: 1723, change: 0.5 },
+          { symbol: 'NVDA', name: 'NVIDIA', quantity: 8, price: 875.20, value: 7001.6, change: 4.2 },
         ],
         chartData: [
           { date: 'Jan 1', value: 95000 },

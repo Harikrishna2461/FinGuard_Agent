@@ -2,9 +2,9 @@
 portfolio_analysis_agent.py
 
 Responsible for:
-  • Asset allocation assessment
-  • Diversification scoring
-  • Rebalancing recommendations
+    • Asset allocation assessment
+    • Diversification scoring
+    • Rebalancing recommendations
 """
 
 import json
@@ -15,6 +15,10 @@ from agents.base_agent import FinancialBaseAgent
 
 class PortfolioAnalysisAgent(FinancialBaseAgent):
     """Analyses portfolio composition and recommends optimisations."""
+
+    AGENT_DOMAIN = "portfolio_analysis"
+
+    AGENT_DOMAIN = "portfolio_analysis"
 
     def __init__(self):
         super().__init__("PortfolioAnalyzer")
@@ -33,7 +37,8 @@ class PortfolioAnalysisAgent(FinancialBaseAgent):
         )
         response = self.chat(prompt)
         return self._stamp({"analysis": response})
-
+    
+    
     # ── rebalancing ───────────────────────────────────────────────
     def rebalance_portfolio(
         self,

@@ -5,6 +5,10 @@ from agents.base_agent import FinancialBaseAgent
 
 class EscalationCaseSummaryAgent(FinancialBaseAgent):
 
+    AGENT_DOMAIN = "escalation"
+
+    AGENT_DOMAIN = "escalation"
+
     def __init__(self):
         super().__init__("EscalationCaseSummary")
     """

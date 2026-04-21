@@ -37,6 +37,10 @@ class RiskAssessmentAgent(FinancialBaseAgent):
       3. LLM fallback – only invoked for borderline scores (40-60) or when ML unavailable
     """
 
+    AGENT_DOMAIN = "risk_assessment"
+
+    AGENT_DOMAIN = "risk_assessment"
+
     def __init__(self):
         super().__init__("RiskAssessment")
 

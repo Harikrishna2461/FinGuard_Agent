@@ -2,9 +2,9 @@
 compliance_agent.py
 
 Responsible for:
-  • Transaction compliance review (PDT, wash-sale, AML)
-  • Tax reporting and optimisation
-  • Regulatory risk flagging
+    • Transaction compliance review (PDT, wash-sale, AML)
+    • Tax reporting and optimisation
+    • Regulatory risk flagging
 """
 
 import json
@@ -15,6 +15,8 @@ from agents.base_agent import FinancialBaseAgent
 
 class ComplianceAgent(FinancialBaseAgent):
     """Reviews transactions for regulatory compliance and generates tax reports."""
+
+    AGENT_DOMAIN = "compliance"
 
     def __init__(self):
         super().__init__("ComplianceOfficer")

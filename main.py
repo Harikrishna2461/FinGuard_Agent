@@ -87,7 +87,7 @@ def _npm_build():
 #  Main
 # ───────────────────────────────────────────────────────────────────
 
-def main():
+def main():  # sourcery skip: remove-redundant-fstring
     # 1. Load environment variables (backend/.env)
     from dotenv import load_dotenv
     load_dotenv(BACKEND_DIR / ".env")
@@ -145,7 +145,6 @@ def main():
     print()
 
     app.run(host=host, port=port, debug=debug)
-
 
 if __name__ == "__main__":
     main()

@@ -2,9 +2,9 @@
 market_intelligence_agent.py
 
 Responsible for:
-  • Market sentiment analysis
-  • Investment recommendations
-  • Trend identification
+    • Market sentiment analysis
+    • Investment recommendations
+    • Trend identification
 """
 
 import json
@@ -15,6 +15,10 @@ from agents.base_agent import FinancialBaseAgent
 
 class MarketIntelligenceAgent(FinancialBaseAgent):
     """Provides market research, sentiment and recommendations."""
+
+    AGENT_DOMAIN = "market_intelligence"
+
+    AGENT_DOMAIN = "market_intelligence"
 
     def __init__(self):
         super().__init__("MarketIntelligence")

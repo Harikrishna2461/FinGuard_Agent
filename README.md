@@ -20,7 +20,7 @@ FinGuard Agent is a comprehensive financial portfolio management system that com
 ### Backend Stack
 - **Framework**: Flask 3.0.0
 - **Database**: SQLAlchemy 2.0.23 (SQLite/PostgreSQL)
-- **AI/LLM**: Groq API (mixtral-8x7b-32768 model)
+- **AI/LLM**: Groq API (llama-3.3-70b-versatile model)
 - **Framework**: CreAI for agentic AI orchestration
 - **Task Scheduling**: APScheduler 4.3.10
 - **Server**: Gunicorn for production deployment

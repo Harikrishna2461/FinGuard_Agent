@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiMenu, FiX, FiHome, FiTrendingUp, FiBarChart2, FiBell, FiSettings, FiLogOut } from 'react-icons/fi';
+import { FiMenu, FiX, FiHome, FiTrendingUp, FiBarChart2, FiBell, FiSettings, FiLogOut, FiActivity } from 'react-icons/fi';
 import { AiFillShield } from 'react-icons/ai';
 import './Navbar.css';
 
@@ -41,6 +41,9 @@ function Navbar({ user }) {
             </Link>
             <Link to="/analytics" className="nav-link">
               <FiBarChart2 /> Analytics
+            </Link>
+            <Link to="/sentiment" className="nav-link">
+              <FiActivity /> Sentiment
             </Link>
             <Link to="/alerts" className="nav-link">
               <FiBell /> Alerts
