@@ -41,8 +41,8 @@ FinGuard Agent is ek **AI-powered financial portfolio management system** jo aap
 | Feature | Description |
 |---------|-------------|
 | **Real-time Portfolio Tracking** | Aapke sab holdings ka total value aur performance dekho |
-| **Smart Risk Detection** | Fraud patterns aur risky transactions automatically detect hote hain |
-| **AI Analysis** | 9 specialized AI agents jo different areas analyze karte hain |
+| **Smart Risk Detection** | Hybrid risk screening aur heuristic review current AI path mein available hai |
+| **AI Analysis** | LangGraph-based `ai_system` jo portfolio review ko orchestrate karta hai |
 | **Market Intelligence** | Stock sentiment analysis aur market trends |
 | **Compliance Checking** | Tax aur regulatory rules ko automatically check karta hai |
 | **Beautiful Dashboard** | Modern UI jo samajhne mein aasan hai |
@@ -54,27 +54,24 @@ FinGuard Agent is ek **AI-powered financial portfolio management system** jo aap
 ### Backend Technologies
 
 **Web Framework:**
-- **Flask 3.0.0** - Python-based web server jo API handle karta hai
-- **Gunicorn** - Production-grade server jab aplikacja live hona ho
+- **FastAPI** - Python API layer jo portfolio aur transaction APIs handle karta hai
+- **Uvicorn** - ASGI server for backend aur `ai_system`
 
 **Database:**
-- **SQLAlchemy 2.0.23** - Python library jo database se communicate karta hai
-- **SQLite** - Local database jo data store karta hai
+- **SQLite** - Minimal relational store for current backend demo
+- **sqlite3 module** - Direct Python database access (current backend mein SQLAlchemy nahi hai)
 
 **AI & Machine Learning:**
 - **Groq API** - Fast LLM (Large Language Model) service
-  - Model: `llama-3.3-70b`
-  - Ye AI model jo analysis aur recommendations deta hai
-- **CrewAI 0.108.0** - Framework jo multiple AI agents ko coordinate karta hai
-- **ChromaDB 0.6.3** - Vector database jo knowledge base ko store karta hai (RAG - Retrieval Augmented Generation)
+  - Default model: `llama-3.3-70b-versatile`
+  - Ye optional LLM explanation aur future deeper agent behavior ke liye use hota hai
+- **LangGraph** - AI workflow orchestration scaffold aur runtime path
+- **Internal AI modules** - Risk, portfolio, compliance, explanation agents as internal `ai_system` modules
 
 **Machine Learning:**
 - **scikit-learn** - ML algorithms for fraud detection
 - **NumPy & Pandas** - Data manipulation aur analysis
 - **Joblib** - Model serialization
-
-**File Format:**
-- **ReportLab** - Tax reports aur PDF generation
 
 ### Frontend Technologies
 
@@ -97,9 +94,10 @@ FinGuard Agent is ek **AI-powered financial portfolio management system** jo aap
 
 ### Infrastructure
 
-**Security:**
-- **PyJWT** - Authentication tokens
-- **python-dotenv** - Environment variables (API keys safely store karna)
+**Runtime:**
+- **Docker**
+- **Docker Compose**
+- **python-dotenv** - Environment variables manage karne ke liye
 
 ---
 
@@ -115,207 +113,72 @@ FinGuard Agent is ek **AI-powered financial portfolio management system** jo aap
                        │ (HTTP/JSON)
                        ▼
 ┌─────────────────────────────────────────────────────────┐
-│               BACKEND (Flask)                            │
+│              BACKEND (FastAPI)                          │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │   Routes    │  │   Database   │  │   ML Engine   │  │
-│  │  (API)      │  │  (SQLite)    │  │  (Scoring)    │  │
+│  │ REST API    │  │ SQLite DB    │  │ AI Client     │  │
+│  │ portfolios  │  │ portfolios + │  │ calls         │  │
+│  │ transactions│  │ transactions │  │ ai_system     │  │
 │  └─────────────┘  └──────────────┘  └───────────────┘  │
-│                                                          │
+└─────────────────────────────────────────────────────────┘
+                       │ (HTTP/JSON)
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│               AI_SYSTEM (FastAPI)                       │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │           AI Agent System (Orchestrator)         │   │
-│  │                                                  │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │  9 Specialized AI Agents                │   │   │
-│  │  │  (CrewAI Framework)                     │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │                    ▲                             │   │
-│  │                    │                             │   │
-│  │  ┌──────────────────────────────────────────┐  │   │
-│  │  │  ChromaDB Vector Store                   │  │   │
-│  │  │  (Knowledge Base - RAG)                  │  │   │
-│  │  └──────────────────────────────────────────┘  │   │
-│  │                                                  │   │
-│  │  ┌──────────────────────────────────────────┐  │   │
-│  │  │  Groq API (llama-3.3-70b)                │  │   │
-│  │  │  (LLM for AI Analysis)                   │  │   │
-│  │  └──────────────────────────────────────────┘  │   │
+│  │ LangGraph Portfolio Review Flow                  │   │
+│  │ ingest -> risk -> portfolio -> compliance ->    │   │
+│  │ explanation -> response                         │   │
 │  └──────────────────────────────────────────────────┘   │
+│                                                         │
+│  Internal Agent Modules: risk / portfolio /            │
+│  compliance / explanation                              │
+│                                                         │
+│  Optional Integrations: Groq LLM + backend/ml models   │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Data Flow
 
 1. **User Action** - Frontend mein user kuch data enter karta hai ya button click karta hai
-2. **API Call** - React component Flask backend ko HTTP request bhejta hai
-3. **Processing** - Flask route ko request receive hota hai
-4. **AI Analysis** - Data ko AI agents pass hota hai analysis ke liye
-5. **ML Scoring** - Transactions ko ML risk engine score detaa hai agar zaroorat ho
-6. **Response** - Results JSON format mein frontend ko bheje jate hain
-7. **Display** - React component results ko nice format mein display karta hai
+2. **API Call** - React component backend FastAPI ko request bhejta hai
+3. **Processing** - Backend SQLite se portfolio aur transaction data read karta hai
+4. **AI Call** - Backend `ai_system` ko normalized payload bhejta hai
+5. **LangGraph Flow** - `ai_system` internal agent modules ko run karta hai
+6. **Response** - Aggregated review JSON format mein backend aur phir frontend ko milta hai
+7. **Display** - React component results ko display karta hai
 
 ---
 
 ## AI Agents
 
-FinGuard system mein **9 specialized AI agents** hain. Har agent ka apna specific job hai.
+Current design mein AI layer `ai_system` ke andar **4 internal agent modules** hain, aur unko LangGraph workflow orchestrate karta hai.
 
-### 1. **Portfolio Analysis Agent** 📊
+### 1. **Risk Agent** 🚨
+- Recent transactions ko screen karta hai
+- Hybrid ML risk engine available ho to use karta hai
+- Borderline cases mein optional LLM explanation de sakta hai
 
-**Kya Karta Hai:**
-- Portfolio ke assets ka allocation check karta hai (30% stocks, 40% bonds, etc.)
-- Diversification score deta hai (0-100)
-- Batata hai ke portfolio balanced hai ya nahi
-- Rebalancing recommendations deta hai
+### 2. **Portfolio Agent** 📊
+- Portfolio balance aur diversification ka quick review deta hai
+- Cash ratio aur symbol concentration jaise signals dekhta hai
 
-**Input:**
-- Portfolio data (sab holdings)
-- Current prices
-- Target allocation
+### 3. **Compliance Agent** ⚖️
+- Simplified policy checks karta hai
+- High transaction volume aur unsupported transaction types ko flag karta hai
 
-**Output:**
-```json
-{
-  "diversification_score": 75,
-  "allocation": {
-    "tech": "40%",
-    "finance": "30%",
-    "healthcare": "20%",
-    "other": "10%"
-  },
-  "recommendations": "Diversify tech sector..."
-}
-```
+### 4. **Explanation Agent** 💬
+- Risk, portfolio, aur compliance findings ko ek readable summary mein convert karta hai
 
----
+### LangGraph Flow
+Current workflow:
+1. `ingest_request`
+2. `run_risk_screen`
+3. `run_portfolio_review`
+4. `run_compliance_review`
+5. `run_explanation`
+6. `compile_response`
 
-### 2. **Risk Detection Agent** 🚨
-
-**Kya Karta Hai:**
-- Fraud patterns detect karta hai
-- Suspicious transactions identify karta hai
-- Market risk assess karta hai
-- ML scoring ke results ko analyze karta hai
-
-**Process:**
-1. First, ML engine (scikit-learn) transaction ko score deta hai
-2. Phir LLM (Groq) expert analysis provide karta hai
-
-**Red Flags Jo Detect Hote Hain:**
-- Unusual transaction patterns
-- Large sudden trades
-- Unusual timing patterns
-- Concentration risks
-
----
-
-### 3. **Market Intelligence Agent** 📈
-
-**Kya Karta Hai:**
-- Stock sentiment analyze karta hai (bullish/bearish)
-- Market trends identify karta hai
-- News aur market events analyze karta hai
-- Price predictions suggest karta hai
-
-**Output:**
-```
-AAPL Sentiment: BULLISH 78%
-Trend: Upward
-Key Events: Product launch next month
-```
-
----
-
-### 4. **Compliance Agent** ⚖️
-
-**Kya Karta Hai:**
-- Tax compliance check karta hai
-- PDT (Pattern Day Trader) violations identify karta hai
-- Wash sale violations check karta hai
-- AML (Anti-Money Laundering) flags identify karta hai
-
-**Features:**
-- Tax report generation
-- Compliance findings
-- Risk flagging
-
----
-
-### 5. **Alert Intake Agent** 🔔
-
-**Kya Karta Hai:**
-- Portfolio changes se alerts generate karta hai
-- Transaction alerts ko categorize karta hai
-- Priority assign karta hai
-- Alert enrichment karta hai
-
-**Alert Types:**
-- Price alerts
-- Performance alerts
-- Volatility alerts
-- Fraud detection alerts
-
----
-
-### 6. **Customer Context Agent** 👤
-
-**Kya Karta Hai:**
-- Customer profile maintain karta hai
-- Investment preferences store karta hai
-- Customer history track karta hai
-- Customer segment identify karta hai
-
-**Uses:**
-- Personalized recommendations
-- Risk profile assessment
-- Communication tailoring
-
----
-
-### 7. **Explanation Agent** 💬
-
-**Kya Karta Hai:**
-- AI decisions ko plain language mein explain karta hai
-- Complex findings ko simple banata hai
-- Recommendations ke reasons deta hai
-- Different audiences ke liye explanations tailor karta hai
-
-**Audiences:**
-- Regular customers
-- Financial advisors
-- Compliance teams
-- Executives
-
----
-
-### 8. **Risk Assessment Agent** 📋
-
-**Kya Karta Hai:**
-- Comprehensive risk evaluation karta hai
-- VaR (Value at Risk) calculate karta hai
-- Correlation analysis karta hai
-- Systemic risk identify karta hai
-
-**Risk Dimensions:**
-- Market risk
-- Concentration risk
-- Liquidity risk
-- Credit risk
-
----
-
-### 9. **Escalation & Case Summary Agent** 📞
-
-**Kya Karta Hai:**
-- Determine karta hai kaun se incidents human review need karte hain
-- Case summaries generate karta hai
-- Escalation packages prepare karta hai
-- Communication drafts tayyar karta hai
-
-**Scenarios:**
-- Fraud detection
-- Compliance violations
-- Complex portfolios
-- Regulatory concerns
+**Note:** Purane 9-agent CrewAI design ko remove kar diya gaya hai. LangGraph scaffold ab current direction hai.
 
 ---
 
@@ -475,12 +338,12 @@ Portfolio Currency: INR
 
 ## API Endpoints
 
-Backend mein Flask API endpoints hain jo frontend se call hote hain. Total **22 endpoints** hain.
+Current backend minimal FastAPI design mein core endpoints ye hain.
 
 ### Portfolio Management
 
 #### 1. Create Portfolio
-**Endpoint:** `POST /api/portfolio`
+**Endpoint:** `POST /api/portfolios`
 
 **What:** Naya portfolio create karta hai
 
@@ -528,7 +391,7 @@ Backend mein Flask API endpoints hain jo frontend se call hote hain. Total **22 
 ---
 
 #### 3. Get Portfolio Details
-**Endpoint:** `GET /api/portfolio/<id>`
+**Endpoint:** `GET /api/portfolios/<id>`
 
 **What:** Specific portfolio ki info deta hai
 
@@ -539,52 +402,8 @@ Backend mein Flask API endpoints hain jo frontend se call hote hain. Total **22 
   "name": "My Portfolio",
   "total_value": 110000,
   "cash_balance": 5000,
-  "assets_count": 5,
+  "transactions_count": 5,
   "created_at": "2026-04-20T10:00:00"
-}
-```
-
----
-
-### Asset Management
-
-#### 4. Add Asset
-**Endpoint:** `POST /api/portfolio/<id>/asset`
-
-**What:** Portfolio mein nyi holding add karta hai
-
-**Input:**
-```json
-{
-  "symbol": "AAPL",
-  "name": "Apple Inc",
-  "quantity": 100,
-  "purchase_price": 150,
-  "current_price": 180,
-  "sector": "Technology"
-}
-```
-
----
-
-#### 5. Get Assets
-**Endpoint:** `GET /api/portfolio/<id>/assets`
-
-**What:** Portfolio ki sab holdings deta hai
-
-**Output:**
-```json
-{
-  "assets": [
-    {
-      "id": 1,
-      "symbol": "AAPL",
-      "name": "Apple",
-      "quantity": 100,
-      "purchase_price": 150,
-      "current_price": 180
-    }
-  ]
 }
 ```
 
@@ -592,8 +411,8 @@ Backend mein Flask API endpoints hain jo frontend se call hote hain. Total **22 
 
 ### Transaction Management
 
-#### 6. Add Transaction
-**Endpoint:** `POST /api/portfolio/<id>/transaction`
+#### 4. Add Transaction
+**Endpoint:** `POST /api/portfolios/<id>/transactions`
 
 **What:** Buy/Sell/Dividend transaction record karta hai
 
@@ -601,7 +420,7 @@ Backend mein Flask API endpoints hain jo frontend se call hote hain. Total **22 
 ```json
 {
   "symbol": "AAPL",
-  "transaction_type": "buy",
+  "type": "buy",
   "quantity": 50,
   "price": 180,
   "fees": 100
@@ -610,154 +429,45 @@ Backend mein Flask API endpoints hain jo frontend se call hote hain. Total **22 
 
 ---
 
-#### 7. Score Transaction Risk
-**Endpoint:** `POST /api/transaction/score-risk`
+#### 5. List Transactions
+**Endpoint:** `GET /api/portfolios/<id>/transactions`
 
-**What:** Transaction ka risk score calculate karta hai (ML + AI)
-
-**Input:**
-```json
-{
-  "symbol": "AAPL",
-  "transaction_type": "buy",
-  "quantity": 1000,
-  "price": 180,
-  "customer_profile": {
-    "account_age_days": 30,
-    "transaction_frequency": "high"
-  }
-}
-```
-
-**Output:**
-```json
-{
-  "final_score": 75,
-  "risk_label": "HIGH",
-  "method": "ensemble",
-  "flags": ["large_quantity", "unusual_timing"]
-}
-```
-
----
-
-#### 8. Get AI Insights
-**Endpoint:** `POST /api/transaction/get-ai-insights`
-
-**What:** Transaction ke baare mein AI insights deta hai
+**What:** Portfolio ke recent transactions deta hai
 
 ---
 
 ### Analysis & Intelligence
 
-#### 9. Portfolio Analysis
-**Endpoint:** `POST /api/portfolio/<id>/analyze`
+#### 6. Quick Recommendation / Portfolio Review
+**Endpoint:** `POST /api/portfolios/<id>/quick-recommendation`
 
-**What:** Comprehensive portfolio review karta hai 9 AI agents use karke
-
-**Output:**
-```
-- Crew 1: Risk Analysis (Risk Assessment, Detection, Compliance)
-- Crew 2: Portfolio Analysis (Asset Allocation, Market, Customer Context)
-- Crew 3: Summary (Alerts, Explanation, Escalation)
-```
-
----
-
-#### 10. Quick Recommendation
-**Endpoint:** `POST /api/portfolio/<id>/quick-recommendation`
-
-**What:** Fast recommendation deta hai ek specific stock ke liye
+**What:** Backend `ai_system` ko call karta hai aur LangGraph-based review return karta hai
 
 **Input:**
 ```json
 {
-  "symbol": "AAPL",
-  "risk_profile": "medium"
+  "mode": "quick"
 }
 ```
 
 **Output:**
 ```json
 {
-  "recommendation": "BUY",
-  "confidence": 0.82,
-  "reasons": ["Strong fundamentals", "Bullish sentiment"],
-  "risk_level": "medium"
+  "portfolio_id": 1,
+  "mode": "quick",
+  "agents_used": 4,
+  "crew_output": "## Portfolio Review ...",
+  "findings": [
+    "Hybrid scoring did not surface any high-risk recent transaction."
+  ]
 }
 ```
 
 ---
+#### 7. Health Check
+**Endpoint:** `GET /health`
 
-#### 11. Market Sentiment
-**Endpoint:** `GET /api/sentiment?symbols=AAPL,GOOGL,MSFT`
-
-**What:** Multiple stocks ka sentiment deta hai
-
-**Output:**
-```json
-{
-  "sentiments": {
-    "AAPL": {
-      "sentiment": "BULLISH",
-      "score": 0.82,
-      "trend": "upward"
-    },
-    "GOOGL": {
-      "sentiment": "NEUTRAL",
-      "score": 0.55,
-      "trend": "sideways"
-    }
-  }
-}
-```
-
----
-
-### Alert Management
-
-#### 12. Create Alert
-**Endpoint:** `POST /api/portfolio/<id>/alert`
-
-**What:** Portfolio ke liye new alert create karta hai
-
-**Input:**
-```json
-{
-  "symbol": "AAPL",
-  "alert_type": "price",
-  "condition": "price_above",
-  "value": 200
-}
-```
-
----
-
-#### 13. Get Alerts
-**Endpoint:** `GET /api/portfolio/<id>/alerts`
-
-**What:** Portfolio ke sab alerts deta hai
-
----
-
-### Stock Data
-
-#### 14. Get All Symbols
-**Endpoint:** `GET /api/symbols`
-
-**What:** Sab available stock symbols deta hai
-
-**Output:**
-```json
-{
-  "symbols": ["AAPL", "GOOGL", "MSFT", "TSLA", ...],
-  "default_symbols": ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN", "NVDA"]
-}
-```
-
----
-
-#### 15. Get Symbols by Sector
+**What:** Backend health verify karta hai
 **Endpoint:** `GET /api/symbols/sectors`
 
 **What:** Symbols grouped by sector deta hai
@@ -1548,27 +1258,22 @@ AUDIT_LOGS
 
 ## Summary
 
-FinGuard Agent ek complete AI-powered financial system hai jo:
+FinGuard ka current version ek simplified but cleaner system hai:
 
-✅ **Portfolio Management** - Holdings track aur analyze
-✅ **AI Analysis** - 9 specialized agents jo different tasks karte hain
-✅ **Risk Detection** - ML + LLM based fraud detection
-✅ **Market Intelligence** - Sentiment analysis aur recommendations
-✅ **Compliance** - Tax aur regulatory compliance checking
-✅ **Beautiful UI** - Modern React-based interface
-✅ **Fast Performance** - Groq LLM fast responses ke liye
-✅ **Scalable** - Production-ready architecture
+✅ **FastAPI Backend** - Minimal portfolio aur transaction APIs  
+✅ **AI System Separation** - `backend` aur `ai_system` clearly alag hain  
+✅ **LangGraph Direction** - Workflow orchestration current design ka core hai  
+✅ **Risk Review** - ML-backed risk path reuse ho raha hai jahan available ho  
+✅ **Docker Runtime** - `docker compose` based startup path  
+✅ **React Frontend** - Existing UI abhi bhi backend APIs consume kar sakta hai
 
 ---
 
 ## Getting Started
 
-### Backend Setup
+### Full System Setup
 ```bash
-cd backend
-pip install -r requirements.txt
-export GROQ_API_KEY="your-key-here"
-python run.py
+docker compose up --build
 ```
 
 ### Frontend Setup
@@ -1581,10 +1286,10 @@ npm start
 **System will be available at:**
 - Frontend: http://localhost:3000
 - Backend: http://localhost:5000
+- AI System: http://localhost:8000
 
 ---
 
 **Document Prepared:** April 22, 2026  
 **Version:** 1.0  
 **Language:** Simple Indian English
-

@@ -1,0 +1,20 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      BACKEND_DB_PATH: ./data/backend.db
+      AI_SYSTEM_URL: http://ai_system:8000
+    depends_on:
+      - ai_system
+    volumes:
+      - ./backend/data:/app/data
+
+  ai_system:
+    build:
+      context: .
+      dockerfile: ai_system/Dockerfile
+    ports:
+      - "8000:8000"

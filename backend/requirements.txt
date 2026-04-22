@@ -1,32 +1,5 @@
-# ──────────────── Core ────────────────
-Flask>=3.0.0
-Flask-SQLAlchemy>=3.1.1
-Flask-CORS>=4.0.0
-python-dotenv>=1.0.0
-Werkzeug>=3.0.1
-SQLAlchemy>=2.0.23
-gunicorn>=21.2.0
-
-# ──────────────── AI / LLM ────────────────
-groq>=0.4.1
-crewai>=0.108.0
-crewai-tools>=0.38.1
-langchain-groq>=0.3.2
-
-# ──────────────── Vector DB (ChromaDB) ────────────────
-chromadb>=0.6.3
-
-# ──────────────── Data ────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
 pydantic>=2.5.0
 requests>=2.31.0
-numpy>=1.26.0
-pandas>=2.1.3
-python-dateutil>=2.8.2
-
-# ──────────────── ML ────────────────
-scikit-learn>=1.8.0
-joblib>=1.3.0
-
-# ──────────────── Auth / Reporting ────────────────
-PyJWT>=2.8.0
-reportlab>=4.0.0
+python-dotenv>=1.0.0

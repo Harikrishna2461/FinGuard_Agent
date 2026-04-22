@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    "./ai_system"
+  ],
+  "graphs": {
+    "portfolio_review": "ai_system.langgraph.graph:graph"
+  },
+  "env": ".env"
+}
