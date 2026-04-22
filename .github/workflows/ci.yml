@@ -1,0 +1,172 @@
+name: FinGuard CI/CD (MLSecOps + LLMSecOps)
+
+on:
+  push:
+    branches: ["main", "finguard_crewai_base"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ───────────────────────────── 1. LINT + SAST ─────────────────────────────
+  lint-and-sast:
+    name: Lint + Static Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Install linters
+        run: pip install ruff bandit pip-audit
+      - name: Ruff lint
+        run: ruff check backend || true
+      - name: Bandit SAST
+        run: bandit -r backend -ll || true
+      - name: pip-audit (dependency CVE scan)
+        run: pip-audit -r backend/requirements.txt || true
+
+  # ───────────────────────────── 2. UNIT + INTEGRATION TESTS ────────────────
+  python-tests:
+    name: Python tests (unit + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Install deps
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-cov
+      - name: Run ML engine unit tests
+        env:
+          GROQ_API_KEY: "dummy-ci-key"
+        run: |
+          cd backend && pytest -q ml/test_engine.py
+
+  # ───────────────────────────── 3. AI SECURITY + EVALUATION ────────────────
+  ai-security-tests:
+    name: AI Security + Evaluation harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Install deps
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest
+      - name: AI security test suite
+        env:
+          GROQ_API_KEY: "dummy-ci-key"
+          FINGUARD_OFFLINE: "1"
+        run: |
+          cd backend && pytest -q tests/ai_security/
+      - name: Evaluation harness (task-success / groundedness / guardrail-block rate)
+        env:
+          GROQ_API_KEY: "dummy-ci-key"
+          FINGUARD_OFFLINE: "1"
+        run: |
+          cd backend && pytest -q tests/evaluation/ -s
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: build/evaluation_report.json
+          if-no-files-found: ignore
+
+  # ───────────────────────────── 4. FRONTEND BUILD ──────────────────────────
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - run: cd frontend && (npm ci --no-audit --no-fund || npm install --no-audit --no-fund)
+      - run: cd frontend && CI=false npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+
+  # ───────────────────────────── 5. RESPONSIBLE-AI ARTEFACTS ────────────────
+  responsible-ai:
+    name: SHAP + fairness artefacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Install deps
+        run: pip install -r backend/requirements.txt matplotlib
+      - name: SHAP / permutation-importance
+        run: python scripts/shap_analysis.py
+      - name: Fairness report
+        run: python scripts/fairness_check.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: responsible-ai-artefacts
+          path: |
+            build/shap_feature_importance.csv
+            build/shap_summary.png
+            build/fairness_report.json
+          if-no-files-found: ignore
+
+  # ───────────────────────────── 6. DOCKER BUILD + IMAGE SCAN ───────────────
+  docker-build-scan:
+    name: Docker build + Trivy image scan
+    runs-on: ubuntu-latest
+    needs: [lint-and-sast, python-tests, ai-security-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        run: docker build -f backend/Dockerfile -t finguard/backend:ci .
+      - name: Trivy scan (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: finguard/backend:ci
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          format: sarif
+          output: trivy-results.sarif
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: trivy-results.sarif }
+
+  # ───────────────────────────── 7. MODEL VERSIONING ────────────────────────
+  model-versioning:
+    name: Model versioning (SHA-256 manifest)
+    runs-on: ubuntu-latest
+    needs: python-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Produce model manifest
+        run: python scripts/register_model.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-manifest
+          path: build/model_manifest.json
+          if-no-files-found: ignore
+
+  # ───────────────────────────── 8. DEPLOY (staging, manual) ────────────────
+  deploy-staging:
+    name: Deploy to staging (manual approval)
+    runs-on: ubuntu-latest
+    needs: [docker-build-scan, frontend-build, model-versioning, responsible-ai]
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+      - run: echo "Placeholder — wire to your cloud (ECS / Cloud Run / K8s)."

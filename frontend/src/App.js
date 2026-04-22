@@ -7,6 +7,7 @@ import Analytics from './pages/Analytics';
 import SentimentAnalysis from './pages/SentimentAnalysis';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
+import Testing from './pages/Testing';
 import './App.css';
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
             <Route path="/sentiment" element={<SentimentAnalysis user={user} />} />
             <Route path="/alerts" element={<Alerts user={user} />} />
             <Route path="/settings" element={<Settings user={user} />} />
+            <Route path="/test" element={<Testing user={user} />} />
           </Routes>
         </main>
       </div>

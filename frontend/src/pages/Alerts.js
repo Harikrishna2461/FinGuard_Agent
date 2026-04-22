@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FiX, FiPlus, FiEdit2, FiToggle2, FiBell } from 'react-icons/fi';
+import { FiX, FiPlus, FiEdit2, FiBell } from 'react-icons/fi';
+import { MdToggleOn, MdToggleOff } from 'react-icons/md';
 import './Alerts.css';
 
 function Alerts({ user }) {
@@ -167,7 +168,7 @@ function Alerts({ user }) {
                 title={alert.isActive ? 'Disable' : 'Enable'}
                 onClick={() => handleToggleAlert(alert.id)}
               >
-                <FiToggle2 />
+                {alert.isActive ? <MdToggleOn /> : <MdToggleOff />}
               </button>
               <button className="action-btn edit" title="Edit">
                 <FiEdit2 />

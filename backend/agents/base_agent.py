@@ -15,6 +15,9 @@ from datetime import datetime
 # RAG knowledge-base retrieval
 import vector_store
 
+# Prompt-injection / jailbreak guardrail
+from agents.guardrails import sanitize, PromptInjectionDetected
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,6 +66,15 @@ class FinancialBaseAgent:
         Includes error handling with informative error messages and
         automatic retry on rate limit errors with exponential backoff.
         """
+        # Guardrail: block prompt-injection / jailbreak before LLM call.
+        guard = sanitize(message)
+        if not guard.ok:
+            logger.warning(
+                f"{self.agent_name}: guardrail blocked input (reason={guard.reason})"
+            )
+            raise PromptInjectionDetected(guard.reason or "blocked")
+        message = guard.cleaned
+
         if system_prompt:
             self.conversation_history = [
                 {"role": "system", "content": system_prompt}

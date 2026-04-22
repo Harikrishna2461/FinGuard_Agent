@@ -49,6 +49,10 @@ def create_app(config_name: str = "development") -> Flask:
     app.register_blueprint(cases_bp, url_prefix="/api")
     app.register_blueprint(sar_bp, url_prefix="/api")
 
+    # Structured JSON logging + /api/metrics for Prometheus scraping
+    from app.observability import init_observability
+    init_observability(app)
+
     # Resolve (user, tenant) once per request so every handler can rely on
     # g.current_user / g.current_tenant without opting in.
     @app.before_request
