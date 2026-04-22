@@ -12,6 +12,7 @@ from app import db
 from models.models import Portfolio, Asset, Transaction, Alert, RiskAssessment
 from agents.crew_orchestrator import AIAgentOrchestrator
 from agents.guardrails import sanitize, PromptInjectionDetected
+from agents.guardrails_llm import sanitize_with_llm
 from app.symbols import get_all_symbols, get_symbols_by_sector, DEFAULT_SYMBOLS
 from datetime import datetime
 import uuid
@@ -771,11 +772,11 @@ def search_analyses():
     if not query:
         return jsonify({"error": "query required"}), 400
 
-    # Sanitize input (defense in depth)
-    guard = sanitize(query)
+    # LLM-based guardrail (semantic detection of prompt injection)
+    guard = sanitize_with_llm(query)
     if not guard.ok:
-        logger.warning(f"search_analyses: guardrail blocked query (reason={guard.reason})")
-        return jsonify({"error": f"Query blocked: {guard.reason}"}), 400
+        logger.warning(f"search_analyses: guardrail blocked query (reason={guard.reason}, confidence={guard.confidence})")
+        return jsonify({"error": f"Query blocked: {guard.reason}", "confidence": guard.confidence}), 400
 
     orch = _get_orchestrator()
     results = orch.search_past_analyses(guard.cleaned, pid)
@@ -789,11 +790,11 @@ def search_risks():
     if not query:
         return jsonify({"error": "query required"}), 400
 
-    # Sanitize input (defense in depth)
-    guard = sanitize(query)
+    # LLM-based guardrail
+    guard = sanitize_with_llm(query)
     if not guard.ok:
-        logger.warning(f"search_risks: guardrail blocked query (reason={guard.reason})")
-        return jsonify({"error": f"Query blocked: {guard.reason}"}), 400
+        logger.warning(f"search_risks: guardrail blocked query (reason={guard.reason}, confidence={guard.confidence})")
+        return jsonify({"error": f"Query blocked: {guard.reason}", "confidence": guard.confidence}), 400
 
     orch = _get_orchestrator()
     results = orch.search_past_risks(guard.cleaned, data.get("portfolio_id"))
@@ -807,11 +808,11 @@ def search_market():
     if not query:
         return jsonify({"error": "query required"}), 400
 
-    # Sanitize input (defense in depth)
-    guard = sanitize(query)
+    # LLM-based guardrail
+    guard = sanitize_with_llm(query)
     if not guard.ok:
-        logger.warning(f"search_market: guardrail blocked query (reason={guard.reason})")
-        return jsonify({"error": f"Query blocked: {guard.reason}"}), 400
+        logger.warning(f"search_market: guardrail blocked query (reason={guard.reason}, confidence={guard.confidence})")
+        return jsonify({"error": f"Query blocked: {guard.reason}", "confidence": guard.confidence}), 400
 
     orch = _get_orchestrator()
     results = orch.search_past_market(guard.cleaned, data.get("symbol"))

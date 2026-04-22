@@ -15,8 +15,9 @@ from datetime import datetime
 # RAG knowledge-base retrieval
 import vector_store
 
-# Prompt-injection / jailbreak guardrail
-from agents.guardrails import sanitize, PromptInjectionDetected
+# Prompt-injection / jailbreak guardrail (LLM-based semantic detection)
+from agents.guardrails import PromptInjectionDetected
+from agents.guardrails_llm import sanitize_with_llm
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +67,11 @@ class FinancialBaseAgent:
         Includes error handling with informative error messages and
         automatic retry on rate limit errors with exponential backoff.
         """
-        # Guardrail: block prompt-injection / jailbreak before LLM call.
-        guard = sanitize(message)
+        # Guardrail: block prompt-injection / jailbreak before LLM call (LLM-based semantic detection).
+        guard = sanitize_with_llm(message)
         if not guard.ok:
             logger.warning(
-                f"{self.agent_name}: guardrail blocked input (reason={guard.reason})"
+                f"{self.agent_name}: guardrail blocked input (reason={guard.reason}, confidence={guard.confidence})"
             )
             raise PromptInjectionDetected(guard.reason or "blocked")
         message = guard.cleaned
