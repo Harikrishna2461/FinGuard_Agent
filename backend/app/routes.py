@@ -11,6 +11,7 @@ from flask import Blueprint, request, jsonify
 from app import db
 from models.models import Portfolio, Asset, Transaction, Alert, RiskAssessment
 from agents.crew_orchestrator import AIAgentOrchestrator
+from agents.guardrails import sanitize, PromptInjectionDetected
 from app.symbols import get_all_symbols, get_symbols_by_sector, DEFAULT_SYMBOLS
 from datetime import datetime
 import uuid
@@ -769,8 +770,15 @@ def search_analyses():
     pid = data.get("portfolio_id")
     if not query:
         return jsonify({"error": "query required"}), 400
+
+    # Sanitize input (defense in depth)
+    guard = sanitize(query)
+    if not guard.ok:
+        logger.warning(f"search_analyses: guardrail blocked query (reason={guard.reason})")
+        return jsonify({"error": f"Query blocked: {guard.reason}"}), 400
+
     orch = _get_orchestrator()
-    results = orch.search_past_analyses(query, pid)
+    results = orch.search_past_analyses(guard.cleaned, pid)
     return jsonify({"results": results}), 200
 
 
@@ -780,8 +788,15 @@ def search_risks():
     query = data.get("query", "")
     if not query:
         return jsonify({"error": "query required"}), 400
+
+    # Sanitize input (defense in depth)
+    guard = sanitize(query)
+    if not guard.ok:
+        logger.warning(f"search_risks: guardrail blocked query (reason={guard.reason})")
+        return jsonify({"error": f"Query blocked: {guard.reason}"}), 400
+
     orch = _get_orchestrator()
-    results = orch.search_past_risks(query, data.get("portfolio_id"))
+    results = orch.search_past_risks(guard.cleaned, data.get("portfolio_id"))
     return jsonify({"results": results}), 200
 
 
@@ -791,8 +806,15 @@ def search_market():
     query = data.get("query", "")
     if not query:
         return jsonify({"error": "query required"}), 400
+
+    # Sanitize input (defense in depth)
+    guard = sanitize(query)
+    if not guard.ok:
+        logger.warning(f"search_market: guardrail blocked query (reason={guard.reason})")
+        return jsonify({"error": f"Query blocked: {guard.reason}"}), 400
+
     orch = _get_orchestrator()
-    results = orch.search_past_market(query, data.get("symbol"))
+    results = orch.search_past_market(guard.cleaned, data.get("symbol"))
     return jsonify({"results": results}), 200
 
 
