@@ -15,7 +15,6 @@ runtime by the RiskAssessmentAgent's hybrid scoring pipeline.
 """
 
 import os
-import sys
 import json
 import argparse
 import warnings
@@ -27,8 +26,6 @@ from sklearn.model_selection import train_test_split, cross_val_score, Stratifie
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import (
     classification_report,
-    confusion_matrix,
-    roc_auc_score,
     accuracy_score,
     f1_score,
 )
@@ -38,10 +35,10 @@ import joblib
 warnings.filterwarnings("ignore")
 
 # ────────────────────────────── paths ──────────────────────────────
-SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR     = os.path.join(SCRIPT_DIR, "data")
-MODEL_DIR    = os.path.join(SCRIPT_DIR, "models")
-DEFAULT_CSV  = os.path.join(DATA_DIR, "transaction_risk_training_data.csv")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(SCRIPT_DIR, "data")
+MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
+DEFAULT_CSV = os.path.join(DATA_DIR, "transaction_risk_training_data.csv")
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -108,9 +105,7 @@ def load_and_prepare(csv_path: str) -> pd.DataFrame:
     ).astype(int)
 
     # Cross-border flag
-    df["is_cross_border"] = (
-        df["sender_country"] != df["receiver_country"]
-    ).astype(int)
+    df["is_cross_border"] = (df["sender_country"] != df["receiver_country"]).astype(int)
 
     # Login risk
     df["has_failed_logins"] = (df["failed_login_attempts_24h"] > 0).astype(int)
@@ -142,10 +137,14 @@ def encode_features(df: pd.DataFrame):
 
     X = df[all_features].copy()
     scaler = StandardScaler()
-    X[NUMERIC_FEATURES + ["amount_to_avg_ratio", "velocity_ratio", "failed_login_attempts_24h"]] = (
-        scaler.fit_transform(
-            X[NUMERIC_FEATURES + ["amount_to_avg_ratio", "velocity_ratio", "failed_login_attempts_24h"]]
-        )
+    X[
+        NUMERIC_FEATURES
+        + ["amount_to_avg_ratio", "velocity_ratio", "failed_login_attempts_24h"]
+    ] = scaler.fit_transform(
+        X[
+            NUMERIC_FEATURES
+            + ["amount_to_avg_ratio", "velocity_ratio", "failed_login_attempts_24h"]
+        ]
     )
 
     return X, all_features, label_encoders, scaler
@@ -171,8 +170,8 @@ def train_risk_classifier(X_train, y_train, X_test, y_test, label_map):
 
     # ── Evaluation ──
     y_pred = clf.predict(X_test)
-    acc    = accuracy_score(y_test, y_pred)
-    f1_w   = f1_score(y_test, y_pred, average="weighted")
+    acc = accuracy_score(y_test, y_pred)
+    f1_w = f1_score(y_test, y_pred, average="weighted")
 
     inv_map = {v: k for k, v in label_map.items()}
     target_names = [inv_map[i] for i in sorted(inv_map)]
@@ -208,7 +207,7 @@ def train_fraud_detector(X_train, y_fraud_train, X_test, y_fraud_test):
 
     iso = IsolationForest(
         n_estimators=200,
-        contamination=0.1,   # expect ~10% anomalies
+        contamination=0.1,  # expect ~10% anomalies
         max_features=0.8,
         random_state=42,
     )
@@ -216,19 +215,21 @@ def train_fraud_detector(X_train, y_fraud_train, X_test, y_fraud_test):
 
     # Predict on test set:  1 = normal, -1 = anomaly
     raw_pred = iso.predict(X_test)
-    y_pred   = (raw_pred == -1).astype(int)     # 1 = fraud
+    y_pred = (raw_pred == -1).astype(int)  # 1 = fraud
     anomaly_scores = -iso.decision_function(X_test)  # higher = more anomalous
 
     acc = accuracy_score(y_fraud_test, y_pred)
-    f1  = f1_score(y_fraud_test, y_pred, zero_division=0)
+    f1 = f1_score(y_fraud_test, y_pred, zero_division=0)
 
     print(f"\n  Accuracy        : {acc:.4f}")
     print(f"  F1 (fraud class): {f1:.4f}")
     print(f"  Frauds detected : {y_pred.sum()} / {y_fraud_test.sum()} actual")
     print("\n  Classification Report:")
-    print(classification_report(
-        y_fraud_test, y_pred, target_names=["legitimate", "fraud"], zero_division=0
-    ))
+    print(
+        classification_report(
+            y_fraud_test, y_pred, target_names=["legitimate", "fraud"], zero_division=0
+        )
+    )
 
     return iso
 
@@ -255,25 +256,29 @@ def main():
 
     # Encode risk_label target
     risk_label_map = {"low": 0, "medium": 1, "high": 2, "critical": 3}
-    y_risk  = df["risk_label"].map(risk_label_map)
+    y_risk = df["risk_label"].map(risk_label_map)
     y_fraud = df["is_fraud"].astype(int)
 
     # 3 ── Train/test split ──
     X_train, X_test, y_risk_train, y_risk_test, y_fraud_train, y_fraud_test = (
-        train_test_split(X, y_risk, y_fraud, test_size=0.2, random_state=42, stratify=y_risk)
+        train_test_split(
+            X, y_risk, y_fraud, test_size=0.2, random_state=42, stratify=y_risk
+        )
     )
     print(f"  Train: {len(X_train)} | Test: {len(X_test)}")
 
     # 4 ── Train models ──
-    risk_clf = train_risk_classifier(X_train, y_risk_train, X_test, y_risk_test, risk_label_map)
+    risk_clf = train_risk_classifier(
+        X_train, y_risk_train, X_test, y_risk_test, risk_label_map
+    )
     fraud_det = train_fraud_detector(X_train, y_fraud_train, X_test, y_fraud_test)
 
     # 5 ── Save artifacts ──
     artifacts = {
         "risk_classifier.joblib": risk_clf,
-        "fraud_detector.joblib":  fraud_det,
-        "scaler.joblib":          scaler,
-        "label_encoders.joblib":  label_encoders,
+        "fraud_detector.joblib": fraud_det,
+        "scaler.joblib": scaler,
+        "label_encoders.joblib": label_encoders,
     }
     for fname, obj in artifacts.items():
         path = os.path.join(MODEL_DIR, fname)
@@ -282,19 +287,19 @@ def main():
 
     # Save metadata
     metadata = {
-        "trained_at":      datetime.now().isoformat(),
-        "data_source":     args.data,
-        "num_samples":     len(df),
-        "feature_names":   feature_names,
-        "risk_label_map":  risk_label_map,
-        "numeric_features":    NUMERIC_FEATURES,
-        "binary_features":     BINARY_FEATURES,
-        "categorical_features":CATEGORICAL_FEATURES,
+        "trained_at": datetime.now().isoformat(),
+        "data_source": args.data,
+        "num_samples": len(df),
+        "feature_names": feature_names,
+        "risk_label_map": risk_label_map,
+        "numeric_features": NUMERIC_FEATURES,
+        "binary_features": BINARY_FEATURES,
+        "categorical_features": CATEGORICAL_FEATURES,
     }
     meta_path = os.path.join(MODEL_DIR, "model_metadata.json")
     with open(meta_path, "w") as f:
         json.dump(metadata, f, indent=2)
-    print(f"  ✔ Saved model_metadata.json")
+    print("  ✔ Saved model_metadata.json")
 
     print("\n" + "=" * 60)
     print("  Training complete!  Models ready at:")

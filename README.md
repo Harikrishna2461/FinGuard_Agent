@@ -1,215 +1,238 @@
 # FinGuard
 
-FinGuard is a split portfolio workflow system with a thin backend and a separate AI runtime.
+FinGuard is now a two-service backend system:
 
-- `backend`: FastAPI service for portfolio and transaction APIs
-- `ai_system`: FastAPI service for LangGraph-driven portfolio review
-- `frontend`: React UI
+- `backend`: FastAPI service for business resources, persistence, and legacy-compatible API routes.
+- `ai_system`: FastAPI service for OpenAI-backed AI strategy and LangGraph orchestration.
+- `frontend`: React UI, run separately from the backend services.
 
-The old Flask + CrewAI runtime has been removed. Current direction is `backend -> ai_system -> LangGraph`.
+The old Flask + CrewAI runtime has been removed. The current direction is:
+
+```text
+frontend -> backend -> ai_system -> LangGraph/internal agents
+```
+
+## Current Status
+
+The backend has been refactored to preserve the old backend route surface while separating AI behavior into `ai_system`.
+
+Implemented backend areas:
+
+- Portfolio, assets, transactions, alerts, sentiment, recommendation, and search APIs.
+- Auth compatibility: register, login, and me.
+- Case workflow: list, detail, create, assign, notes, transition, analyze, and customer-360.
+- Hash-chained audit log and verification endpoint.
+- SAR JSON/PDF export.
+- SQLite schema compatibility tables for tenants, users, audit logs, risk assessments, market trends, cases, and case events.
+
+Implemented AI areas:
+
+- LangGraph-backed portfolio review flow.
+- Internal agent modules for risk, portfolio, compliance, explanation, market, alert intake, customer context, and escalation.
+- OpenAI model service via `OPENAI_API_KEY`.
+- Legacy hybrid risk engine adapter. If trained ML model files are missing, risk scoring falls back to rules.
 
 ## Architecture
-
-```text
-frontend -> backend -> ai_system
-```
-
-### Backend
-- Owns portfolio and transaction APIs
-- Stores data in SQLite
-- Builds normalized payloads for AI requests
-- Calls `ai_system` over HTTP
-
-### AI System
-- Owns AI behavior and orchestration
-- Runs a LangGraph portfolio review flow
-- Contains internal agent modules:
-  - `risk`
-  - `portfolio`
-  - `compliance`
-  - `explanation`
-- Reuses the legacy hybrid risk engine through clean adapters
-
-### Current LangGraph flow
-
-```text
-ingest_request
-  -> run_risk_screen
-  -> run_portfolio_review
-  -> run_compliance_review
-  -> run_explanation
-  -> compile_response
-```
-
-## Project Structure
 
 ```text
 FinGuard_Agent/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── db.py
-│   │   ├── schemas.py
-│   │   └── ai_client.py
-│   ├── ml/
-│   │   ├── risk_scoring_engine.py
-│   │   └── models/
-│   ├── data/
+│   │   ├── api/              # FastAPI routers
+│   │   ├── main.py           # app setup and router registration
+│   │   ├── db.py             # SQLite schema + helpers
+│   │   ├── auth.py           # legacy-compatible auth helpers
+│   │   ├── audit.py          # hash-chain audit helpers
+│   │   ├── ai_client.py      # HTTP client to ai_system
+│   │   └── schemas.py
+│   ├── ml/                   # reused legacy ML risk engine
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── ai_system/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── orchestrator.py
-│   │   ├── schemas.py
-│   │   ├── llm.py
-│   │   ├── ml.py
-│   │   └── agents/
+│   │   ├── agents/           # internal agent strategies
+│   │   ├── main.py           # FastAPI app
+│   │   ├── llm.py            # OpenAI adapter
+│   │   ├── ml.py             # ML adapter
+│   │   └── orchestrator.py   # thin wrapper over LangGraph
 │   ├── langgraph/
 │   │   ├── graph.py
-│   │   ├── state.py
 │   │   ├── nodes.py
+│   │   ├── state.py
 │   │   └── workflows/
 │   ├── langgraph.json
-│   ├── Dockerfile
-│   └── requirements.txt
+│   ├── .env.example
+│   └── Dockerfile
 ├── frontend/
 ├── docker-compose.yml
 └── FINGUARD_COMPREHENSIVE_GUIDE.md
 ```
 
-## Runtime
+## Run With Docker
 
-### Docker Compose
+Create `ai_system/.env`:
 
-Main runtime path:
+```env
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5.4-mini
+OPENAI_REASONING_EFFORT=medium
+```
+
+Start services:
 
 ```bash
 docker compose up --build
 ```
 
 Service URLs:
-- Backend: `http://localhost:5000`
-- AI System: `http://localhost:8000`
 
-### Frontend
+- Backend: `http://localhost:15050`
+- AI System: `http://localhost:18000`
 
-Frontend is still run separately:
+Inside Docker, backend calls AI through `http://ai_system:8000`.
 
-```bash
-cd frontend
-npm install
-npm start
-```
+## Verified Smoke Tests
 
-Frontend URL:
-- `http://localhost:3000`
+The Docker stack was rebuilt and tested through the Compose network.
 
-## Environment
+Passed:
 
-Current backend env example is in [backend/.env.example](backend/.env.example):
+- backend health
+- `ai_system` health
+- auth register/login
+- portfolio creation
+- manual case creation
+- case note and detail
+- audit chain verification
+- SAR JSON export
+- transaction creation
+- quick recommendation through `backend -> ai_system`
 
-```env
-BACKEND_DB_PATH=./data/backend.db
-AI_SYSTEM_URL=http://localhost:8000
-AI_SYSTEM_TIMEOUT_SECONDS=30
-```
+Known runtime note:
 
-Optional AI env you may set for richer risk explanations:
+- If `backend/ml/models/*` trained model files are missing, risk scoring logs a model-metadata warning and falls back to rules.
 
-```env
-GROQ_API_KEY=...
-GROQ_MODEL=llama-3.3-70b-versatile
-```
+## Backend API Surface
 
-## API Overview
+System and catalog:
 
-### Backend endpoints
-
+- `GET /`
 - `GET /health`
+- `GET /api/health`
+- `GET /api/symbols`
+- `GET /api/symbols/sectors`
+
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+
+Portfolio:
+
+- `POST /api/portfolio`
 - `POST /api/portfolios`
 - `GET /api/portfolios`
+- `GET /api/portfolio/{id}`
 - `GET /api/portfolios/{id}`
-- `POST /api/portfolios/{id}/transactions`
-- `GET /api/portfolios/{id}/transactions`
-- `POST /api/portfolios/{id}/quick-recommendation`
+- `POST /api/portfolio/{id}/asset`
+- `GET /api/portfolio/{id}/assets`
+- `POST /api/portfolio/{id}/transaction`
+- `GET /api/portfolio/{id}/transactions`
+- `POST /api/portfolio/{id}/analyze`
+- `POST /api/portfolio/{id}/quick-recommendation`
+- `POST /api/portfolio/{id}/recommendation`
+- `POST /api/portfolio/{id}/alert`
+- `GET /api/portfolio/{id}/alerts`
 
-### AI System endpoints
+Transaction helpers:
+
+- `POST /api/transaction/score-risk`
+- `POST /api/transaction/get-ai-insights`
+
+Market and search:
+
+- `GET /api/sentiment`
+- `GET /api/sentiment/{symbol}`
+- `POST /api/search/analyses`
+- `POST /api/search/risks`
+- `POST /api/search/market`
+
+Cases, audit, SAR:
+
+- `GET /api/cases`
+- `GET /api/cases/{id}`
+- `POST /api/cases`
+- `POST /api/cases/{id}/assign`
+- `POST /api/cases/{id}/notes`
+- `POST /api/cases/{id}/transition`
+- `POST /api/cases/{id}/analyze`
+- `GET /api/cases/{id}/customer-360`
+- `GET /api/audit/logs`
+- `GET /api/audit/verify`
+- `GET /api/sar/{case_id}.json`
+- `GET /api/sar/{case_id}.pdf`
+
+## AI System API Surface
+
+Main path:
 
 - `GET /health`
 - `POST /orchestrate/portfolio-review`
+
+Debug/direct agent paths:
+
 - `POST /agents/risk/invoke`
 - `POST /agents/portfolio/invoke`
 - `POST /agents/compliance/invoke`
+- `POST /market/sentiment`
+- `POST /market/recommendation`
+- `POST /risk/score-transaction`
+- `POST /explanation/transaction-insights`
 
-The agent endpoints are useful for debugging. The main production path is the orchestrator endpoint.
+The production path should stay `backend -> /orchestrate/portfolio-review`. Direct agent endpoints are mainly for debugging and future extraction.
 
-## Minimal Flow
+## Agent Parity Status
 
-### 1. Create a portfolio
+Current agents are strategy-aligned with `last_version`, but not all interfaces are byte-for-byte identical.
 
-```bash
-curl -X POST http://localhost:5000/api/portfolios \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "demo-user",
-    "name": "My Portfolio",
-    "initial_investment": 100000
-  }'
-```
+Closest parity:
 
-### 2. Add a transaction
+- `risk`
+- `market`
+- `portfolio`
+- `compliance` core review
 
-```bash
-curl -X POST http://localhost:5000/api/portfolios/1/transactions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "type": "buy",
-    "quantity": 10,
-    "price": 180,
-    "fees": 5
-  }'
-```
+Still adapted or partial:
 
-### 3. Request AI review
+- `alert_intake` lacks some old helper methods.
+- `customer_context` lacks some old history/preferences helper methods.
+- `escalation` lacks some old case package/resolution helper methods.
+- `explanation` lacks some old alert/recommendation/performance/compliance explanation helpers.
+
+Current implementation is module-function based for LangGraph, not legacy class-based.
+
+## Minimal API Flow
 
 ```bash
-curl -X POST http://localhost:5000/api/portfolios/1/quick-recommendation \
+curl -X POST http://localhost:15050/api/portfolio \
   -H "Content-Type: application/json" \
-  -d '{
-    "mode": "quick"
-  }'
+  -d '{"name":"Demo Portfolio","initial_investment":10000}'
+
+curl -X POST http://localhost:15050/api/portfolio/1/transaction \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"AAPL","type":"buy","quantity":2,"price":175}'
+
+curl -X POST http://localhost:15050/api/portfolio/1/quick-recommendation \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
-
-## LangGraph Notes
-
-- LangGraph config lives in [ai_system/langgraph.json](ai_system/langgraph.json)
-- Primary graph entrypoint is [ai_system/langgraph/graph.py](ai_system/langgraph/graph.py)
-- FastAPI currently uses the compiled graph through a thin wrapper in [ai_system/app/orchestrator.py](ai_system/app/orchestrator.py)
-
-This means the runtime is already LangGraph-backed, even though the graph is still small.
-
-## Current Scope
-
-What is implemented now:
-- portfolio creation
-- transaction recording
-- AI portfolio review path
-- internal risk/portfolio/compliance/explanation modules
-- LangGraph-first orchestration structure
-
-What is intentionally not fully rebuilt yet:
-- old large case-management surface
-- old broad compliance/audit/auth domain
-- full production persistence redesign
-- deep multi-workflow graph set
 
 ## Development Notes
 
-- `ai_system` is the canonical home for AI behavior
-- old backend-side agent package is gone
-- old Flask/CrewAI runtime is gone
-- legacy ML risk scoring code is reused through adapters, not through the old architecture
-
-For a fuller system description, see [FINGUARD_COMPREHENSIVE_GUIDE.md](FINGUARD_COMPREHENSIVE_GUIDE.md).
+- Backend config defaults live in `backend/app/main.py`.
+- `ai_system` secrets live in `ai_system/.env`; do not commit real keys.
+- `backend/agents` is removed.
+- CrewAI is removed from the active runtime.
+- LangGraph config lives in `ai_system/langgraph.json`.
+- The Flask HTML console from legacy `/` is not restored; current `/` returns JSON status.

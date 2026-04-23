@@ -1,110 +1,387 @@
-"""Risk agent service backed by the legacy hybrid scoring approach."""
+"""Risk logic aligned to the legacy hybrid scoring and recommendation flow."""
 
 from __future__ import annotations
 
-from ai_system.app.llm import chat
+import json
+from datetime import datetime, timezone
+from typing import Any
+
+from ai_system.app.analysis_utils import ml_score_transactions
+from ai_system.app.llm import chat, is_rate_limit_error
 from ai_system.app.ml import get_risk_engine
 
 
-def _score_transaction_risk(transaction: dict) -> dict:
+def _score_transaction_risk(
+    transaction: dict, customer_profile: dict | None = None
+) -> dict:
+    txn = {**transaction, **(customer_profile or {})}
     engine = get_risk_engine()
-    if engine is None:
+    if engine is not None:
+        hybrid = engine.score(txn)
+        llm_explanation = None
+        if hybrid.get("needs_llm_review") or not hybrid["ml_details"].get("available"):
+            llm_explanation = _llm_deep_dive(txn, hybrid)
+
         return {
-            "available": False,
-            "final_score": None,
-            "risk_label": "unknown",
-            "flags": [],
-            "summary": "ML risk engine unavailable.",
+            "transaction_id": transaction.get("id"),
+            "final_score": hybrid["final_score"],
+            "risk_label": hybrid["risk_label"],
+            "method": hybrid["method"],
+            "hard_block": hybrid["hard_block"],
+            "flags": hybrid["flags"],
+            "rule_score": hybrid["rule_details"]["rule_score"],
+            "rule_flags": hybrid["rule_details"]["flags"],
+            "rule_details": hybrid["rule_details"]["details"],
+            "ml_risk_score": hybrid["ml_details"].get("ml_risk_score"),
+            "ml_risk_label": hybrid["ml_details"].get("ml_risk_label"),
+            "ml_fraud_flag": hybrid["ml_details"].get("ml_fraud_flag"),
+            "ml_anomaly_score": hybrid["ml_details"].get("ml_anomaly_score"),
+            "ml_confidence": hybrid["ml_details"].get("ml_confidence"),
+            "ml_details": hybrid["ml_details"],
+            "needs_llm_review": hybrid["needs_llm_review"],
+            "llm_explanation": llm_explanation,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-    txn = {
-        "amount": float(transaction.get("quantity") or 0) * float(transaction.get("price") or 0),
-        "transaction_type": transaction.get("type", "buy"),
-        "asset_type": transaction.get("asset_type", "stock"),
-        "sector": transaction.get("sector", "Technology"),
-        "sender_country": transaction.get("sender_country", "US"),
-        "receiver_country": transaction.get("receiver_country", "US"),
-        "currency": transaction.get("currency", "USD"),
-        "channel": transaction.get("channel", "web"),
-        "device_type": transaction.get("device_type", "desktop"),
-        "is_new_payee": transaction.get("is_new_payee", 0),
-        "account_age_days": transaction.get("account_age_days", 365),
-        "customer_avg_txn_amount": transaction.get("customer_avg_txn_amount", 1000),
-        "customer_txn_count_30d": transaction.get("customer_txn_count_30d", 3),
-        "amount_deviation_from_avg": transaction.get("amount_deviation_from_avg", 0),
-        "time_of_day_hour": transaction.get("time_of_day_hour", 12),
-        "is_weekend": transaction.get("is_weekend", 0),
-        "ip_country_match": transaction.get("ip_country_match", 1),
-        "failed_login_attempts_24h": transaction.get("failed_login_attempts_24h", 0),
-        "num_txns_last_1h": transaction.get("num_txns_last_1h", 0),
-        "num_txns_last_24h": transaction.get("num_txns_last_24h", 0),
-        "days_since_last_txn": transaction.get("days_since_last_txn", 1),
-        "receiver_account_age_days": transaction.get("receiver_account_age_days", 365),
-        "is_high_risk_country": transaction.get("is_high_risk_country", 0),
-        "is_sanctioned_country": transaction.get("is_sanctioned_country", 0),
-        "pep_flag": transaction.get("pep_flag", 0),
-        "portfolio_concentration_pct": transaction.get("portfolio_concentration_pct", 10),
-        "market_volatility_index": transaction.get("market_volatility_index", 20),
+    fallback = _score_via_llm(transaction, customer_profile or {})
+    return {
+        "transaction_id": fallback.get("transaction_id"),
+        "final_score": fallback.get("final_score"),
+        "risk_label": fallback.get("risk_label", "unknown"),
+        "method": fallback.get("method", "llm_only"),
+        "hard_block": fallback.get("hard_block", False),
+        "flags": fallback.get("flags", []),
+        "rule_score": None,
+        "rule_flags": [],
+        "rule_details": {},
+        "ml_risk_score": None,
+        "ml_risk_label": None,
+        "ml_fraud_flag": None,
+        "ml_anomaly_score": None,
+        "ml_confidence": None,
+        "ml_details": {"available": False, "reason": "ML engine unavailable"},
+        "needs_llm_review": fallback.get("needs_llm_review", False),
+        "llm_explanation": fallback.get("llm_explanation"),
+        "timestamp": fallback.get("timestamp", datetime.now(timezone.utc).isoformat()),
     }
-    result = engine.score(txn)
 
-    llm_explanation = None
-    if result.get("needs_llm_review"):
-        llm_explanation = chat(
-            (
-                "Explain whether this borderline transaction risk score needs review.\n\n"
-                f"Transaction: {txn}\n"
-                f"Automated result: score={result['final_score']}, label={result['risk_label']}, "
-                f"flags={result['flags']}"
-            )
-        )
 
-    summary = (
-        f"score={result['final_score']}/100 label={result['risk_label']} "
-        f"method={result['method']} flags={', '.join(result['flags']) or 'none'}"
-    )
-    if llm_explanation:
-        summary = f"{summary}. {llm_explanation}"
+def _llm_deep_dive(txn: dict, hybrid_result: dict) -> str | None:
+    prompt = f"""You are a senior financial risk analyst.
+
+A transaction was scored by our automated system with a BORDERLINE result.
+Provide a concise, actionable explanation of why this transaction may or
+may not be risky, and recommend next steps.
+
+Transaction Summary:
+  Amount:             ${txn.get("amount", "N/A"):,.2f}
+  Type:               {txn.get("transaction_type", "N/A")}
+  Sender Country:     {txn.get("sender_country", "N/A")}
+  Receiver Country:   {txn.get("receiver_country", "N/A")}
+  Asset Type:         {txn.get("asset_type", "N/A")}
+  Channel:            {txn.get("channel", "N/A")}
+  Account Age (days): {txn.get("account_age_days", "N/A")}
+  Is New Payee:       {txn.get("is_new_payee", "N/A")}
+
+Automated Scoring:
+  Combined Score:     {hybrid_result["final_score"]}/100
+  Rule Flags:         {", ".join(hybrid_result["flags"]) or "None"}
+  ML Risk Label:      {hybrid_result["ml_details"].get("ml_risk_label", "N/A")}
+  ML Fraud Flag:      {hybrid_result["ml_details"].get("ml_fraud_flag", "N/A")}
+
+Provide:
+1. Plain-language risk explanation (2-3 sentences)
+2. Recommended action: APPROVE / HOLD_FOR_REVIEW / ESCALATE / BLOCK
+3. Key factors driving the score"""
+    return chat(prompt)
+
+
+def _score_via_llm(transaction: dict, customer_profile: dict) -> dict:
+    prompt = f"""Score the risk level of this transaction:
+
+Transaction:
+{json.dumps(transaction, indent=2)}
+
+Customer Profile:
+{json.dumps(customer_profile, indent=2)}
+
+Evaluate:
+1. Deviation from customer norm
+2. Fraud indicators
+3. AML/KYC concerns
+4. Regulatory red flags
+5. Risk score (1-100)
+6. Action recommendations
+
+Return risk score and required actions."""
+    result = chat(prompt)
+    return {
+        "agent": "RiskAssessment",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "transaction_id": transaction.get("id"),
+        "final_score": None,
+        "risk_label": "unknown",
+        "method": "llm_only",
+        "hard_block": False,
+        "flags": [],
+        "llm_explanation": result,
+        "needs_llm_review": False,
+        "flagged": "high" in (result or "").lower(),
+    }
+
+
+def score_transaction(transaction: dict, customer_profile: dict | None = None) -> dict:
+    engine = get_risk_engine()
+    if engine is not None:
+        hybrid = engine.score({**transaction, **(customer_profile or {})})
+        result = {
+            "rule_score": hybrid["rule_details"]["rule_score"],
+            "rule_flags": hybrid["rule_details"]["flags"],
+            "rule_details": hybrid["rule_details"]["details"],
+            "ml_risk_score": hybrid["ml_details"].get("ml_risk_score"),
+            "ml_risk_label": hybrid["ml_details"].get("ml_risk_label"),
+            "ml_fraud_flag": hybrid["ml_details"].get("ml_fraud_flag"),
+            "ml_anomaly_score": hybrid["ml_details"].get("ml_anomaly_score"),
+            "ml_confidence": hybrid["ml_details"].get("ml_confidence"),
+            "ml_details": hybrid["ml_details"],
+            "final_score": hybrid["final_score"],
+            "risk_label": hybrid["risk_label"],
+            "method": hybrid["method"],
+            "hard_block": hybrid["hard_block"],
+            "flags": hybrid["flags"],
+            "needs_llm_review": hybrid["needs_llm_review"],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    else:
+        try:
+            result = _score_transaction_risk(transaction, customer_profile)
+        except Exception as exc:
+            result = {
+                "final_score": None,
+                "risk_label": "unknown",
+                "method": "llm_only",
+                "hard_block": False,
+                "flags": [],
+                "needs_llm_review": False,
+                "rule_score": None,
+                "rule_flags": [],
+                "rule_details": {},
+                "ml_risk_score": None,
+                "ml_risk_label": None,
+                "ml_fraud_flag": None,
+                "ml_anomaly_score": None,
+                "ml_confidence": None,
+                "ml_details": {"available": False, "reason": str(exc)},
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
 
     return {
-        "available": True,
-        "final_score": result["final_score"],
+        "risk_score": result["final_score"],
         "risk_label": result["risk_label"],
+        "method": result["method"],
+        "hard_block": result["hard_block"],
         "flags": result["flags"],
-        "summary": summary,
-        "raw": result,
+        "needs_llm_review": result["needs_llm_review"],
+        "rule_details": {
+            "rule_score": result.get("rule_score"),
+            "flags": result.get("rule_flags", []),
+            "details": result.get("rule_details", {}),
+        },
+        "ml_details": {
+            "ml_risk_score": result.get("ml_risk_score"),
+            "ml_risk_label": result.get("ml_risk_label"),
+            "ml_fraud_flag": result.get("ml_fraud_flag"),
+            "ml_anomaly_score": result.get("ml_anomaly_score"),
+            "ml_confidence": result.get("ml_confidence"),
+            "available": result.get("ml_details", {}).get("available"),
+            "reason": result.get("ml_details", {}).get("reason"),
+        },
+        "timestamp": result["timestamp"],
     }
+
+
+def score_transaction_risk(
+    transaction: dict, customer_profile: dict | None = None
+) -> dict:
+    return _score_transaction_risk(transaction, customer_profile)
+
+
+def assess_portfolio_risk(portfolio_data: dict, market_conditions: dict) -> dict:
+    prompt = f"""You are a risk assessment expert. Perform comprehensive portfolio risk assessment:
+
+Portfolio:
+{json.dumps(portfolio_data, indent=2)}
+
+Market Conditions:
+{json.dumps(market_conditions, indent=2)}
+
+Assess:
+1. Market risk (Beta, Volatility, correlation)
+2. Concentration risk (sector, asset class, single stock)
+3. Liquidity risk
+4. Counterparty risk
+5. Currency risk (if applicable)
+6. Interest rate risk
+7. Overall portfolio score (0-100)
+
+Return detailed risk breakdown with heat map and recommendations."""
+    result = chat(prompt)
+    return {
+        "agent": "RiskAssessment",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "assessment_type": "portfolio",
+        "risk_analysis": result or "Risk assessment unavailable.",
+        "complete": True,
+    }
+
+
+def detect_fraud_risk(
+    transaction_history: list[dict[str, Any]],
+    portfolio_data: dict[str, Any],
+    ml_pre_scores: list[dict[str, Any]] | None = None,
+) -> dict:
+    ml_summary_lines: list[str] = []
+    if ml_pre_scores:
+        for index, result in enumerate(ml_pre_scores):
+            ml_summary_lines.append(
+                f"  Txn {index + 1}: score={result.get('final_score', result.get('risk_score', '?'))}/100 "
+                f"label={result.get('risk_label', '?')} "
+                f"flags=[{', '.join(result.get('flags', []))}]"
+            )
+    else:
+        engine = get_risk_engine()
+        if engine:
+            for index, txn in enumerate(transaction_history[:20]):
+                try:
+                    result = engine.score(txn)
+                    ml_summary_lines.append(
+                        f"  Txn {index + 1}: score={result['final_score']}/100 "
+                        f"label={result['risk_label']} method={result['method']} "
+                        f"flags=[{', '.join(result['flags'])}]"
+                    )
+                except Exception:
+                    ml_summary_lines.append(f"  Txn {index + 1}: ML scoring failed")
+
+    ml_section = ""
+    if ml_summary_lines:
+        ml_section = (
+            "\n\n── ML Pre-Screening Results (Rules + GradientBoosting + IsolationForest) ──\n"
+            + "\n".join(ml_summary_lines)
+            + "\n\nUse these ML scores as your baseline. Add expert analysis on top."
+        )
+
+    prompt = (
+        "You are a financial fraud detection expert. Analyse these transactions "
+        "and portfolio for suspicious activity:\n\n"
+        f"Transaction History:\n{json.dumps(transaction_history[:10], indent=2)}\n\n"
+        f"Portfolio Data:\n{json.dumps(portfolio_data, indent=2)}"
+        f"{ml_section}\n\n"
+        "Identify:\n"
+        "1. Unusual transaction patterns\n"
+        "2. Potential fraud indicators\n"
+        "3. Risk level (low/medium/high)\n"
+        "4. Specific alerts needed\n"
+        "5. Recommended actions"
+    )
+    response = chat(prompt)
+    return {
+        "agent": "RiskDetector",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "alert_type": "fraud_risk",
+        "assessment": response or "Fraud analysis unavailable.",
+    }
+
+
+def quick_portfolio_recommendation(
+    portfolio_data: dict[str, Any], transactions: list[dict[str, Any]]
+) -> dict:
+    portfolio_summary = (
+        f"Portfolio '{portfolio_data.get('name')}': "
+        f"${portfolio_data.get('total_value', 0):,.0f}, "
+        f"{len(portfolio_data.get('assets', []))} assets"
+    )
+    ml_summary = ml_score_transactions(transactions[:5])
+
+    try:
+        prompt = (
+            "Quick risk assessment (2-3 sentences):\n"
+            f"{portfolio_summary}\n"
+            "Key risks? Recommendation?\n"
+            f"{ml_summary}"
+        )
+        recommendation = chat(prompt)
+        crew_output = (
+            "## ⚡ Quick Recommendation\n\n"
+            f"**Portfolio:** {portfolio_summary}\n\n"
+            f"### AI Risk Assessment\n{recommendation}\n\n"
+            f"### ML Pre-Screening\n{ml_summary}\n\n"
+            "**Next Steps:**\n"
+            "• Run full analysis for comprehensive review\n"
+            "• Or increase your model service quota if the full path is rate-limited"
+        )
+        return {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "portfolio_id": portfolio_data.get("id"),
+            "crew_output": crew_output,
+            "agents_used": 1,
+            "recommendation_type": "quick",
+            "rate_limited": False,
+        }
+    except Exception as exc:
+        if is_rate_limit_error(exc):
+            fallback = (
+                "⚠️ **Rate Limit Reached**\n\n"
+                "Even the quick recommendation exceeded the rate limit.\n"
+                "Please wait 30-60 seconds and try again, or increase your model service quota.\n\n"
+                f"{ml_summary}"
+            )
+            return {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "portfolio_id": portfolio_data.get("id"),
+                "crew_output": fallback,
+                "agents_used": 0,
+                "recommendation_type": "quick",
+                "rate_limited": True,
+            }
+
+        return {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "portfolio_id": portfolio_data.get("id"),
+            "crew_output": f"❌ Quick recommendation failed: {str(exc)[:200]}",
+            "agents_used": 0,
+            "recommendation_type": "quick",
+            "error": str(exc),
+        }
 
 
 def invoke(portfolio: dict, transactions: list[dict], mode: str = "quick") -> dict:
     findings = []
     scored = [_score_transaction_risk(txn) for txn in transactions[:10]]
-    available_scores = [item for item in scored if item["available"] and item["final_score"] is not None]
+    available_scores = [item for item in scored if item["final_score"] is not None]
 
     if available_scores:
-        high = [item for item in available_scores if item["risk_label"] in {"high", "critical"}]
+        high = [
+            item
+            for item in available_scores
+            if item["risk_label"] in {"high", "critical"}
+        ]
         medium = [item for item in available_scores if item["risk_label"] == "medium"]
         if high:
-            findings.append(f"{len(high)} recent transactions scored high or critical risk.")
+            findings.append(
+                f"{len(high)} recent transactions scored high or critical risk."
+            )
         elif medium:
-            findings.append(f"{len(medium)} recent transactions scored medium risk and may need review.")
+            findings.append(
+                f"{len(medium)} recent transactions scored medium risk and may need review."
+            )
         else:
-            findings.append("Hybrid scoring did not surface any high-risk recent transaction.")
-
-        for item in high[:3]:
-            findings.append(item["summary"])
+            findings.append(
+                "Hybrid scoring did not surface any high-risk recent transaction."
+            )
     else:
-        trade_count = len(transactions)
-        unique_symbols = len({txn.get("symbol") for txn in transactions if txn.get("symbol")})
-        notional = sum(float(txn.get("quantity") or 0) * float(txn.get("price") or 0) for txn in transactions)
-        if trade_count >= 10:
-            findings.append("Trading velocity is elevated relative to a lightweight portfolio review.")
-        if unique_symbols <= 2 and trade_count > 0:
-            findings.append("Transaction concentration is high because activity is focused in very few symbols.")
-        if notional >= 50000:
-            findings.append("Recent transaction notional is material and should be reviewed against policy limits.")
-        if not findings:
-            findings.append("Quick risk screen did not detect any strong operational risk signal.")
+        findings.append(
+            "Quick risk screen did not detect any strong operational risk signal."
+        )
 
     return {
         "agent": "risk",

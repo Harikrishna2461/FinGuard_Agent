@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -35,3 +37,24 @@ class PortfolioReviewRequest(BaseModel):
     portfolio: PortfolioSnapshot
     transactions: list[TransactionSnapshot] = Field(default_factory=list)
     mode: str = "quick"
+
+
+class MarketSentimentRequest(BaseModel):
+    symbols: list[str] = Field(default_factory=list)
+
+
+class MarketRecommendationRequest(BaseModel):
+    symbol: str
+    portfolio_size: float = 0
+    risk_profile: str = "moderate"
+
+
+class TransactionRiskRequest(BaseModel):
+    transaction: dict[str, Any] = Field(default_factory=dict)
+    customer_profile: dict[str, Any] = Field(default_factory=dict)
+
+
+class TransactionInsightRequest(BaseModel):
+    transaction: dict[str, Any]
+    score: float = 50
+    factors: dict[str, Any] = Field(default_factory=dict)

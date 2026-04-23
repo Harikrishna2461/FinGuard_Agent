@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiMenu, FiX, FiHome, FiTrendingUp, FiBarChart2, FiBell, FiSettings, FiLogOut, FiActivity } from 'react-icons/fi';
-import { AiFillShield } from 'react-icons/ai';
+import { AiFillSafetyCertificate } from 'react-icons/ai';
 import './Navbar.css';
 
 function Navbar({ user }) {
@@ -21,7 +21,7 @@ function Navbar({ user }) {
       <div className="navbar-container">
         {/* Logo */}
         <Link to="/" className="navbar-logo">
-          <AiFillShield className="logo-icon" />
+          <AiFillSafetyCertificate className="logo-icon" />
           <span>FinGuard</span>
         </Link>
 

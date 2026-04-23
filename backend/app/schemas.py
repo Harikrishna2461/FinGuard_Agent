@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreatePortfolioRequest(BaseModel):
-    user_id: str = "demo-user"
+    user_id: str | None = None
     name: str = "My Portfolio"
     initial_investment: float = 0
 
@@ -22,10 +22,12 @@ class PortfolioResponse(BaseModel):
 
 
 class CreateTransactionRequest(BaseModel):
-    symbol: str
+    model_config = ConfigDict(extra="allow")
+
+    symbol: str = ""
     type: str = "buy"
-    quantity: float
-    price: float
+    quantity: float = 0
+    price: float = 0
     fees: float = 0
     notes: str | None = None
 
@@ -45,3 +47,26 @@ class TransactionResponse(BaseModel):
 
 class QuickRecommendationRequest(BaseModel):
     mode: str = Field(default="quick")
+
+
+class CreateAssetRequest(BaseModel):
+    symbol: str = ""
+    name: str = ""
+    quantity: float = 0
+    purchase_price: float = 0
+    current_price: float | None = None
+    asset_type: str = "stock"
+    sector: str | None = None
+
+
+class CreateAlertRequest(BaseModel):
+    alert_type: str = ""
+    symbol: str | None = None
+    target_price: float | None = None
+    threshold: float | None = None
+    message: str | None = None
+
+
+class RecommendationRequest(BaseModel):
+    symbol: str = ""
+    risk_profile: str = "moderate"

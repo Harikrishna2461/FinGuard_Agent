@@ -19,14 +19,13 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 import joblib
 
 logger = logging.getLogger(__name__)
 
-SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR   = os.path.join(SCRIPT_DIR, "models")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -35,14 +34,50 @@ MODEL_DIR   = os.path.join(SCRIPT_DIR, "models")
 
 # OFAC / Sanctions list (subset for demo — production: load from API)
 SANCTIONED_COUNTRIES = {
-    "KP", "IR", "SY", "CU", "RU", "BY", "AF", "YE",
-    "SS", "SD", "SO", "LY", "CF", "CD", "ER", "MM", "ZW",
+    "KP",
+    "IR",
+    "SY",
+    "CU",
+    "RU",
+    "BY",
+    "AF",
+    "YE",
+    "SS",
+    "SD",
+    "SO",
+    "LY",
+    "CF",
+    "CD",
+    "ER",
+    "MM",
+    "ZW",
 }
 
 HIGH_RISK_COUNTRIES = SANCTIONED_COUNTRIES | {
-    "KY", "PA", "VG", "BS", "BZ", "SC", "AG", "GI", "JE",
-    "MV", "MT", "LI", "CY", "LB", "NG", "PK", "VE", "KH",
-    "GN", "GW", "NI", "SB", "TD", "LA",
+    "KY",
+    "PA",
+    "VG",
+    "BS",
+    "BZ",
+    "SC",
+    "AG",
+    "GI",
+    "JE",
+    "MV",
+    "MT",
+    "LI",
+    "CY",
+    "LB",
+    "NG",
+    "PK",
+    "VE",
+    "KH",
+    "GN",
+    "GW",
+    "NI",
+    "SB",
+    "TD",
+    "LA",
 }
 
 
@@ -51,12 +86,12 @@ class RuleEngine:
 
     # AML amount thresholds (USD)
     AML_REPORTING_THRESHOLD = 10_000
-    LARGE_TXN_THRESHOLD     = 50_000
-    VELOCITY_LIMIT_1H       = 5
-    VELOCITY_LIMIT_24H      = 15
-    MAX_FAILED_LOGINS       = 3
-    HIGH_CONCENTRATION_PCT  = 60.0
-    NEW_ACCOUNT_DAYS        = 30
+    LARGE_TXN_THRESHOLD = 50_000
+    VELOCITY_LIMIT_1H = 5
+    VELOCITY_LIMIT_24H = 15
+    MAX_FAILED_LOGINS = 3
+    HIGH_CONCENTRATION_PCT = 60.0
+    NEW_ACCOUNT_DAYS = 30
 
     def evaluate(self, txn: dict) -> dict:
         """
@@ -80,21 +115,27 @@ class RuleEngine:
         if receiver in SANCTIONED_COUNTRIES:
             score += 40
             flags.append("SANCTIONED_COUNTRY")
-            details["sanctioned_country"] = f"Receiver in sanctioned country: {receiver}"
+            details["sanctioned_country"] = (
+                f"Receiver in sanctioned country: {receiver}"
+            )
             hard_block = True
 
         # ── R2: High-risk country ──
         elif receiver in HIGH_RISK_COUNTRIES:
             score += 20
             flags.append("HIGH_RISK_COUNTRY")
-            details["high_risk_country"] = f"Receiver in high-risk jurisdiction: {receiver}"
+            details["high_risk_country"] = (
+                f"Receiver in high-risk jurisdiction: {receiver}"
+            )
 
         # ── R3: AML reporting threshold ──
         amount = float(txn.get("amount", 0))
         if amount >= self.AML_REPORTING_THRESHOLD:
             score += 10
             flags.append("AML_REPORTING")
-            details["aml_threshold"] = f"Amount ${amount:,.2f} >= ${self.AML_REPORTING_THRESHOLD:,}"
+            details["aml_threshold"] = (
+                f"Amount ${amount:,.2f} >= ${self.AML_REPORTING_THRESHOLD:,}"
+            )
 
         # ── R4: Large transaction ──
         if amount >= self.LARGE_TXN_THRESHOLD:
@@ -134,7 +175,10 @@ class RuleEngine:
             details["failed_logins"] = f"{failed} failed login attempts in 24h"
 
         # ── R8: New payee + new account ──
-        if txn.get("is_new_payee") and int(txn.get("account_age_days", 9999)) <= self.NEW_ACCOUNT_DAYS:
+        if (
+            txn.get("is_new_payee")
+            and int(txn.get("account_age_days", 9999)) <= self.NEW_ACCOUNT_DAYS
+        ):
             score += 15
             flags.append("NEW_PAYEE_NEW_ACCOUNT")
             details["new_combo"] = "New payee from a recently opened account"
@@ -170,7 +214,9 @@ class RuleEngine:
         if txn.get("asset_type") == "crypto" and receiver in HIGH_RISK_COUNTRIES:
             score += 15
             flags.append("CRYPTO_HIGH_RISK")
-            details["crypto_risk"] = "Cryptocurrency transaction to high-risk jurisdiction"
+            details["crypto_risk"] = (
+                "Cryptocurrency transaction to high-risk jurisdiction"
+            )
 
         # Cap at 100
         score = min(score, 100)
@@ -187,6 +233,7 @@ class RuleEngine:
 #  TIER 2 — ML Model Scoring
 # ══════════════════════════════════════════════════════════════════
 
+
 class MLScorer:
     """Loads trained models and returns ML-based risk scores."""
 
@@ -202,7 +249,9 @@ class MLScorer:
     def _load_models(self):
         meta_path = os.path.join(MODEL_DIR, "model_metadata.json")
         if not os.path.exists(meta_path):
-            logger.warning("ML models not found at %s — run train_risk_model.py first", MODEL_DIR)
+            logger.warning(
+                "ML models not found at %s — run train_risk_model.py first", MODEL_DIR
+            )
             return
 
         try:
@@ -210,10 +259,16 @@ class MLScorer:
                 self.metadata = json.load(f)
 
             try:
-                self.risk_clf       = joblib.load(os.path.join(MODEL_DIR, "risk_classifier.joblib"))
-                self.fraud_det      = joblib.load(os.path.join(MODEL_DIR, "fraud_detector.joblib"))
-                self.scaler         = joblib.load(os.path.join(MODEL_DIR, "scaler.joblib"))
-                self.label_encoders = joblib.load(os.path.join(MODEL_DIR, "label_encoders.joblib"))
+                self.risk_clf = joblib.load(
+                    os.path.join(MODEL_DIR, "risk_classifier.joblib")
+                )
+                self.fraud_det = joblib.load(
+                    os.path.join(MODEL_DIR, "fraud_detector.joblib")
+                )
+                self.scaler = joblib.load(os.path.join(MODEL_DIR, "scaler.joblib"))
+                self.label_encoders = joblib.load(
+                    os.path.join(MODEL_DIR, "label_encoders.joblib")
+                )
                 self.loaded = True
                 logger.info("ML models loaded successfully from %s", MODEL_DIR)
             except (ImportError, AttributeError, ValueError) as e:
@@ -222,7 +277,7 @@ class MLScorer:
                     "This typically means the models were trained with a different scikit-learn/numpy version.\n"
                     "Falling back to rules-based scoring only.\n"
                     "To fix: pip install --upgrade scikit-learn numpy, then run: python backend/ml/train_risk_model.py",
-                    e
+                    e,
                 )
                 self.loaded = False
                 return
@@ -236,35 +291,37 @@ class MLScorer:
             return None
 
         row = {
-            "amount":                   float(txn.get("amount", 0)),
-            "account_age_days":         int(txn.get("account_age_days", 365)),
-            "customer_avg_txn_amount":  float(txn.get("customer_avg_txn_amount", 1)),
-            "customer_txn_count_30d":   int(txn.get("customer_txn_count_30d", 0)),
-            "amount_deviation_from_avg":float(txn.get("amount_deviation_from_avg", 0)),
-            "time_of_day_hour":         int(txn.get("time_of_day_hour", 12)),
-            "num_txns_last_1h":         int(txn.get("num_txns_last_1h", 0)),
-            "num_txns_last_24h":        int(txn.get("num_txns_last_24h", 0)),
-            "days_since_last_txn":      int(txn.get("days_since_last_txn", 1)),
-            "receiver_account_age_days":int(txn.get("receiver_account_age_days", 365)),
-            "portfolio_concentration_pct": float(txn.get("portfolio_concentration_pct", 10)),
-            "market_volatility_index":  float(txn.get("market_volatility_index", 20)),
+            "amount": float(txn.get("amount", 0)),
+            "account_age_days": int(txn.get("account_age_days", 365)),
+            "customer_avg_txn_amount": float(txn.get("customer_avg_txn_amount", 1)),
+            "customer_txn_count_30d": int(txn.get("customer_txn_count_30d", 0)),
+            "amount_deviation_from_avg": float(txn.get("amount_deviation_from_avg", 0)),
+            "time_of_day_hour": int(txn.get("time_of_day_hour", 12)),
+            "num_txns_last_1h": int(txn.get("num_txns_last_1h", 0)),
+            "num_txns_last_24h": int(txn.get("num_txns_last_24h", 0)),
+            "days_since_last_txn": int(txn.get("days_since_last_txn", 1)),
+            "receiver_account_age_days": int(txn.get("receiver_account_age_days", 365)),
+            "portfolio_concentration_pct": float(
+                txn.get("portfolio_concentration_pct", 10)
+            ),
+            "market_volatility_index": float(txn.get("market_volatility_index", 20)),
             # binary
-            "is_new_payee":             int(txn.get("is_new_payee", 0)),
-            "is_weekend":               int(txn.get("is_weekend", 0)),
-            "is_holiday":               int(txn.get("is_holiday", 0)),
-            "ip_country_match":         int(txn.get("ip_country_match", 1)),
-            "is_high_risk_country":     int(txn.get("is_high_risk_country", 0)),
-            "is_sanctioned_country":    int(txn.get("is_sanctioned_country", 0)),
-            "pep_flag":                 int(txn.get("pep_flag", 0)),
+            "is_new_payee": int(txn.get("is_new_payee", 0)),
+            "is_weekend": int(txn.get("is_weekend", 0)),
+            "is_holiday": int(txn.get("is_holiday", 0)),
+            "ip_country_match": int(txn.get("ip_country_match", 1)),
+            "is_high_risk_country": int(txn.get("is_high_risk_country", 0)),
+            "is_sanctioned_country": int(txn.get("is_sanctioned_country", 0)),
+            "pep_flag": int(txn.get("pep_flag", 0)),
             # categorical (raw strings)
-            "transaction_type":         txn.get("transaction_type", "buy"),
-            "currency":                 txn.get("currency", "USD"),
-            "channel":                  txn.get("channel", "web"),
-            "device_type":              txn.get("device_type", "desktop"),
-            "asset_type":               txn.get("asset_type", "stock"),
-            "sector":                   txn.get("sector", "Technology"),
+            "transaction_type": txn.get("transaction_type", "buy"),
+            "currency": txn.get("currency", "USD"),
+            "channel": txn.get("channel", "web"),
+            "device_type": txn.get("device_type", "desktop"),
+            "asset_type": txn.get("asset_type", "stock"),
+            "sector": txn.get("sector", "Technology"),
             # derived
-            "failed_login_attempts_24h":int(txn.get("failed_login_attempts_24h", 0)),
+            "failed_login_attempts_24h": int(txn.get("failed_login_attempts_24h", 0)),
         }
 
         # Derived features (same as training)
@@ -272,14 +329,20 @@ class MLScorer:
         row["amount_to_avg_ratio"] = row["amount"] / avg if avg > 0 else 0
         row["velocity_ratio"] = (
             row["num_txns_last_1h"] / row["num_txns_last_24h"]
-            if row["num_txns_last_24h"] > 0 else 0
+            if row["num_txns_last_24h"] > 0
+            else 0
         )
         age = row["account_age_days"]
-        if age <= 30:     row["account_maturity"] = 0
-        elif age <= 90:   row["account_maturity"] = 1
-        elif age <= 365:  row["account_maturity"] = 2
-        elif age <= 730:  row["account_maturity"] = 3
-        else:             row["account_maturity"] = 4
+        if age <= 30:
+            row["account_maturity"] = 0
+        elif age <= 90:
+            row["account_maturity"] = 1
+        elif age <= 365:
+            row["account_maturity"] = 2
+        elif age <= 730:
+            row["account_maturity"] = 3
+        else:
+            row["account_maturity"] = 4
 
         row["is_cross_border"] = int(
             txn.get("sender_country", "US") != txn.get("receiver_country", "US")
@@ -300,7 +363,12 @@ class MLScorer:
 
         # Scale numerics
         from ml.train_risk_model import NUMERIC_FEATURES
-        scale_cols = NUMERIC_FEATURES + ["amount_to_avg_ratio", "velocity_ratio", "failed_login_attempts_24h"]
+
+        scale_cols = NUMERIC_FEATURES + [
+            "amount_to_avg_ratio",
+            "velocity_ratio",
+            "failed_login_attempts_24h",
+        ]
         df[scale_cols] = self.scaler.transform(df[scale_cols])
 
         # Reorder to match training features
@@ -328,16 +396,19 @@ class MLScorer:
                 return {"available": False, "reason": "Feature preparation failed"}
 
             # Risk classification
-            risk_proba  = self.risk_clf.predict_proba(X)[0]
-            risk_class  = int(self.risk_clf.predict(X)[0])
-            inv_map     = {v: k for k, v in self.metadata["risk_label_map"].items()}
-            risk_label  = inv_map.get(risk_class, "medium")
-            confidence  = float(risk_proba.max())
+            risk_proba = self.risk_clf.predict_proba(X)[0]
+            risk_class = int(self.risk_clf.predict(X)[0])
+            inv_map = {v: k for k, v in self.metadata["risk_label_map"].items()}
+            risk_label = inv_map.get(risk_class, "medium")
+            confidence = float(risk_proba.max())
 
             # Map class to 0-100 score
             # weighted sum of probabilities × class severity
             severity_weights = {0: 10, 1: 40, 2: 70, 3: 95}
-            ml_score = sum(risk_proba[i] * severity_weights.get(i, 50) for i in range(len(risk_proba)))
+            ml_score = sum(
+                risk_proba[i] * severity_weights.get(i, 50)
+                for i in range(len(risk_proba))
+            )
             ml_score = min(max(int(round(ml_score)), 0), 100)
 
             # Fraud detection (Isolation Forest)
@@ -346,13 +417,16 @@ class MLScorer:
             anomaly_score = float(-self.fraud_det.decision_function(X)[0])
 
             return {
-                "available":        True,
-                "ml_risk_label":    risk_label,
-                "ml_risk_score":    ml_score,
-                "ml_fraud_flag":    fraud_flag,
+                "available": True,
+                "ml_risk_label": risk_label,
+                "ml_risk_score": ml_score,
+                "ml_fraud_flag": fraud_flag,
                 "ml_anomaly_score": round(anomaly_score, 4),
-                "ml_confidence":    round(confidence, 4),
-                "ml_probabilities": {inv_map.get(i, str(i)): round(float(p), 4) for i, p in enumerate(risk_proba)},
+                "ml_confidence": round(confidence, 4),
+                "ml_probabilities": {
+                    inv_map.get(i, str(i)): round(float(p), 4)
+                    for i, p in enumerate(risk_proba)
+                },
             }
         except Exception as e:
             logger.error("ML scoring failed: %s", e, exc_info=True)
@@ -362,6 +436,7 @@ class MLScorer:
 # ══════════════════════════════════════════════════════════════════
 #  COMBINED ENGINE
 # ══════════════════════════════════════════════════════════════════
+
 
 class TransactionRiskEngine:
     """
@@ -373,8 +448,8 @@ class TransactionRiskEngine:
     """
 
     def __init__(self):
-        self.rules  = RuleEngine()
-        self.ml     = MLScorer()
+        self.rules = RuleEngine()
+        self.ml = MLScorer()
 
     def score(self, txn: dict) -> dict:
         """
@@ -408,12 +483,12 @@ class TransactionRiskEngine:
         if hard_block:
             # Rules override: sanctioned country = instant block
             final_score = max(rule_score, 90)
-            method      = "rules"
+            method = "rules"
         elif ml_result.get("available"):
             ml_score = ml_result["ml_risk_score"]
             # Weighted combination: 40% rules + 60% ML
             final_score = int(round(0.4 * rule_score + 0.6 * ml_score))
-            method      = "hybrid"
+            method = "hybrid"
 
             # ── Anomaly-based adjustment ─────────────────────────────
             # IsolationForest's fraud_flag (-1) fires whenever a txn falls
@@ -437,7 +512,7 @@ class TransactionRiskEngine:
         else:
             # ML unavailable — use rules only
             final_score = rule_score
-            method      = "rules"
+            method = "rules"
 
         final_score = min(max(final_score, 0), 100)
 
@@ -455,13 +530,13 @@ class TransactionRiskEngine:
         needs_llm = 40 <= final_score <= 60
 
         return {
-            "final_score":      final_score,
-            "risk_label":       risk_label,
-            "method":           method,
-            "hard_block":       hard_block,
-            "flags":            rule_result["flags"],
+            "final_score": final_score,
+            "risk_label": risk_label,
+            "method": method,
+            "hard_block": hard_block,
+            "flags": rule_result["flags"],
             "needs_llm_review": needs_llm,
-            "rule_details":     rule_result,
-            "ml_details":       ml_result,
-            "timestamp":        timestamp,
+            "rule_details": rule_result,
+            "ml_details": ml_result,
+            "timestamp": timestamp,
         }
