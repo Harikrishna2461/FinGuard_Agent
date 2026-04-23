@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from ai_system.app.agents import explanation, portfolio, risk
+from ai_system.app.agents import (
+    explanation_agent as explanation,
+    portfolio_analysis_agent as portfolio,
+    risk_assessment_agent as risk,
+)
 from ai_system.app.analysis_utils import ml_score_transactions
 from ai_system.app.llm import is_rate_limit_error
 from ai_system.langgraph.state import PortfolioAnalysisState

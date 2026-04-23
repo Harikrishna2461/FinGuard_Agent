@@ -4,7 +4,13 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from ai_system.app.agents import compliance, explanation, market, portfolio, risk
+from ai_system.app.agents import (
+    compliance_agent as compliance,
+    explanation_agent as explanation,
+    market_intelligence_agent as market,
+    portfolio_analysis_agent as portfolio,
+    risk_assessment_agent as risk,
+)
 from ai_system.app.orchestrator import portfolio_review
 from ai_system.app.schemas import (
     MarketRecommendationRequest,

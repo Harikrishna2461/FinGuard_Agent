@@ -117,7 +117,7 @@ ingest_request
   -> compile response
 ```
 
-The previous CrewAI runtime has been removed. The current implementation is strategy-aligned with the legacy agent behavior, but it is not fully interface-identical because current agents are module functions while legacy agents were class methods.
+The previous CrewAI runtime has been removed. Current agent strategies run as module functions for LangGraph, and legacy class names are available as compatibility wrappers.
 
 ## Backend API Surface
 
@@ -285,21 +285,21 @@ Important compatibility notes:
 
 ## Agent Interface Status
 
-Current agents are module-function based for LangGraph. Legacy agents were class-based.
+Current agents are module-function based for LangGraph, but now also expose legacy class names and helper methods for compatibility.
 
-Closest strategy parity:
+Aligned legacy names:
 
-- `risk`
-- `market`
-- `portfolio`
-- `compliance` core review
+- `AlertIntakeAgent`
+- `CustomerContextAgent`
+- `RiskAssessmentAgent`
+- `RiskDetectionAgent`
+- `ExplanationAgent`
+- `EscalationCaseSummaryAgent`
+- `PortfolioAnalysisAgent`
+- `MarketIntelligenceAgent`
+- `ComplianceAgent`
 
-Partial parity:
-
-- `alert_intake` has `process_alert`, but not all old helper methods.
-- `customer_context` has profile-building strategy, but not all old history/preference helpers.
-- `escalation` has escalation evaluation, but not all old case package/resolution helpers.
-- `explanation` has risk explanation and summary helpers, but not all old alert/recommendation/performance/compliance explanation helpers.
+Thin legacy-named shim modules are also present under `ai_system/app/agents`, for example `risk_assessment_agent.py`, `risk_detection_agent.py`, and `portfolio_analysis_agent.py`.
 
 ## Runtime
 
@@ -347,7 +347,7 @@ Known runtime note:
 ## Current Caveats
 
 - The old Flask HTML console at `/` is not restored; current `/` returns JSON status.
-- Agent strategy parity is close for core paths, but full class-method interface parity is not complete.
+- Agent strategy and legacy class/method names are aligned inside `ai_system`, while the runtime still uses LangGraph module functions.
 - SQLite is suitable for the current demo and compatibility work, but production deployment should move durable business data to a managed database.
 
 ## Summary

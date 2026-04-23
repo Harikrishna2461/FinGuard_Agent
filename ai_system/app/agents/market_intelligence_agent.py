@@ -41,6 +41,10 @@ def analyze_sentiment(symbols: list[str], news_context: str | None = None) -> di
     }
 
 
+def analyze_market_sentiment(symbols: list[str], news_context: str = "") -> dict:
+    return analyze_sentiment(symbols, news_context or None)
+
+
 def generate_recommendation(
     symbol: str, portfolio_size: float, risk_profile: str
 ) -> dict:
@@ -80,9 +84,29 @@ def generate_recommendation(
     }
 
 
+def generate_investment_recommendation(
+    symbol: str, portfolio_size: float, risk_profile: str
+) -> dict:
+    return generate_recommendation(symbol, portfolio_size, risk_profile)
+
+
 def quick_market_sentiment(symbols: list[str], news_context: str | None = None) -> dict:
     return analyze_sentiment(symbols, news_context)
 
 
 def quick_recommendation(symbol: str, portfolio_size: float, risk_profile: str) -> dict:
     return generate_recommendation(symbol, portfolio_size, risk_profile)
+
+
+class MarketIntelligenceAgent:
+    AGENT_DOMAIN = "market_intelligence"
+
+    def analyze_market_sentiment(
+        self, symbols: list[str], news_context: str = ""
+    ) -> dict:
+        return analyze_market_sentiment(symbols, news_context)
+
+    def generate_investment_recommendation(
+        self, symbol: str, portfolio_size: float, risk_profile: str
+    ) -> dict:
+        return generate_investment_recommendation(symbol, portfolio_size, risk_profile)

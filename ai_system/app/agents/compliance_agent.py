@@ -29,6 +29,28 @@ def review_transactions_compliance(transactions: list[dict]) -> dict:
     }
 
 
+def generate_tax_report(transaction_history: list[dict], year: int) -> dict:
+    prompt = (
+        f"You are a tax specialist. Generate a tax report for {year} based on:\n\n"
+        f"Transactions:\n{json.dumps(transaction_history, indent=2)}\n\n"
+        "Provide:\n"
+        "1. Total capital gains/losses\n"
+        "2. Short-term vs long-term breakdown\n"
+        "3. Dividend income summary\n"
+        "4. Tax-loss harvesting opportunities\n"
+        "5. Estimated tax liability\n"
+        "6. Recommended strategies for next year"
+    )
+    response = chat(prompt)
+    return {
+        "agent": "ComplianceOfficer",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "report_type": "tax",
+        "year": year,
+        "report": response or "Tax report unavailable.",
+    }
+
+
 def invoke(portfolio: dict, transactions: list[dict], mode: str = "quick") -> dict:
     if mode == "full":
         result = review_transactions_compliance(transactions)
@@ -60,3 +82,13 @@ def invoke(portfolio: dict, transactions: list[dict], mode: str = "quick") -> di
         "summary": " ".join(findings),
         "findings": findings,
     }
+
+
+class ComplianceAgent:
+    AGENT_DOMAIN = "compliance"
+
+    def review_transactions_compliance(self, transactions: list[dict]) -> dict:
+        return review_transactions_compliance(transactions)
+
+    def generate_tax_report(self, transaction_history: list[dict], year: int) -> dict:
+        return generate_tax_report(transaction_history, year)

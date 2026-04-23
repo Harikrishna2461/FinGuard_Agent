@@ -292,6 +292,108 @@ def detect_fraud_risk(
     }
 
 
+def assess_market_risk(portfolio_data: dict[str, Any], market_conditions: dict[str, Any]) -> dict:
+    prompt = (
+        "You are a market risk analyst. Assess portfolio risk in current "
+        "market conditions:\n\n"
+        f"Portfolio:\n{json.dumps(portfolio_data, indent=2)}\n\n"
+        f"Market Conditions:\n{json.dumps(market_conditions, indent=2)}\n\n"
+        "Provide:\n"
+        "1. Market risk exposure assessment\n"
+        "2. Sector-specific risks\n"
+        "3. Systemic risk analysis\n"
+        "4. Hedging recommendations\n"
+        "5. Protective measures"
+    )
+    response = chat(prompt)
+    return {
+        "agent": "RiskDetector",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "alert_type": "market_risk",
+        "assessment": response or "Market risk assessment unavailable.",
+    }
+
+
+def identify_systemic_risks(market_data: dict, portfolio_exposures: list) -> dict:
+    prompt = f"""Identify systemic risks affecting our customers:
+
+Market Data:
+{json.dumps(market_data, indent=2)}
+
+Customer Exposures:
+{json.dumps(portfolio_exposures, indent=2)}
+
+Analyze:
+1. Market-wide risks
+2. Sector correlation risks
+3. Geographic concentration risks
+4. Counterparty concentration
+5. Liquidity shocks
+6. Black swan scenarios
+7. Customer impact assessment
+
+Return systemic risk report with mitigation strategies."""
+    result = chat(prompt)
+    return {
+        "agent": "RiskAssessment",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "analysis": "systemic",
+        "risks_identified": result or "Systemic risk analysis unavailable.",
+        "requires_action": True,
+    }
+
+
+def calculate_risk_metrics(portfolio: dict) -> dict:
+    prompt = f"""Calculate key risk metrics for this portfolio:
+
+{json.dumps(portfolio, indent=2)}
+
+Calculate:
+1. Value at Risk (VaR) at 95% and 99%
+2. Sharpe Ratio
+3. Sortino Ratio
+4. Maximum Drawdown
+5. Correlation matrix key findings
+6. Beta vs benchmark
+7. Duration (if fixed income)
+
+Return metrics with interpretations."""
+    result = chat(prompt)
+    return {
+        "agent": "RiskAssessment",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "metrics": result or "Risk metrics unavailable.",
+        "calculated": True,
+    }
+
+
+def recommend_hedging_strategies(risks: dict, constraints: dict) -> dict:
+    prompt = f"""Recommend hedging strategies for identified risks:
+
+Identified Risks:
+{json.dumps(risks, indent=2)}
+
+Constraints:
+{json.dumps(constraints, indent=2)}
+
+Recommend:
+1. Hedging instruments
+2. Allocation amounts
+3. Cost-benefit analysis
+4. Implementation timeline
+5. Monitoring approach
+6. Alternatives if primary not available
+
+Return prioritized hedging strategy."""
+    result = chat(prompt)
+    return {
+        "agent": "RiskAssessment",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "strategies": result or "Hedging strategy unavailable.",
+        "recommended": True,
+    }
+
+
 def quick_portfolio_recommendation(
     portfolio_data: dict[str, Any], transactions: list[dict[str, Any]]
 ) -> dict:
@@ -390,3 +492,37 @@ def invoke(portfolio: dict, transactions: list[dict], mode: str = "quick") -> di
         "findings": findings,
         "scored_transactions": scored,
     }
+
+
+class RiskAssessmentAgent:
+    AGENT_DOMAIN = "risk_assessment"
+
+    def assess_portfolio_risk(self, portfolio_data: dict, market_conditions: dict) -> dict:
+        return assess_portfolio_risk(portfolio_data, market_conditions)
+
+    def score_transaction_risk(self, transaction: dict, customer_profile: dict | None = None) -> dict:
+        return score_transaction_risk(transaction, customer_profile)
+
+    def identify_systemic_risks(self, market_data: dict, portfolio_exposures: list) -> dict:
+        return identify_systemic_risks(market_data, portfolio_exposures)
+
+    def calculate_risk_metrics(self, portfolio: dict) -> dict:
+        return calculate_risk_metrics(portfolio)
+
+    def recommend_hedging_strategies(self, risks: dict, constraints: dict) -> dict:
+        return recommend_hedging_strategies(risks, constraints)
+
+
+class RiskDetectionAgent:
+    AGENT_DOMAIN = "risk_detection"
+
+    def detect_fraud_risk(
+        self,
+        transaction_history: list[dict[str, Any]],
+        portfolio_data: dict[str, Any],
+        ml_pre_scores: list[dict[str, Any]] | None = None,
+    ) -> dict:
+        return detect_fraud_risk(transaction_history, portfolio_data, ml_pre_scores)
+
+    def assess_market_risk(self, portfolio_data: dict[str, Any], market_conditions: dict[str, Any]) -> dict:
+        return assess_market_risk(portfolio_data, market_conditions)

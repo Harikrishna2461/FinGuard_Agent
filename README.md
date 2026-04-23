@@ -194,23 +194,21 @@ The production path should stay `backend -> /orchestrate/portfolio-review`. Dire
 
 ## Agent Parity Status
 
-Current agents are strategy-aligned with `last_version`, but not all interfaces are byte-for-byte identical.
+Current agents now expose legacy class names and helper methods inside `ai_system/app/agents`, while keeping module-function implementations for LangGraph.
 
-Closest parity:
+Aligned legacy names:
 
-- `risk`
-- `market`
-- `portfolio`
-- `compliance` core review
+- `AlertIntakeAgent`
+- `CustomerContextAgent`
+- `RiskAssessmentAgent`
+- `RiskDetectionAgent`
+- `ExplanationAgent`
+- `EscalationCaseSummaryAgent`
+- `PortfolioAnalysisAgent`
+- `MarketIntelligenceAgent`
+- `ComplianceAgent`
 
-Still adapted or partial:
-
-- `alert_intake` lacks some old helper methods.
-- `customer_context` lacks some old history/preferences helper methods.
-- `escalation` lacks some old case package/resolution helper methods.
-- `explanation` lacks some old alert/recommendation/performance/compliance explanation helpers.
-
-Current implementation is module-function based for LangGraph, not legacy class-based.
+Thin legacy-named shim modules are also present, such as `risk_assessment_agent.py` and `portfolio_analysis_agent.py`.
 
 ## Minimal API Flow
 
