@@ -42,12 +42,14 @@ def create_app(config_name: str = "development") -> Flask:
     from app.audit import audit_bp
     from app.cases import cases_bp
     from app.sar import sar_bp
+    from app.agent_reasoning_routes import reasoning_bp
 
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api")
     app.register_blueprint(audit_bp, url_prefix="/api")
     app.register_blueprint(cases_bp, url_prefix="/api")
     app.register_blueprint(sar_bp, url_prefix="/api")
+    app.register_blueprint(reasoning_bp)
 
     # Structured JSON logging + /api/metrics for Prometheus scraping
     from app.observability import init_observability

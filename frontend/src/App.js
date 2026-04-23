@@ -8,6 +8,7 @@ import SentimentAnalysis from './pages/SentimentAnalysis';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Testing from './pages/Testing';
+import AgentReasoning from './pages/AgentReasoning';
 import './App.css';
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
             <Route path="/alerts" element={<Alerts user={user} />} />
             <Route path="/settings" element={<Settings user={user} />} />
             <Route path="/test" element={<Testing user={user} />} />
+            <Route path="/agent-reasoning" element={<AgentReasoning user={user} />} />
           </Routes>
         </main>
       </div>

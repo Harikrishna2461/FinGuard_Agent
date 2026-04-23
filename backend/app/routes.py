@@ -819,6 +819,96 @@ def search_market():
     return jsonify({"results": results}), 200
 
 
+# ============= Agent Reasoning Demo =============
+
+@api_bp.route("/agent/demo", methods=["POST"])
+def agent_reasoning_demo():
+    """Demo endpoint that shows agent reasoning flow."""
+    import uuid
+    import time
+    from app.agent_reasoning import create_flow, complete_flow, AgentStep
+
+    flow_id = str(uuid.uuid4())
+    flow_name = "Portfolio Risk Analysis Crew"
+
+    flow = create_flow(flow_id, flow_name)
+
+    # Simulate agent steps
+    start_time = time.time()
+
+    # Step 1: Risk Assessment Agent
+    step1_start = time.time()
+    flow.add_step(AgentStep(
+        agent_name="Risk Assessment Agent",
+        step_number=1,
+        input_data={
+            "portfolio_id": "PORT_001",
+            "transactions": [
+                {"id": "TXN_1", "amount": 10000, "receiver_country": "IR"},
+                {"id": "TXN_2", "amount": 5000, "receiver_country": "US"}
+            ]
+        },
+        reasoning="Analyzing transactions for AML compliance. Found one transaction to Iran (sanctioned country) with amount $10k. This triggers SANCTIONED_COUNTRY flag and increases risk score significantly.",
+        output_data={
+            "risk_score": 85,
+            "flags": ["SANCTIONED_COUNTRY", "LARGE_TXN"],
+            "compliance_status": "CRITICAL"
+        },
+        duration_ms=(time.time() - step1_start) * 1000
+    ))
+
+    # Step 2: Portfolio Analysis Agent
+    step2_start = time.time()
+    flow.add_step(AgentStep(
+        agent_name="Portfolio Analysis Agent",
+        step_number=2,
+        input_data={
+            "risk_score": 85,
+            "flags": ["SANCTIONED_COUNTRY", "LARGE_TXN"],
+            "portfolio_composition": {"stocks": 60, "bonds": 30, "cash": 10}
+        },
+        reasoning="Receiving risk assessment from Risk Agent. Evaluating portfolio diversification and allocation. High risk score indicates need for immediate escalation. Current allocation shows moderate diversification but overall portfolio at elevated risk due to flagged transactions.",
+        output_data={
+            "portfolio_risk_level": "CRITICAL",
+            "diversification_score": 65,
+            "recommendation": "immediate_review"
+        },
+        duration_ms=(time.time() - step2_start) * 1000
+    ))
+
+    # Step 3: Escalation Agent
+    step3_start = time.time()
+    flow.add_step(AgentStep(
+        agent_name="Escalation & Summary Agent",
+        step_number=3,
+        input_data={
+            "portfolio_risk_level": "CRITICAL",
+            "recommendation": "immediate_review",
+            "risk_score": 85
+        },
+        reasoning="Summarizing findings from Risk and Portfolio agents. Portfolio shows critical risk level primarily due to transaction to sanctioned country. Preparing escalation summary for manual review and potential hard block.",
+        output_data={
+            "escalation_level": "URGENT",
+            "action_required": "IMMEDIATE_BLOCK",
+            "assigned_to": "Compliance_Officer_1",
+            "summary": "Transaction to Iran flagged as critical risk. Recommended hard block pending manual review."
+        },
+        duration_ms=(time.time() - step3_start) * 1000
+    ))
+
+    total_duration = (time.time() - start_time) * 1000
+    complete_flow(flow_id, total_duration, "completed")
+
+    return jsonify({
+        "flow_id": flow_id,
+        "flow_name": flow_name,
+        "status": "completed",
+        "message": "Demo agent flow created successfully",
+        "total_duration_ms": total_duration,
+        "steps": len(flow.steps)
+    }), 200
+
+
 # ============= Health =============
 
 @api_bp.route("/health", methods=["GET"])
