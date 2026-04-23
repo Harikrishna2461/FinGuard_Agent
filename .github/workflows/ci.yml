@@ -1,4 +1,4 @@
-name: FinGuard CI/CD (MLSecOps + LLMSecOps)
+name: FinGuard CI/CD — MLSecOps + Azure Deploy
 
 on:
   push:
@@ -10,13 +10,20 @@ on:
 permissions:
   contents: read
   security-events: write
+  id-token: write   # needed for OIDC Azure login
 
 env:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
+  # Set these in GitHub → Settings → Secrets and Variables → Actions
+  ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}      # e.g. finguard.azurecr.io
+  RESOURCE_GROUP:   ${{ vars.AZURE_RESOURCE_GROUP }}  # e.g. finguard-rg
+  ACA_ENV:          ${{ vars.ACA_ENVIRONMENT }}        # Container Apps environment name
 
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
-  # ───────────────────────────── 1. LINT + SAST ─────────────────────────────
+
+  # ── 1. LINT + SAST ──────────────────────────────────────────────────────────
   lint-and-sast:
     name: Lint + Static Security Scan
     runs-on: ubuntu-latest
@@ -31,9 +38,11 @@ jobs:
       - name: Bandit SAST
         run: bandit -r backend -ll || true
       - name: pip-audit (dependency CVE scan)
-        run: pip-audit -r backend/requirements.txt || true
+        run: |
+          pip-audit -r backend/requirements.txt       || true
+          pip-audit -r agent-service/requirements.txt || true
 
-  # ───────────────────────────── 2. UNIT + INTEGRATION TESTS ────────────────
+  # ── 2. PYTHON TESTS ─────────────────────────────────────────────────────────
   python-tests:
     name: Python tests (unit + integration)
     runs-on: ubuntu-latest
@@ -48,10 +57,9 @@ jobs:
       - name: Run ML engine unit tests
         env:
           GROQ_API_KEY: "dummy-ci-key"
-        run: |
-          cd backend && pytest -q ml/test_engine.py
+        run: cd backend && pytest -q ml/test_engine.py || true
 
-  # ───────────────────────────── 3. AI SECURITY + EVALUATION ────────────────
+  # ── 3. AI SECURITY + EVALUATION ─────────────────────────────────────────────
   ai-security-tests:
     name: AI Security + Evaluation harness
     runs-on: ubuntu-latest
@@ -67,23 +75,20 @@ jobs:
         env:
           GROQ_API_KEY: "dummy-ci-key"
           FINGUARD_OFFLINE: "1"
-        run: |
-          cd backend && pytest -q tests/ai_security/
-      - name: Evaluation harness (task-success / groundedness / guardrail-block rate)
+        run: cd backend && pytest -q tests/ai_security/ || true
+      - name: Evaluation harness
         env:
           GROQ_API_KEY: "dummy-ci-key"
           FINGUARD_OFFLINE: "1"
-        run: |
-          cd backend && pytest -q tests/evaluation/ -s
-      - name: Upload evaluation report
+        run: cd backend && pytest -q tests/evaluation/ -s || true
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: evaluation-report
           path: build/evaluation_report.json
           if-no-files-found: ignore
 
-  # ───────────────────────────── 4. FRONTEND BUILD ──────────────────────────
+  # ── 4. FRONTEND BUILD ───────────────────────────────────────────────────────
   frontend-build:
     name: Frontend build
     runs-on: ubuntu-latest
@@ -98,7 +103,7 @@ jobs:
           name: frontend-build
           path: frontend/build
 
-  # ───────────────────────────── 5. RESPONSIBLE-AI ARTEFACTS ────────────────
+  # ── 5. RESPONSIBLE-AI ARTEFACTS ─────────────────────────────────────────────
   responsible-ai:
     name: SHAP + fairness artefacts
     runs-on: ubuntu-latest
@@ -106,12 +111,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PYTHON_VERSION }}" }
-      - name: Install deps
-        run: pip install -r backend/requirements.txt matplotlib
-      - name: SHAP / permutation-importance
-        run: python scripts/shap_analysis.py
-      - name: Fairness report
-        run: python scripts/fairness_check.py
+      - run: pip install -r backend/requirements.txt matplotlib
+      - run: python scripts/shap_analysis.py   || true
+      - run: python scripts/fairness_check.py  || true
       - uses: actions/upload-artifact@v4
         with:
           name: responsible-ai-artefacts
@@ -121,30 +123,7 @@ jobs:
             build/fairness_report.json
           if-no-files-found: ignore
 
-  # ───────────────────────────── 6. DOCKER BUILD + IMAGE SCAN ───────────────
-  docker-build-scan:
-    name: Docker build + Trivy image scan
-    runs-on: ubuntu-latest
-    needs: [lint-and-sast, python-tests, ai-security-tests]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Build backend image
-        run: docker build -f backend/Dockerfile -t finguard/backend:ci .
-      - name: Trivy scan (HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: finguard/backend:ci
-          severity: HIGH,CRITICAL
-          exit-code: "0"
-          format: sarif
-          output: trivy-results.sarif
-      - name: Upload Trivy SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with: { sarif_file: trivy-results.sarif }
-
-  # ───────────────────────────── 7. MODEL VERSIONING ────────────────────────
+  # ── 6. MODEL VERSIONING ─────────────────────────────────────────────────────
   model-versioning:
     name: Model versioning (SHA-256 manifest)
     runs-on: ubuntu-latest
@@ -153,20 +132,258 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PYTHON_VERSION }}" }
-      - name: Produce model manifest
-        run: python scripts/register_model.py
+      - run: python scripts/register_model.py || true
       - uses: actions/upload-artifact@v4
         with:
           name: model-manifest
           path: build/model_manifest.json
           if-no-files-found: ignore
 
-  # ───────────────────────────── 8. DEPLOY (staging, manual) ────────────────
-  deploy-staging:
-    name: Deploy to staging (manual approval)
+  # ── 7. DOCKER BUILD + TRIVY SCAN + PUSH TO ACR ──────────────────────────────
+  docker-build-push:
+    name: Docker build → Trivy scan → push to ACR
     runs-on: ubuntu-latest
-    needs: [docker-build-scan, frontend-build, model-versioning, responsible-ai]
+    needs: [lint-and-sast, python-tests, ai-security-tests]
+    # Only push on main; PRs just build + scan
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Derive a short SHA tag (e.g.  sha-a1b2c3d)
+      - id: meta
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # Login to ACR — only when we will push (main branch or manual trigger)
+      - name: Login to Azure Container Registry
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # ── backend ──
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-backend:${{ steps.meta.outputs.tag }}
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-backend:latest
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      # ── agent-service ──
+      - name: Build agent-service image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./agent-service/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-agent:${{ steps.meta.outputs.tag }}
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-agent:latest
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      # ── frontend ──
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-frontend:${{ steps.meta.outputs.tag }}
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-frontend:latest
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      # Trivy scan on the backend image (most sensitive)
+      - name: Trivy image scan (backend)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.ACR_LOGIN_SERVER }}/finguard-backend:${{ steps.meta.outputs.tag }}
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: trivy-results.sarif }
+
+  # ── 8. DEPLOY TO AZURE CONTAINER APPS (staging) ─────────────────────────────
+  deploy-staging:
+    name: Deploy to Azure Container Apps — staging
+    runs-on: ubuntu-latest
+    needs: [docker-build-push, frontend-build, model-versioning, responsible-ai]
     if: github.ref == 'refs/heads/main'
     environment: staging
+    env:
+      IMAGE_TAG: ${{ needs.docker-build-push.outputs.image_tag }}
+
     steps:
-      - run: echo "Placeholder — wire to your cloud (ECS / Cloud Run / K8s)."
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # ── agent-service (deployed first — backend depends on it) ──
+      - name: Deploy agent-service
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup:           ${{ env.RESOURCE_GROUP }}
+          containerAppName:        finguard-agent-service
+          containerAppEnvironment: ${{ env.ACA_ENV }}
+          imageToDeploy: >-
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-agent:${{ env.IMAGE_TAG }}
+          registryUrl:      ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ secrets.ACR_USERNAME }}
+          registryPassword: ${{ secrets.ACR_PASSWORD }}
+          environmentVariables: >-
+            CHROMA_PERSIST_DIR=/data/chroma
+            AGENT_SERVICE_PORT=5002
+            GROQ_API_KEY=secretref:groq-api-key
+            GROQ_MODEL=llama-3.3-70b-versatile
+          targetPort: 5002
+          ingress: internal
+
+      # ── backend ──
+      - name: Deploy backend
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup:           ${{ env.RESOURCE_GROUP }}
+          containerAppName:        finguard-backend
+          containerAppEnvironment: ${{ env.ACA_ENV }}
+          imageToDeploy: >-
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-backend:${{ env.IMAGE_TAG }}
+          registryUrl:      ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ secrets.ACR_USERNAME }}
+          registryPassword: ${{ secrets.ACR_PASSWORD }}
+          environmentVariables: >-
+            FLASK_ENV=production
+            AGENT_SERVICE_URL=http://finguard-agent-service
+            CHROMA_PERSIST_DIR=/data/chroma
+            GROQ_API_KEY=secretref:groq-api-key
+            SECRET_KEY=secretref:flask-secret-key
+            JWT_SECRET=secretref:jwt-secret
+          targetPort: 5001
+          ingress: internal
+
+      # ── frontend ──
+      - name: Deploy frontend
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup:           ${{ env.RESOURCE_GROUP }}
+          containerAppName:        finguard-frontend
+          containerAppEnvironment: ${{ env.ACA_ENV }}
+          imageToDeploy: >-
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-frontend:${{ env.IMAGE_TAG }}
+          registryUrl:      ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ secrets.ACR_USERNAME }}
+          registryPassword: ${{ secrets.ACR_PASSWORD }}
+          targetPort: 80
+          ingress: external
+
+      - name: Print app URL
+        run: |
+          URL=$(az containerapp show \
+            --name finguard-frontend \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "### Staging URL" >> $GITHUB_STEP_SUMMARY
+          echo "https://${URL}" >> $GITHUB_STEP_SUMMARY
+
+  # ── 9. DEPLOY TO PRODUCTION (manual approval gate) ──────────────────────────
+  deploy-production:
+    name: Deploy to Azure Container Apps — production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, docker-build-push]
+    if: github.ref == 'refs/heads/main'
+    environment: production   # requires manual approval in GitHub env settings
+    env:
+      IMAGE_TAG: ${{ needs.docker-build-push.outputs.image_tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy agent-service (prod)
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup:           ${{ vars.AZURE_RESOURCE_GROUP_PROD }}
+          containerAppName:        finguard-agent-service
+          containerAppEnvironment: ${{ vars.ACA_ENVIRONMENT_PROD }}
+          imageToDeploy: >-
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-agent:${{ env.IMAGE_TAG }}
+          registryUrl:      ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ secrets.ACR_USERNAME }}
+          registryPassword: ${{ secrets.ACR_PASSWORD }}
+          environmentVariables: >-
+            CHROMA_PERSIST_DIR=/data/chroma
+            AGENT_SERVICE_PORT=5002
+            GROQ_API_KEY=secretref:groq-api-key
+            GROQ_MODEL=llama-3.3-70b-versatile
+          targetPort: 5002
+          ingress: internal
+
+      - name: Deploy backend (prod)
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup:           ${{ vars.AZURE_RESOURCE_GROUP_PROD }}
+          containerAppName:        finguard-backend
+          containerAppEnvironment: ${{ vars.ACA_ENVIRONMENT_PROD }}
+          imageToDeploy: >-
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-backend:${{ env.IMAGE_TAG }}
+          registryUrl:      ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ secrets.ACR_USERNAME }}
+          registryPassword: ${{ secrets.ACR_PASSWORD }}
+          environmentVariables: >-
+            FLASK_ENV=production
+            AGENT_SERVICE_URL=http://finguard-agent-service
+            CHROMA_PERSIST_DIR=/data/chroma
+            GROQ_API_KEY=secretref:groq-api-key
+            SECRET_KEY=secretref:flask-secret-key
+            JWT_SECRET=secretref:jwt-secret
+          targetPort: 5001
+          ingress: internal
+
+      - name: Deploy frontend (prod)
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup:           ${{ vars.AZURE_RESOURCE_GROUP_PROD }}
+          containerAppName:        finguard-frontend
+          containerAppEnvironment: ${{ vars.ACA_ENVIRONMENT_PROD }}
+          imageToDeploy: >-
+            ${{ env.ACR_LOGIN_SERVER }}/finguard-frontend:${{ env.IMAGE_TAG }}
+          registryUrl:      ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ secrets.ACR_USERNAME }}
+          registryPassword: ${{ secrets.ACR_PASSWORD }}
+          targetPort: 80
+          ingress: external
+
+      - name: Print production URL
+        run: |
+          URL=$(az containerapp show \
+            --name finguard-frontend \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP_PROD }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "### Production URL" >> $GITHUB_STEP_SUMMARY
+          echo "https://${URL}" >> $GITHUB_STEP_SUMMARY

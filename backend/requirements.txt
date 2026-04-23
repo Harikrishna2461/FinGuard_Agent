@@ -11,6 +11,7 @@ gunicorn>=21.2.0
 groq>=0.4.1
 crewai>=0.108.0
 crewai-tools>=0.38.1
+litellm>=1.0.0
 langchain-groq>=0.3.2
 
 # ──────────────── Vector DB (ChromaDB) ────────────────

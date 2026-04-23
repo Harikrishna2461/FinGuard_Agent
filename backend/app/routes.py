@@ -1,39 +1,83 @@
 """
-API routes for FinGuard Agent.
+API routes for FinGuard Agent  –  microservices edition.
 
-All routes live under the /api blueprint.
-The orchestrator uses CrewAI agents + ChromaDB under the hood.
-ML hybrid scoring (Rules + GradientBoosting + IsolationForest) is
-applied automatically when transactions are created or scored.
+Responsibilities of this service (backend):
+  • REST API for portfolios, transactions, alerts, cases, audit, SAR
+  • ML hybrid risk scoring (rules + GradientBoosting + IsolationForest)
+  • Guardrail enforcement (regex + LLM-based) before forwarding to agents
+  • Delegates all CrewAI agent work to the agent-service over HTTP
+  • Proxies agent-service SSE streams back to the browser
+
+The backend no longer imports the orchestrator or any CrewAI code.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response, stream_with_context, current_app
 from app import db
 from models.models import Portfolio, Asset, Transaction, Alert, RiskAssessment
-from agents.crew_orchestrator import AIAgentOrchestrator
 from agents.guardrails import sanitize, PromptInjectionDetected
 from agents.guardrails_llm import sanitize_with_llm
 from app.symbols import get_all_symbols, get_symbols_by_sector, DEFAULT_SYMBOLS
 from datetime import datetime
 import uuid
 import logging
+import threading
+import requests as http_requests   # renamed to avoid shadowing flask request
 
 logger = logging.getLogger(__name__)
 
 api_bp = Blueprint("api", __name__)
 
-# Lazy-initialised orchestrator (created on first request)
-_orchestrator = None
-
 # Lazy-initialised ML risk engine
 _risk_engine = None
 
 
-def _get_orchestrator() -> AIAgentOrchestrator:
-    global _orchestrator
-    if _orchestrator is None:
-        _orchestrator = AIAgentOrchestrator()
-    return _orchestrator
+# ── Agent-service helpers ─────────────────────────────────────────────────────
+
+def _agent_url() -> str:
+    """Return the configured agent-service base URL."""
+    return current_app.config.get("AGENT_SERVICE_URL", "http://localhost:5002")
+
+
+def _fire_agent(endpoint: str, stream_id: str, payload: dict) -> None:
+    """POST job to agent-service synchronously (fast — agent-service returns 202 immediately)."""
+    try:
+        http_requests.post(
+            f"{_agent_url()}/{endpoint.lstrip('/')}",
+            json={"stream_id": stream_id, **payload},
+            timeout=8,
+        )
+    except Exception as exc:
+        logger.warning("agent-service unreachable (%s): %s", endpoint, exc)
+
+
+def _proxy_agent_stream(stream_id: str) -> Response:
+    """Proxy the agent-service SSE stream for stream_id to the browser."""
+    agent_svc = _agent_url()
+
+    def generate():
+        try:
+            with http_requests.get(
+                f"{agent_svc}/stream/{stream_id}",
+                stream=True,
+                timeout=600,
+            ) as r:
+                for chunk in r.iter_content(chunk_size=None):
+                    if chunk:
+                        yield chunk.decode("utf-8")
+        except Exception as exc:
+            import json
+            yield f'data: {json.dumps({"type":"error","data":{"message":str(exc)}})}\n\n'
+            yield 'data: {"type":"done"}\n\n'
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control":     "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection":        "keep-alive",
+        },
+    )
 
 
 def _get_risk_engine():
@@ -150,119 +194,77 @@ def get_portfolio(portfolio_id):
 
 @api_bp.route("/portfolio/<int:portfolio_id>/analyze", methods=["POST"])
 def analyze_portfolio(portfolio_id):
-    """Run full CrewAI multi-agent analysis."""
-    try:
-        portfolio = Portfolio.query.get(portfolio_id)
-        if not portfolio:
-            return jsonify({"error": "Portfolio not found"}), 404
+    """Delegate full 9-agent analysis to agent-service; return stream_id."""
+    portfolio = Portfolio.query.get(portfolio_id)
+    if not portfolio:
+        return jsonify({"error": "Portfolio not found"}), 404
 
-        assets = Asset.query.filter_by(portfolio_id=portfolio_id).all()
-        transactions = Transaction.query.filter_by(portfolio_id=portfolio_id).all()
+    assets       = Asset.query.filter_by(portfolio_id=portfolio_id).all()
+    transactions = Transaction.query.filter_by(portfolio_id=portfolio_id).all()
 
-        portfolio_data = {
-            "id": portfolio.id,
-            "name": portfolio.name,
-            "total_value": portfolio.total_value,
-            "cash_balance": portfolio.cash_balance,
-            "assets": [
-                {
-                    "symbol": a.symbol,
-                    "name": a.name,
-                    "quantity": a.quantity,
-                    "current_price": a.current_price,
-                    "purchase_price": a.purchase_price,
-                    "asset_type": a.asset_type,
-                }
-                for a in assets
-            ],
-        }
-        transactions_list = [
-            {
-                "symbol": t.symbol,
-                "type": t.transaction_type,
-                "quantity": t.quantity,
-                "price": t.price,
-                "timestamp": t.timestamp.isoformat(),
-            }
-            for t in transactions[:50]
-        ]
+    portfolio_data = {
+        "id": portfolio.id, "name": portfolio.name,
+        "total_value": portfolio.total_value, "cash_balance": portfolio.cash_balance,
+        "assets": [
+            {"symbol": a.symbol, "name": a.name, "quantity": a.quantity,
+             "current_price": a.current_price, "purchase_price": a.purchase_price,
+             "asset_type": a.asset_type}
+            for a in assets
+        ],
+    }
+    transactions_list = [
+        {"symbol": t.symbol, "type": t.transaction_type, "quantity": t.quantity,
+         "price": t.price, "timestamp": t.timestamp.isoformat()}
+        for t in transactions[:50]
+    ]
 
-        orch = _get_orchestrator()
-        result = orch.comprehensive_portfolio_review(portfolio_data, transactions_list)
+    stream_id = str(uuid.uuid4())
+    _fire_agent("analyze", stream_id, {
+        "portfolio_data": portfolio_data,
+        "transactions":   transactions_list,
+    })
+    return jsonify({"stream_id": stream_id}), 202
 
-        # Persist to SQL as well
-        risk_assessment = RiskAssessment(
-            portfolio_id=portfolio_id,
-            assessment_data=result,
-        )
-        db.session.add(risk_assessment)
-        db.session.commit()
-        return jsonify(result), 200
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Portfolio analysis error: {str(e)}", exc_info=True)
-        
-        # Provide detailed error response to help diagnosis
-        error_response = {
-            "error": "Portfolio analysis failed",
-            "details": str(e),
-            "type": type(e).__name__,
-            "help": "Check server logs for more details. Ensure GROQ_API_KEY is set and valid."
-        }
-        return jsonify(error_response), 400
+
+@api_bp.route("/portfolio/<int:portfolio_id>/analyze/stream/<stream_id>", methods=["GET"])
+def analyze_portfolio_stream(portfolio_id, stream_id):
+    return _proxy_agent_stream(stream_id)
 
 
 @api_bp.route("/portfolio/<int:portfolio_id>/quick-recommendation", methods=["POST"])
 def quick_recommendation(portfolio_id):
-    """Run lightweight single-agent quick recommendation (~1k tokens, always works on free tier)."""
-    try:
-        portfolio = Portfolio.query.get(portfolio_id)
-        if not portfolio:
-            return jsonify({"error": "Portfolio not found"}), 404
+    """Delegate lightweight recommendation to agent-service."""
+    portfolio = Portfolio.query.get(portfolio_id)
+    if not portfolio:
+        return jsonify({"error": "Portfolio not found"}), 404
 
-        assets = Asset.query.filter_by(portfolio_id=portfolio_id).all()
-        transactions = Transaction.query.filter_by(portfolio_id=portfolio_id).all()
+    assets       = Asset.query.filter_by(portfolio_id=portfolio_id).all()
+    transactions = Transaction.query.filter_by(portfolio_id=portfolio_id).all()
 
-        portfolio_data = {
-            "id": portfolio.id,
-            "name": portfolio.name,
-            "total_value": portfolio.total_value,
-            "cash_balance": portfolio.cash_balance,
-            "assets": [
-                {
-                    "symbol": a.symbol,
-                    "name": a.name,
-                    "quantity": a.quantity,
-                    "current_price": a.current_price,
-                    "purchase_price": a.purchase_price,
-                    "asset_type": a.asset_type,
-                }
-                for a in assets
-            ],
-        }
-        transactions_list = [
-            {
-                "symbol": t.symbol,
-                "type": t.transaction_type,
-                "quantity": t.quantity,
-                "price": t.price,
-                "timestamp": t.timestamp.isoformat(),
-            }
-            for t in transactions[:50]
-        ]
+    portfolio_data = {
+        "id": portfolio.id, "name": portfolio.name,
+        "total_value": portfolio.total_value, "cash_balance": portfolio.cash_balance,
+        "assets": [{"symbol": a.symbol, "name": a.name, "quantity": a.quantity,
+                    "current_price": a.current_price, "purchase_price": a.purchase_price,
+                    "asset_type": a.asset_type} for a in assets],
+    }
+    transactions_list = [
+        {"symbol": t.symbol, "type": t.transaction_type, "quantity": t.quantity,
+         "price": t.price, "timestamp": t.timestamp.isoformat()}
+        for t in transactions[:50]
+    ]
 
-        orch = _get_orchestrator()
-        result = orch.quick_portfolio_recommendation(portfolio_data, transactions_list)
+    stream_id = str(uuid.uuid4())
+    _fire_agent("quick-recommendation", stream_id, {
+        "portfolio_data": portfolio_data,
+        "transactions":   transactions_list,
+    })
+    return jsonify({"stream_id": stream_id}), 202
 
-        return jsonify(result), 200
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Quick recommendation error: {str(e)}", exc_info=True)
-        return jsonify({
-            "error": "Quick recommendation failed",
-            "details": str(e),
-            "type": type(e).__name__,
-        }), 400
+
+@api_bp.route("/portfolio/<int:portfolio_id>/quick-recommendation/stream/<stream_id>", methods=["GET"])
+def quick_recommendation_stream(portfolio_id, stream_id):
+    return _proxy_agent_stream(stream_id)
 
 
 # ============= Asset Routes =============
@@ -560,89 +562,65 @@ def score_transaction_risk():
 @api_bp.route("/transaction/get-ai-insights", methods=["POST"])
 def get_transaction_ai_insights():
     """
-    Get AI-powered insights for a transaction's risk score.
-    Uses ExplanationAgent to generate human-readable analysis.
-    
-    Expects JSON body with:
-    - transaction: dict with transaction details
-    - score: int 0-100 risk score
-    - factors: dict of contributing factors
-    
-    Returns: {"insights": str, "agent": "Explanation", "timestamp": str, "success": bool}
+    Guardrail check (backend) → delegate explanation to agent-service.
+    Returns stream_id immediately; events arrive via SSE proxy.
     """
-    try:
-        data = request.json or {}
-        transaction = data.get("transaction", {})
-        score = data.get("score", 50)
-        factors = data.get("factors", {})
-        
-        if not transaction:
-            return jsonify({"error": "transaction required"}), 400
+    data        = request.json or {}
+    transaction = data.get("transaction", {})
+    score       = data.get("score", 50)
+    factors     = data.get("factors", {})
 
-        orch = _get_orchestrator()
-        
-        # Get ExplanationAgent and generate insights
+    if not transaction:
+        return jsonify({"error": "transaction required"}), 400
+
+    stream_id = str(uuid.uuid4())
+
+    # Guardrail lives at the gateway — check before involving agents
+    txn_input = str(transaction.get("description", ""))
+    if txn_input:
         try:
-            result = orch.explanation_agent.explain_risk_score(
-                transaction=transaction,
-                score=score,
-                factors=factors
-            )
-            return jsonify({
-                "insights": result.get("explanation", ""),
-                "agent": "Explanation",
-                "timestamp": result.get("timestamp", datetime.utcnow().isoformat()),
-                "success": True,
-            }), 200
-        except RuntimeError as e:
-            # LLM error - provide helpful fallback with better formatting
-            error_msg = str(e)
-            risk_level = "CRITICAL" if score >= 80 else "HIGH" if score >= 55 else "MEDIUM" if score >= 30 else "LOW"
-            
-            fallback_insights = (
-                f"**Risk Assessment Summary**\n"
-                f"Risk Score: {score}/100\n"
-                f"Risk Level: {risk_level}\n\n"
-                f"**Contributing Factors**\n"
-            )
-            for key, value in factors.items():
-                fallback_insights += f"- {key}: {value}\n"
-            
-            fallback_insights += (
-                f"\n**Analysis**\n"
-                f"The combination of these factors indicates {risk_level.lower()} risk. "
-            )
-            
-            if score >= 80:
-                fallback_insights += (
-                    "Immediate action is recommended:\n"
-                    "- Review transaction details carefully\n"
-                    "- Consider blocking the transaction\n"
-                    "- Contact the customer if appropriate"
-                )
-            elif score >= 55:
-                fallback_insights += (
-                    "Further investigation recommended:\n"
-                    "- Gather additional context\n"
-                    "- Monitor for related activity\n"
-                    "- Escalate if patterns emerge"
-                )
-            else:
-                fallback_insights += "Continue routine monitoring."
-            
-            fallback_insights += f"\n\n**Error Details**\n{error_msg}"
-            
-            return jsonify({
-                "insights": fallback_insights,
-                "agent": "Explanation",
-                "timestamp": datetime.utcnow().isoformat(),
-                "success": False,
-                "error_reason": error_msg,
-            }), 200
-            
-    except Exception as e:
-        logger.error("Get AI insights error: %s", e, exc_info=True)
-        return jsonify({"error": str(e)}), 400
+            guard = sanitize_with_llm(txn_input)
+            if not guard.ok:
+                # Return a synthetic blocked SSE stream without calling agent-service
+                from app.agent_stream import create_stream, emit, close_stream
+                create_stream(stream_id)
+
+                def _emit_block():
+                    from app.agent_stream import emit as _e, close_stream as _c
+                    _e(stream_id, "crew_start",    {"crew": 1, "name": "Guardrail Check", "agents": ["Guardrail LLM"]})
+                    _e(stream_id, "agent_thinking",{"agent": "Guardrail LLM", "crew": 1,
+                                                    "thought": f"Checking: {txn_input}"})
+                    _e(stream_id, "crew_done",     {"crew": 1, "name": "Guardrail Check", "output": f"BLOCKED: {guard.reason}"})
+                    _e(stream_id, "result", {
+                        "insights": f"Input blocked by security guardrail: {guard.reason}",
+                        "agent": "Guardrail LLM", "success": False,
+                        "blocked": True, "reason": guard.reason,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    })
+                    _c(stream_id)
+
+                threading.Thread(target=_emit_block, daemon=True).start()
+                return jsonify({"stream_id": stream_id}), 202
+        except Exception:
+            pass  # if guardrail itself fails, let agent-service handle it
+
+    _fire_agent("insights", stream_id, {
+        "transaction": transaction,
+        "score":       score,
+        "factors":     factors,
+    })
+    return jsonify({"stream_id": stream_id}), 202
+
+
+@api_bp.route("/transaction/insights/stream/<stream_id>", methods=["GET"])
+def transaction_insights_stream(stream_id):
+    # If a local (blocked) stream exists, serve it; otherwise proxy agent-service
+    from app.agent_stream import _queues
+    if stream_id in _queues:
+        from app.agent_stream import sse_generator as local_sse
+        return Response(stream_with_context(local_sse(stream_id)), mimetype="text/event-stream",
+                        headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no","Connection":"keep-alive"})
+    return _proxy_agent_stream(stream_id)
 
 
 # ============= Alert Routes =============
@@ -706,117 +684,126 @@ def get_alerts(portfolio_id):
 
 @api_bp.route("/portfolio/<int:portfolio_id>/recommendation", methods=["POST"])
 def get_recommendation(portfolio_id):
-    try:
-        portfolio = Portfolio.query.get(portfolio_id)
-        if not portfolio:
-            return jsonify({"error": "Portfolio not found"}), 404
-        data = request.json
-        symbol = (data.get("symbol") or "").upper()
-        if not symbol:
-            return jsonify({"error": "Symbol required"}), 400
-        orch = _get_orchestrator()
-        rec = orch.quick_recommendation(
-            symbol=symbol,
-            portfolio_size=portfolio.total_value,
-            risk_profile=data.get("risk_profile", "moderate"),
-        )
-        return jsonify(rec), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    """Delegate per-symbol recommendation to agent-service."""
+    portfolio = Portfolio.query.get(portfolio_id)
+    if not portfolio:
+        return jsonify({"error": "Portfolio not found"}), 404
+    data   = request.json or {}
+    symbol = (data.get("symbol") or "").upper()
+    if not symbol:
+        return jsonify({"error": "Symbol required"}), 400
+
+    stream_id = str(uuid.uuid4())
+    _fire_agent("recommendation", stream_id, {
+        "symbol":         symbol,
+        "portfolio_size": portfolio.total_value,
+        "risk_profile":   data.get("risk_profile", "moderate"),
+    })
+    return jsonify({"stream_id": stream_id}), 202
 
 
-@api_bp.route("/sentiment", methods=["GET"])
-@api_bp.route("/sentiment/<symbol>", methods=["GET"])
-def get_sentiment(symbol=None):
-    """
-    Get sentiment analysis for one or more symbols.
-    
-    Can be called in two ways:
-    1. /sentiment/AAPL - get sentiment for a single symbol
-    2. /sentiment?symbols=AAPL,MSFT,GOOGL - get sentiment for multiple symbols
-    """
-    try:
-        orch = _get_orchestrator()
-        
-        # Get symbols from either path parameter or query parameter
-        symbols = []
-        if symbol:
-            symbols = [symbol.upper()]
-        else:
-            # Get from query parameter (comma-separated)
-            symbols_param = request.args.get("symbols", "")
-            if symbols_param:
-                symbols = [s.strip().upper() for s in symbols_param.split(",")]
-        
-        if not symbols:
-            return jsonify({"error": "Symbol(s) required. Use /sentiment/AAPL or /sentiment?symbols=AAPL,MSFT"}), 400
-        
-        # Limit to 10 symbols max
-        if len(symbols) > 10:
-            symbols = symbols[:10]
-        
-        sentiment = orch.quick_market_sentiment(symbols)
-        return jsonify(sentiment), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+@api_bp.route("/portfolio/<int:portfolio_id>/recommendation/stream/<stream_id>", methods=["GET"])
+def recommendation_stream(portfolio_id, stream_id):
+    return _proxy_agent_stream(stream_id)
+
+
+@api_bp.route("/sentiment/analyze", methods=["POST"])
+def analyze_sentiment():
+    """Start market sentiment analysis — returns stream_id for SSE proxy."""
+    data    = request.json or {}
+    symbols = [s.strip().upper() for s in data.get("symbols", []) if s.strip()]
+    if not symbols:
+        return jsonify({"error": "symbols required"}), 400
+    if len(symbols) > 10:
+        symbols = symbols[:10]
+
+    stream_id = str(uuid.uuid4())
+    _fire_agent("sentiment", stream_id, {"symbols": symbols})
+    return jsonify({"stream_id": stream_id}), 202
+
+
+@api_bp.route("/sentiment/stream/<stream_id>", methods=["GET"])
+def sentiment_stream(stream_id):
+    return _proxy_agent_stream(stream_id)
 
 
 # ============= Vector search endpoints =============
 
+def _guardrail_check(query: str):
+    """Run LLM guardrail; return (cleaned_query, None) or (None, error_response)."""
+    try:
+        guard = sanitize_with_llm(query)
+        if not guard.ok:
+            return None, jsonify({"error": f"Query blocked: {guard.reason}"}), 400
+        return guard.cleaned, None, None
+    except Exception:
+        return query, None, None
+
+
 @api_bp.route("/search/analyses", methods=["POST"])
 def search_analyses():
-    """Semantic search over past portfolio analyses stored in ChromaDB."""
-    data = request.json or {}
+    data  = request.json or {}
     query = data.get("query", "")
-    pid = data.get("portfolio_id")
+    pid   = data.get("portfolio_id")
     if not query:
         return jsonify({"error": "query required"}), 400
 
-    # LLM-based guardrail (semantic detection of prompt injection)
-    guard = sanitize_with_llm(query)
-    if not guard.ok:
-        logger.warning(f"search_analyses: guardrail blocked query (reason={guard.reason}, confidence={guard.confidence})")
-        return jsonify({"error": f"Query blocked: {guard.reason}", "confidence": guard.confidence}), 400
+    cleaned, err, code = _guardrail_check(query)
+    if err:
+        return err, code
 
-    orch = _get_orchestrator()
-    results = orch.search_past_analyses(guard.cleaned, pid)
-    return jsonify({"results": results}), 200
+    stream_id = str(uuid.uuid4())
+    _fire_agent("search/analyses", stream_id, {"query": cleaned, "portfolio_id": pid})
+    return jsonify({"stream_id": stream_id}), 202
+
+
+@api_bp.route("/search/analyses/stream/<stream_id>", methods=["GET"])
+def search_analyses_stream(stream_id):
+    return _proxy_agent_stream(stream_id)
 
 
 @api_bp.route("/search/risks", methods=["POST"])
 def search_risks():
-    data = request.json or {}
+    data  = request.json or {}
     query = data.get("query", "")
+    pid   = data.get("portfolio_id")
     if not query:
         return jsonify({"error": "query required"}), 400
 
-    # LLM-based guardrail
-    guard = sanitize_with_llm(query)
-    if not guard.ok:
-        logger.warning(f"search_risks: guardrail blocked query (reason={guard.reason}, confidence={guard.confidence})")
-        return jsonify({"error": f"Query blocked: {guard.reason}", "confidence": guard.confidence}), 400
+    cleaned, err, code = _guardrail_check(query)
+    if err:
+        return err, code
 
-    orch = _get_orchestrator()
-    results = orch.search_past_risks(guard.cleaned, data.get("portfolio_id"))
-    return jsonify({"results": results}), 200
+    stream_id = str(uuid.uuid4())
+    _fire_agent("search/risks", stream_id, {"query": cleaned, "portfolio_id": pid})
+    return jsonify({"stream_id": stream_id}), 202
+
+
+@api_bp.route("/search/risks/stream/<stream_id>", methods=["GET"])
+def search_risks_stream(stream_id):
+    return _proxy_agent_stream(stream_id)
 
 
 @api_bp.route("/search/market", methods=["POST"])
 def search_market():
-    data = request.json or {}
-    query = data.get("query", "")
+    data   = request.json or {}
+    query  = data.get("query", "")
+    symbol = data.get("symbol")
     if not query:
         return jsonify({"error": "query required"}), 400
 
-    # LLM-based guardrail
-    guard = sanitize_with_llm(query)
-    if not guard.ok:
-        logger.warning(f"search_market: guardrail blocked query (reason={guard.reason}, confidence={guard.confidence})")
-        return jsonify({"error": f"Query blocked: {guard.reason}", "confidence": guard.confidence}), 400
+    cleaned, err, code = _guardrail_check(query)
+    if err:
+        return err, code
 
-    orch = _get_orchestrator()
-    results = orch.search_past_market(guard.cleaned, data.get("symbol"))
-    return jsonify({"results": results}), 200
+    stream_id = str(uuid.uuid4())
+    _fire_agent("search/market", stream_id, {"query": cleaned, "symbol": symbol})
+    return jsonify({"stream_id": stream_id}), 202
+
+
+@api_bp.route("/search/market/stream/<stream_id>", methods=["GET"])
+def search_market_stream(stream_id):
+    return _proxy_agent_stream(stream_id)
 
 
 # ============= Agent Reasoning Demo =============

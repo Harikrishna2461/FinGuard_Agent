@@ -137,6 +137,29 @@ tr:hover td{background:rgba(56,189,248,.03)}
 /* ── Section divider ── */
 .divider{height:1px;background:var(--border);margin:24px 0}
 
+/* ── Live thinking stream ── */
+.think-stream{margin:16px 0;display:flex;flex-direction:column;gap:6px}
+.think-block{border:1px solid rgba(71,85,105,.6);border-radius:10px;overflow:hidden;background:rgba(15,23,42,.6)}
+.think-block.live{border-color:var(--accent);box-shadow:0 0 0 1px rgba(56,189,248,.2)}
+.think-block.done{border-color:rgba(71,85,105,.4)}
+.think-header{width:100%;display:flex;align-items:center;gap:8px;padding:8px 14px;background:none;border:0;cursor:pointer;color:var(--text2);font-size:.8rem;text-align:left}
+.think-header:hover{background:rgba(255,255,255,.03)}
+.think-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.think-block.live .think-dot{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 1.4s ease-in-out infinite}
+.think-block.done .think-dot{background:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.think-agent{font-weight:600;color:var(--text)}
+.think-label{flex:1;color:var(--text2)}
+.think-chevron{font-size:.7rem;transition:.2s;color:var(--text2)}
+.think-body{padding:10px 14px;border-top:1px solid rgba(71,85,105,.4)}
+.think-body pre{font-size:.78rem;color:#94a3b8;line-height:1.6;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,monospace;margin:0}
+.crew-divider{padding:6px 14px;font-size:.75rem;color:var(--text2);background:rgba(56,189,248,.04);border:1px dashed rgba(56,189,248,.2);border-radius:6px;text-align:center}
+.crew-divider.done{color:var(--green);border-color:rgba(34,197,94,.2);background:rgba(34,197,94,.04)}
+.live-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);border-radius:999px;font-size:.75rem;color:var(--accent);margin-top:4px}
+.think-toggle{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.think-toggle-btn{background:none;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:6px;font-size:.75rem;cursor:pointer}
+.think-toggle-btn:hover{border-color:var(--accent);color:var(--accent)}
+
 /* ── Tabs inside pages ── */
 .tab-bar{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0}
 .tab-btn{padding:8px 16px;border:0;background:0;color:var(--text2);font-size:.85rem;cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
@@ -597,7 +620,9 @@ tr:hover td{background:rgba(56,189,248,.03)}
       </div>
       <div class="btn-group">
         <button class="btn btn-primary" id="btn-analyze" onclick="runAnalysis()">&#129302; Run Full AI Analysis</button>
+        <button class="btn btn-secondary" id="btn-analyze-stop" onclick="stopAnalysis()" style="display:none">⏹ Stop</button>
       </div>
+      <div id="ai-think"></div>
       <div id="ai-result"></div>
     </div>
 
@@ -629,6 +654,7 @@ tr:hover td{background:rgba(56,189,248,.03)}
       <div class="btn-group">
         <button class="btn btn-secondary" onclick="getRecommendation()">Get Recommendation</button>
       </div>
+      <div id="rec-think"></div>
       <div id="rec-result"></div>
     </div>
   </div>
@@ -747,6 +773,7 @@ tr:hover td{background:rgba(56,189,248,.03)}
       <div class="btn-group">
         <button class="btn btn-primary" onclick="getSentiment()">Analyze Sentiment</button>
       </div>
+      <div id="sent-think"></div>
       <div id="sent-result"></div>
     </div>
   </div>
@@ -868,6 +895,136 @@ async function api(path, method='GET', body=null) {
 
 function resultHtml(el, html, cls='success') {
   document.getElementById(el).innerHTML = `<div class="result-box ${cls}">${html}</div>`;
+}
+
+// ── Reusable SSE consumer ────────────────────────────────────────────────────
+// Renders live thinking blocks in `thinkEl`, resolves with result data.
+// Usage: const data = await consumeSSE('/api/portfolio/1/analyze/stream/<id>', 'ai-think');
+function consumeSSE(streamUrl, thinkEl) {
+  return new Promise((resolve, reject) => {
+    const container = document.getElementById(thinkEl);
+    let showThinking = true;
+    let blockId = 0;
+
+    function renderToggle() {
+      const existing = container.querySelector('.think-toggle');
+      if (!existing) {
+        const toggle = document.createElement('div');
+        toggle.className = 'think-toggle';
+        toggle.innerHTML = `<span class="live-pill" id="${thinkEl}-pill">● live</span>
+          <button class="think-toggle-btn" onclick="(function(){
+            var s=document.getElementById('${thinkEl}-stream');
+            if(s){var hidden=s.style.display==='none';s.style.display=hidden?'':'none';this.textContent=hidden?'Hide thinking':'Show thinking';}
+          }).call(this)">Hide thinking</button>`;
+        container.prepend(toggle);
+      }
+    }
+
+    function ensureStream() {
+      let s = document.getElementById(`${thinkEl}-stream`);
+      if (!s) {
+        s = document.createElement('div');
+        s.id = `${thinkEl}-stream`;
+        s.className = 'think-stream';
+        container.appendChild(s);
+      }
+      return s;
+    }
+
+    function addCrewDivider(msg, done=false) {
+      renderToggle();
+      const s = ensureStream();
+      const d = document.createElement('div');
+      d.className = 'crew-divider' + (done ? ' done' : '');
+      d.textContent = done
+        ? `✓ Crew ${msg.crew}: ${msg.name} completed`
+        : `── Crew ${msg.crew}: ${msg.name} started · agents: ${(msg.agents||[]).join(', ')} ──`;
+      s.appendChild(d);
+    }
+
+    function addThinkBlock(agent, thought, isLive) {
+      renderToggle();
+      const s = ensureStream();
+      blockId++;
+      const bid = `think-blk-${thinkEl}-${blockId}`;
+      const div = document.createElement('div');
+      div.id = bid;
+      div.className = 'think-block ' + (isLive ? 'live' : 'done');
+      div.innerHTML = `
+        <button class="think-header" onclick="(function(b){
+          var body=document.getElementById(b+'-body');
+          var chev=document.getElementById(b+'-chev');
+          var open=body.style.display!=='none';
+          body.style.display=open?'none':'block';
+          chev.textContent=open?'▼':'▲';
+        })('${bid}')">
+          <span class="think-dot"></span>
+          <span class="think-agent">${escapeHtml(agent)}</span>
+          <span class="think-label">${isLive ? 'thinking…' : 'thought for a moment'}</span>
+          <span class="think-chevron" id="${bid}-chev">▲</span>
+        </button>
+        <div class="think-body" id="${bid}-body">
+          <pre>${escapeHtml(thought)}</pre>
+        </div>`;
+      s.appendChild(div);
+      return div;
+    }
+
+    function markBlockDone(div) {
+      div.className = 'think-block done';
+      const lbl = div.querySelector('.think-label');
+      if (lbl) lbl.textContent = 'thought for a moment';
+    }
+
+    let lastBlock = null;
+    const es = new EventSource(streamUrl);
+
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'heartbeat') return;
+
+        if (msg.type === 'crew_start') {
+          if (lastBlock) markBlockDone(lastBlock);
+          lastBlock = null;
+          addCrewDivider(msg.data, false);
+        }
+
+        if (msg.type === 'agent_thinking') {
+          if (lastBlock) markBlockDone(lastBlock);
+          lastBlock = addThinkBlock(msg.data.agent, msg.data.thought, true);
+          // scroll into view
+          lastBlock.scrollIntoView({behavior:'smooth',block:'nearest'});
+        }
+
+        if (msg.type === 'crew_done') {
+          if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
+          addCrewDivider(msg.data, true);
+        }
+
+        if (msg.type === 'result') {
+          if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
+          es.close();
+          // update live pill to done
+          const pill = document.getElementById(`${thinkEl}-pill`);
+          if (pill) { pill.style.background='rgba(34,197,94,.1)'; pill.style.borderColor='rgba(34,197,94,.3)'; pill.style.color='var(--green)'; pill.textContent='✓ done'; }
+          resolve(msg.data);
+        }
+
+        if (msg.type === 'error') {
+          if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
+          es.close();
+          reject(new Error(msg.data.message || 'Analysis error'));
+        }
+
+        if (msg.type === 'done') {
+          es.close();
+        }
+      } catch {}
+    };
+
+    es.onerror = () => { es.close(); reject(new Error('Stream connection lost')); };
+  });
 }
 
 function loadingHtml(el) {
@@ -1255,12 +1412,19 @@ async function scoreRisk() {
       }
 
       if (r.ml_details) {
+        const ml = r.ml_details;
+        const anomaly = ml.ml_anomaly_score != null ? Number(ml.ml_anomaly_score) : 0;
+        // fraud_flag is IsolationForest -1 output; only significant if anomaly >= 0.10
+        const fraudSignificant = ml.ml_fraud_flag && anomaly >= 0.10;
+        const fraudDisplay = ml.ml_fraud_flag
+          ? (fraudSignificant ? '🚨 YES (significant anomaly)' : '⚠️ YES (weak signal, below threshold)')
+          : '✅ No';
         html += `\n── ML Model Details ─────────────\n` +
-          `  ML Risk Score:    ${r.ml_details.ml_risk_score ?? 'N/A'}\n` +
-          `  ML Risk Label:    ${r.ml_details.ml_risk_label ?? 'N/A'}\n` +
-          `  Fraud Flag:       ${r.ml_details.ml_fraud_flag ? '🚨 YES' : '✅ No'}\n` +
-          `  Anomaly Score:    ${r.ml_details.ml_anomaly_score != null ? Number(r.ml_details.ml_anomaly_score).toFixed(4) : 'N/A'}\n` +
-          `  Confidence:       ${r.ml_details.ml_confidence != null ? (Number(r.ml_details.ml_confidence)*100).toFixed(1)+'%' : 'N/A'}`;
+          `  ML Risk Score:    ${ml.ml_risk_score ?? 'N/A'}\n` +
+          `  ML Risk Label:    ${ml.ml_risk_label ?? 'N/A'}\n` +
+          `  Fraud Flag:       ${fraudDisplay}\n` +
+          `  Anomaly Score:    ${anomaly > 0 ? anomaly.toFixed(4) : 'N/A'}\n` +
+          `  Confidence:       ${ml.ml_confidence != null ? (Number(ml.ml_confidence)*100).toFixed(1)+'%' : 'N/A'}`;
       }
     } else {
       html += `\n<em>Risk engine unavailable — transaction was recorded but not scored.</em>`;
@@ -1274,40 +1438,58 @@ async function scoreRisk() {
       tone
     );
 
+    // Append AI analysis section inside the result box (SSE-driven)
     if (r && score != null) {
-      await getTransactionAIInsights(
+      const rr = document.getElementById('risk-result');
+      const aiWrap = document.createElement('div');
+      aiWrap.style.cssText = 'margin-top:16px;border-top:1px solid rgba(71,85,105,.4);padding-top:12px';
+      aiWrap.innerHTML = `
+        <div class="meta-row"><span class="meta-pill">🤖 AI Agent Analysis</span><span class="meta-pill" style="background:rgba(56,189,248,.06)">⏳ thinking…</span></div>
+        <div id="txn-think"></div>
+        <div id="txn-ai-result"></div>`;
+      rr.appendChild(aiWrap);
+
+      getTransactionAIInsights(
         { risk_score: score, rule_details: r.rule_details || { details: {} } },
-        {
-          amount:            amount,
-          transaction_type:  payload.type,
-          asset_type:        payload.asset_type,
-          receiver_country:  payload.receiver_country,
-        }
+        { amount, transaction_type: payload.type, asset_type: payload.asset_type, receiver_country: payload.receiver_country }
       );
     }
   } catch(e) { resultHtml('risk-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
 }
 
-// ── AI Insights for Transaction ──
+// ── AI Insights for Transaction (SSE-driven) ──
 async function getTransactionAIInsights(scoreData, transactionData) {
+  const aiResultEl = document.getElementById('txn-ai-result');
   try {
-    const insightsData = await api('/transaction/get-ai-insights', 'POST', {
+    const init = await api('/transaction/get-ai-insights', 'POST', {
       transaction: transactionData,
       score: scoreData.risk_score,
       factors: scoreData.rule_details.details || {}
     });
-    
-    // Format insights as nice HTML
-    let insightsHtml = formatAIInsights(insightsData.insights, insightsData.success);
-    
-    // Append to existing results
-    let resultBox = document.getElementById('risk-result');
-    let newContent = resultBox.innerHTML + insightsHtml;
-    resultBox.innerHTML = newContent;
-    
+    if (!init.stream_id) throw new Error('No stream_id returned');
+
+    // consumeSSE renders live thinking blocks in txn-think, resolves with result
+    const d = await consumeSSE(`/api/transaction/insights/stream/${init.stream_id}`, 'txn-think');
+
+    // Remove the "thinking…" pill from the header
+    const thinkPill = document.querySelector('#risk-result .meta-pill[style*="thinking"]');
+    if (thinkPill) thinkPill.remove();
+
+    if (d.blocked) {
+      if (aiResultEl) aiResultEl.innerHTML =
+        `<div class="callout warn">🛡️ Guardrail blocked this input — ${escapeHtml(d.reason || 'policy violation')}</div>`;
+      return;
+    }
+
+    const body = renderMarkdown(d.insights || d.explanation || '');
+    const fallback = d.success === false
+      ? `<div class="callout warn">Limited AI service — the analysis above is rule-based.</div>` : '';
+    if (aiResultEl) aiResultEl.innerHTML = `<div class="md">${body}${fallback}</div>`;
+
   } catch(e) {
-    // Silent fail - AI insights are optional
-    console.log('AI insights unavailable:', e.message);
+    console.log('AI insights error:', e.message);
+    if (aiResultEl) aiResultEl.innerHTML =
+      `<div style="color:var(--text2);font-size:.8rem;padding:8px 0">⚠️ AI analysis unavailable: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -1343,60 +1525,68 @@ function loadSuspiciousTxn() {
 }
 
 // ── AI Analysis ──
+let _analyzeES = null;
+function stopAnalysis() {
+  if (_analyzeES) { _analyzeES.close(); _analyzeES = null; }
+  document.getElementById('btn-analyze').disabled = false;
+  document.getElementById('btn-analyze').innerHTML = '🤖 Run Full AI Analysis';
+  document.getElementById('btn-analyze-stop').style.display = 'none';
+}
+
 async function runAnalysis() {
   const pid = document.getElementById('ai-pid').value;
   const btn = document.getElementById('btn-analyze');
+  const stopBtn = document.getElementById('btn-analyze-stop');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Running 9 agents... (1-3 min)';
-  loadingHtml('ai-result');
-  document.getElementById('ai-result').innerHTML = `<div class="result-box info"><span class="spinner"></span> Running full 9-agent CrewAI pipeline on Portfolio #${pid}...\nThis involves: Alert Intake → Context → Risk → Explanation → Escalation → Portfolio → Detection → Market → Compliance\n\n<strong>Please wait 1-3 minutes...</strong></div>`;
+  btn.innerHTML = '<span class="spinner"></span> Starting agents…';
+  stopBtn.style.display = 'inline-flex';
+  document.getElementById('ai-think').innerHTML = '';
+  document.getElementById('ai-result').innerHTML = '';
+
   try {
-    const d = await api('/portfolio/' + pid + '/analyze', 'POST');
+    // Step 1: POST to start analysis, get stream_id
+    const init = await api('/portfolio/' + pid + '/analyze', 'POST');
+    if (!init.stream_id) throw new Error('No stream_id returned');
+    btn.innerHTML = '<span class="spinner"></span> Running 9 agents… (1-3 min)';
+
+    // Step 2: consume SSE stream — thinking blocks appear live in ai-think div
+    const streamUrl = `/api/portfolio/${pid}/analyze/stream/${init.stream_id}`;
+    const d = await consumeSSE(streamUrl, 'ai-think');
+
+    // Step 3: render final result
     let html = '';
-    if (typeof d === 'string') {
-      html = renderMarkdown(d);
+    const pills = [
+      { label: '✅ Analysis Complete', tone: 'green' },
+      d.portfolio_id != null ? { label: `Portfolio #${d.portfolio_id}` } : null,
+      d.agents_used ? { label: `${d.agents_used} agents` } : null,
+      d.crews_run ? { label: `${d.crews_run} crews run` } : null,
+      d.rate_limited ? { label: 'Rate limited', tone: 'orange' } : null,
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    html = metaRow(pills);
+    if (d.crew_output) {
+      html += renderMarkdown(d.crew_output);
     } else {
-      const pills = [
-        { label: '✅ Analysis Complete', tone: 'green' },
-        d.portfolio_id != null ? { label: `Portfolio #${d.portfolio_id}` } : null,
-        d.agents_used ? { label: `${d.agents_used} agents` } : null,
-        d.crews_run ? { label: `${d.crews_run} crews run` } : null,
-        d.rate_limited ? { label: 'Rate limited', tone: 'orange' } : null,
-        d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
-      ];
-      html = metaRow(pills);
-      if (d.crew_output) {
-        html += renderMarkdown(d.crew_output);
-      } else {
-        // Fallback — render any other string fields, then JSON for the rest
-        const stringFields = Object.entries(d).filter(([, v]) => typeof v === 'string' && v.length > 60);
-        for (const [, v] of stringFields) html += renderMarkdown(v);
-        const leftover = Object.fromEntries(
-          Object.entries(d).filter(([k]) => !['crew_output','timestamp','portfolio_id','agents_used','crews_run','rate_limited'].includes(k))
-        );
-        if (Object.keys(leftover).length && !stringFields.length) html += jsonBlock(leftover);
-      }
+      const stringFields = Object.entries(d).filter(([, v]) => typeof v === 'string' && v.length > 60);
+      for (const [, v] of stringFields) html += renderMarkdown(v);
+      const leftover = Object.fromEntries(
+        Object.entries(d).filter(([k]) => !['crew_output','timestamp','portfolio_id','agents_used','crews_run','rate_limited'].includes(k))
+      );
+      if (Object.keys(leftover).length && !stringFields.length) html += jsonBlock(leftover);
     }
     document.getElementById('ai-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
     toast('AI Analysis complete!');
   } catch(e) {
-    let errorMsg = e.message || 'Analysis failed';
-    let userFriendlyMsg = errorMsg;
-    
-    // Parse detailed errors from API response
-    if (errorMsg.includes('rate limit') || errorMsg.includes('429')) {
-      userFriendlyMsg = 'Rate limit exceeded - please wait a moment and try again';
-    } else if (errorMsg.includes('API key') || errorMsg.includes('401')) {
-      userFriendlyMsg = 'API authentication failed - check GROQ_API_KEY';
-    } else if (errorMsg.includes('Connection') || errorMsg.includes('503')) {
-      userFriendlyMsg = 'AI service temporarily unavailable - please try again later';
-    }
-    
-    resultHtml('ai-result', `<div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 6px;"><div style="color: #fca5a5; font-weight: 600; margin-bottom: 8px;">⚠️ Analysis Failed</div><div style="color: #fee2e2; line-height: 1.6;">${escapeHtml(userFriendlyMsg)}</div></div>`, 'error');
-    toast(userFriendlyMsg, 'error');
+    let msg = e.message || 'Analysis failed';
+    if (msg.includes('rate limit') || msg.includes('429')) msg = 'Rate limit exceeded — please wait a moment and try again';
+    else if (msg.includes('API key') || msg.includes('401'))  msg = 'API authentication failed — check GROQ_API_KEY';
+    else if (msg.includes('Connection') || msg.includes('503')) msg = 'AI service temporarily unavailable — please try again later';
+    resultHtml('ai-result', `<div style="padding:16px;background:rgba(239,68,68,.1);border-left:4px solid #ef4444;border-radius:6px"><div style="color:#fca5a5;font-weight:600;margin-bottom:8px">⚠️ Analysis Failed</div><div style="color:#fee2e2;line-height:1.6">${escapeHtml(msg)}</div></div>`, 'error');
+    toast(msg, 'error');
   }
   btn.disabled = false;
   btn.innerHTML = '🤖 Run Full AI Analysis';
+  stopBtn.style.display = 'none';
 }
 
 // Load portfolio symbols for recommendation
@@ -1435,29 +1625,28 @@ async function loadPortfolioSymbols() {
 }
 
 async function getRecommendation() {
+  const pid = document.getElementById('rec-pid').value;
+  const symbol = document.getElementById('rec-symbol').value;
+  if (!symbol) { resultHtml('rec-result', '❌ Please select a symbol first', 'error'); return; }
+  document.getElementById('rec-think').innerHTML = '';
+  document.getElementById('rec-result').innerHTML = '';
   loadingHtml('rec-result');
   try {
-    const pid = document.getElementById('rec-pid').value;
-    const symbol = document.getElementById('rec-symbol').value;
-    
-    if (!symbol) {
-      resultHtml('rec-result', '❌ Please select a symbol first', 'error');
-      return;
-    }
-    
-    const d = await api('/portfolio/' + pid + '/recommendation', 'POST', {
-      symbol: symbol,
-      risk_profile: document.getElementById('rec-risk').value,
+    const init = await api('/portfolio/' + pid + '/recommendation', 'POST', {
+      symbol, risk_profile: document.getElementById('rec-risk').value,
     });
+    if (!init.stream_id) throw new Error('No stream_id returned');
+    document.getElementById('rec-result').innerHTML = '';
+    const d = await consumeSSE(`/api/portfolio/${pid}/recommendation/stream/${init.stream_id}`, 'rec-think');
     const pills = [
       { label: '✅ Recommendation', tone: 'green' },
       d.symbol ? { label: d.symbol } : null,
       d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
     ];
     let html = metaRow(pills);
-    if (typeof d === 'string')        html += renderMarkdown(d);
-    else if (d.recommendation)        html += renderMarkdown(d.recommendation);
-    else                              html += jsonBlock(d);
+    if (d.recommendation) html += renderMarkdown(d.recommendation);
+    else if (d.crew_output) html += renderMarkdown(d.crew_output);
+    else html += jsonBlock(d);
     document.getElementById('rec-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
     toast('Recommendation received!');
   } catch(e) { resultHtml('rec-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
@@ -1514,15 +1703,29 @@ async function createAlert() {
 async function runSearch() {
   const query = document.getElementById('search-query').value;
   if (!query) { toast('Enter a search query', 'error'); return; }
-  loadingHtml('search-result');
+  const type  = document.getElementById('search-type').value;
+  const pid   = document.getElementById('search-pid').value || undefined;
+  const body  = { query };
+  if (pid) body.portfolio_id = +pid;
+
+  // Clear previous results and show a thinking container
+  const searchEl = document.getElementById('search-result');
+  searchEl.innerHTML = '<div id="search-think"></div><div id="search-status" class="result-box info"><span class="spinner"></span> Searching…</div>';
+
   try {
-    const type = document.getElementById('search-type').value;
-    const pid = document.getElementById('search-pid').value || undefined;
-    const body = { query };
-    if (pid) body.portfolio_id = +pid;
-    const d = await api('/search/' + type, 'POST', body);
+    const init = await api('/search/' + type, 'POST', body);
+    if (!init.stream_id) throw new Error('No stream_id returned');
+    // remove the loading box, keep the thinking container
+    const statusEl = document.getElementById('search-status');
+    if (statusEl) statusEl.remove();
+
+    const d = await consumeSSE(`/api/search/${type}/stream/${init.stream_id}`, 'search-think');
+
     if (!d.results || !d.results.length) {
-      resultHtml('search-result', 'No results found. Try a different query or run an AI analysis first to populate the knowledge base.', 'info');
+      const noResult = document.createElement('div');
+      noResult.className = 'result-box info';
+      noResult.textContent = 'No results found. Try a different query or run an AI analysis first to populate the knowledge base.';
+      searchEl.appendChild(noResult);
       return;
     }
     let html = metaRow([{ label: `Found ${d.results.length} results`, tone: 'green' }]);
@@ -1542,27 +1745,42 @@ async function runSearch() {
         if (!textField && !meta.length) html += jsonBlock(r);
       }
     });
-    document.getElementById('search-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
+    const resultBox = document.createElement('div');
+    resultBox.className = 'result-box success rich';
+    resultBox.innerHTML = html;
+    searchEl.appendChild(resultBox);
     toast(`Found ${d.results.length} results`);
-  } catch(e) { resultHtml('search-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+  } catch(e) {
+    const errBox = document.createElement('div');
+    errBox.className = 'result-box error';
+    errBox.textContent = '❌ ' + e.message;
+    searchEl.appendChild(errBox);
+    toast(e.message, 'error');
+  }
 }
 
 // ── Sentiment ──
 async function getSentiment() {
   const sym = document.getElementById('sent-symbol').value;
   if (!sym) { toast('Enter a symbol', 'error'); return; }
+  document.getElementById('sent-think').innerHTML = '';
+  document.getElementById('sent-result').innerHTML = '';
   loadingHtml('sent-result');
   try {
-    const d = await api('/sentiment/' + sym.toUpperCase());
+    // POST to SSE endpoint
+    const init = await api('/sentiment/analyze', 'POST', { symbols: [sym.toUpperCase()] });
+    if (!init.stream_id) throw new Error('No stream_id returned');
+    document.getElementById('sent-result').innerHTML = '';
+    const d = await consumeSSE(`/api/sentiment/stream/${init.stream_id}`, 'sent-think');
     const pills = [
-      { label: `📊 Market Sentiment`, tone: 'green' },
+      { label: '📊 Market Sentiment', tone: 'green' },
       { label: sym.toUpperCase() },
       d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
     ];
     let html = metaRow(pills);
-    if (typeof d === 'string')         html += renderMarkdown(d);
-    else if (d.sentiment_analysis)     html += renderMarkdown(d.sentiment_analysis);
-    else                               html += jsonBlock(d);
+    if (d.sentiment_analysis) html += renderMarkdown(d.sentiment_analysis);
+    else if (typeof d === 'string') html += renderMarkdown(d);
+    else html += jsonBlock(d);
     document.getElementById('sent-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
     toast('Sentiment loaded for ' + sym.toUpperCase());
   } catch(e) { resultHtml('sent-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }

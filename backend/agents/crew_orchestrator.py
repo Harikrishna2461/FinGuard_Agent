@@ -307,17 +307,26 @@ class AIAgentOrchestrator:
         self,
         portfolio_data: Dict[str, Any],
         transactions: List[Dict[str, Any]],
+        stream_id: str | None = None,
     ) -> Dict[str, Any]:
         """
         Run three smaller crews sequentially to work around Groq free tier (12k TPM).
-        
+
         Crew 1 (Risk): Risk Assessment + Risk Detection + Compliance (~3.5k tokens)
         Crew 2 (Portfolio): Portfolio Analysis + Market Intelligence + Customer Context (~3.5k tokens)
         Crew 3 (Summary): Alert Intake + Explanation + Escalation (~3.5k tokens)
-        
+
         Each crew runs independently to stay well under the rate limit.
         """
         import time
+
+        def _emit(event_type: str, data: dict):
+            if stream_id:
+                try:
+                    from app.agent_stream import emit
+                    emit(stream_id, event_type, data)
+                except Exception:
+                    pass
         
         # ── Create ultra-compact summaries ────
         portfolio_summary = (
@@ -358,6 +367,8 @@ class AIAgentOrchestrator:
         rate_limit_hit = False
         try:
             logger.info("Crew 1/3: Risk Analysis (Risk Assessment + Detection + Compliance)")
+            _emit("crew_start", {"crew": 1, "name": "Risk Analysis", "agents": ["Risk Assessment", "Risk Detection", "Compliance"]})
+            _emit("agent_thinking", {"agent": "Risk Assessment Agent", "crew": 1, "thought": f"Analyzing portfolio risk:\n{portfolio_summary}\n\nChecking transactions for AML flags, fraud patterns, and compliance violations...\n{ml_summary}"})
             crew1 = Crew(
                 agents=[task_risk_assessment.agent, task_risk_detection.agent, task_compliance.agent],
                 tasks=[task_risk_assessment, task_risk_detection, task_compliance],
@@ -365,6 +376,7 @@ class AIAgentOrchestrator:
                 verbose=False,
             )
             crew1_output = crew1.kickoff()
+            _emit("crew_done", {"crew": 1, "name": "Risk Analysis", "output": str(crew1_output)[:500]})
             time.sleep(1)
         except RateLimitError as e:
             logger.warning(f"Crew 1: Rate limit hit. Skipping remaining crews.")
@@ -428,6 +440,9 @@ class AIAgentOrchestrator:
         crew2_output = "✅ Portfolio Analysis: Skipped (rate limit protection)"
         try:
             logger.info("Crew 2/3: Portfolio Analysis (Portfolio + Market + Customer)")
+            _emit("crew_start", {"crew": 2, "name": "Portfolio Analysis", "agents": ["Portfolio Analyst", "Market Intelligence", "Customer Context"]})
+            _emit("agent_thinking", {"agent": "Portfolio Analyst", "crew": 2, "thought": f"Analyzing portfolio allocation and diversification:\n{portfolio_summary}\n\nEvaluating asset weights, concentration risk, and rebalancing opportunities..."})
+            _emit("agent_thinking", {"agent": "Market Intelligence Agent", "crew": 2, "thought": f"Assessing market sentiment and trends for assets in portfolio:\n{portfolio_summary}\n\nAnalyzing sentiment scores, trend signals, and investment recommendations..."})
             crew2 = Crew(
                 agents=[task_portfolio.agent, task_market.agent, task_customer_context.agent],
                 tasks=[task_portfolio, task_market, task_customer_context],
@@ -435,6 +450,7 @@ class AIAgentOrchestrator:
                 verbose=False,
             )
             crew2_output = crew2.kickoff()
+            _emit("crew_done", {"crew": 2, "name": "Portfolio Analysis", "output": str(crew2_output)[:500]})
             time.sleep(1)
         except RateLimitError as e:
             logger.warning(f"Crew 2: Rate limit hit. Skipping Crew 3.")
@@ -500,6 +516,9 @@ class AIAgentOrchestrator:
         crew3_output = "✅ Summary Crew: Skipped (rate limit protection)"
         try:
             logger.info("Crew 3/3: Summary (Alert Intake + Explanation + Escalation)")
+            _emit("crew_start", {"crew": 3, "name": "Summary & Escalation", "agents": ["Alert Intake", "Explanation", "Escalation"]})
+            _emit("agent_thinking", {"agent": "Alert Intake Agent", "crew": 3, "thought": f"Categorizing and prioritizing alerts from Crew 1 and Crew 2 outputs:\n{portfolio_summary}\n\nDetermining alert severity, routing, and escalation requirements..."})
+            _emit("agent_thinking", {"agent": "Escalation Agent", "crew": 3, "thought": "Synthesizing all crew outputs into final case summary. Determining if manual review is required based on risk scores, compliance flags, and portfolio risk level..."})
             crew3 = Crew(
                 agents=[task_alert_intake.agent, task_explanation.agent, task_escalation.agent],
                 tasks=[task_alert_intake, task_explanation, task_escalation],
@@ -507,6 +526,7 @@ class AIAgentOrchestrator:
                 verbose=False,
             )
             crew3_output = crew3.kickoff()
+            _emit("crew_done", {"crew": 3, "name": "Summary & Escalation", "output": str(crew3_output)[:500]})
             time.sleep(1)
         except RateLimitError as e:
             logger.warning(f"Crew 3: Rate limit hit.")
@@ -610,16 +630,54 @@ class AIAgentOrchestrator:
         profile = customer_profile or {}
         return self.risk_assessment_agent.score_transaction_risk(transaction, profile)
 
-    def quick_market_sentiment(self, symbols):
+    def quick_market_sentiment(self, symbols, stream_id=None):
+        def _emit(event_type, data):
+            if stream_id:
+                try:
+                    from app.agent_stream import emit
+                    emit(stream_id, event_type, data)
+                except Exception:
+                    pass
+
+        symbols_str = ', '.join(symbols)
+        _emit("crew_start", {"crew": 1, "name": "Market Sentiment Analysis", "agents": ["Market Intelligence Agent"]})
+        _emit("agent_thinking", {"agent": "Market Intelligence Agent", "crew": 1,
+              "thought": f"Analyzing market sentiment for: {symbols_str}\n\n"
+                         f"Fetching sentiment scores, evaluating technical momentum, and generating "
+                         f"investment insights for each symbol. Checking news headlines, analyst "
+                         f"sentiment, and recent price action trends..."})
+
         res = self.market_agent.analyze_market_sentiment(symbols)
+
+        _emit("crew_done", {"crew": 1, "name": "Market Sentiment Analysis",
+              "output": str(res.get("sentiment_analysis", ""))[:300]})
+
         for sym in symbols:
             vector_store.store_market_analysis(sym, res.get("sentiment_analysis", ""))
         return res
 
-    def quick_recommendation(self, symbol, portfolio_size, risk_profile):
-        return self.market_agent.generate_investment_recommendation(
-            symbol, portfolio_size, risk_profile
-        )
+    def quick_recommendation(self, symbol, portfolio_size, risk_profile, stream_id=None):
+        def _emit(event_type, data):
+            if stream_id:
+                try:
+                    from app.agent_stream import emit
+                    emit(stream_id, event_type, data)
+                except Exception:
+                    pass
+
+        _emit("crew_start", {"crew": 1, "name": "Investment Recommendation", "agents": ["Market Intelligence Agent"]})
+        _emit("agent_thinking", {"agent": "Market Intelligence Agent", "crew": 1,
+              "thought": f"Generating investment recommendation for {symbol}\n"
+                         f"Portfolio size: ${portfolio_size:,.0f}\n"
+                         f"Risk profile: {risk_profile}\n\n"
+                         f"Analyzing sector trends, valuation metrics, momentum signals, "
+                         f"and risk-adjusted return potential for this position..."})
+
+        res = self.market_agent.generate_investment_recommendation(symbol, portfolio_size, risk_profile)
+
+        _emit("crew_done", {"crew": 1, "name": "Investment Recommendation",
+              "output": str(res.get("recommendation", ""))[:300]})
+        return res
 
     def quick_compliance_review(self, transactions):
         res = self.compliance_agent.review_transactions_compliance(transactions)
@@ -631,6 +689,7 @@ class AIAgentOrchestrator:
         self,
         portfolio_data: Dict[str, Any],
         transactions: List[Dict[str, Any]],
+        stream_id: str | None = None,
     ) -> Dict[str, Any]:
         """
         Ultra-lightweight portfolio assessment using single Risk Assessment agent.
@@ -639,6 +698,14 @@ class AIAgentOrchestrator:
         Returns immediate actionable risk recommendations in seconds.
         Perfect fallback when comprehensive analysis hits rate limit.
         """
+        def _emit(event_type, data):
+            if stream_id:
+                try:
+                    from app.agent_stream import emit
+                    emit(stream_id, event_type, data)
+                except Exception:
+                    pass
+
         try:
             # ── Create ultra-compact summary ────
             portfolio_summary = (
@@ -646,10 +713,10 @@ class AIAgentOrchestrator:
                 f"${portfolio_data.get('total_value', 0):,.0f}, "
                 f"{len(portfolio_data.get('assets', []))} assets"
             )
-            
+
             # ── Pre-score transactions via ML ──────────────
             ml_summary = self._ml_score_transactions(transactions[:5])
-            
+
             # ── SINGLE AGENT: Risk Assessment (Most Critical) ────
             task_quick_risk = Task(
                 description=(
@@ -661,17 +728,24 @@ class AIAgentOrchestrator:
                 expected_output="Concise risk assessment and top recommendation.",
                 agent=_risk_assessment_crew_agent(),
             )
-            
+
             logger.info("Quick Recommendation: Running single Risk Assessment agent")
+            _emit("crew_start", {"crew": 1, "name": "Quick Risk Assessment", "agents": ["Risk Assessment Agent"]})
+            _emit("agent_thinking", {"agent": "Risk Assessment Agent", "crew": 1,
+                  "thought": f"Quick portfolio risk assessment:\n{portfolio_summary}\n\n"
+                             f"Identifying top risk factors, evaluating asset concentration, "
+                             f"and formulating priority recommendations...\n{ml_summary}"})
             quick_crew = Crew(
                 agents=[task_quick_risk.agent],
                 tasks=[task_quick_risk],
                 process=Process.sequential,
                 verbose=False,
             )
-            
+
             recommendation = quick_crew.kickoff()
-            
+            _emit("crew_done", {"crew": 1, "name": "Quick Risk Assessment",
+                  "output": str(recommendation)[:300]})
+
             # ── Format response ────
             crew_output = (
                 f"## ⚡ Quick Recommendation\n\n"

@@ -15,6 +15,9 @@ class Config:
     # ChromaDB
     CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./data/chroma")
 
+    # agent-service (microservices mode; falls back to localhost for dev)
+    AGENT_SERVICE_URL = os.getenv("AGENT_SERVICE_URL", "http://localhost:5002")
+
     # Auth / multi-tenancy
     # JWT_SECRET: if unset, auth.py falls back to SECRET_KEY then a dev string.
     JWT_SECRET = os.getenv("JWT_SECRET")

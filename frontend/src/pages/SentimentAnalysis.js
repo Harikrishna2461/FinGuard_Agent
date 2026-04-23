@@ -1,91 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { FiRefreshCw, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
+import { FiRefreshCw } from 'react-icons/fi';
+import ThinkingStream from '../components/ThinkingStream';
 import './SentimentAnalysis.css';
 
 function SentimentAnalysis({ user }) {
-  const [symbols, setSymbols] = useState([]);
+  const [symbols, setSymbols]               = useState([]);
   const [selectedSymbols, setSelectedSymbols] = useState(['AAPL']);
-  const [sentimentData, setSentimentData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [sentimentData, setSentimentData]   = useState(null);
+  const [loading, setLoading]               = useState(false);
+  const [error, setError]                   = useState(null);
+  const [streamUrl, setStreamUrl]           = useState(null);
 
-  // Load available symbols on component mount
-  useEffect(() => {
-    fetchSymbols();
-  }, []);
-
-  // Fetch sentiment when component loads or selected symbols change
-  useEffect(() => {
-    if (selectedSymbols.length > 0 && symbols.length > 0) {
-      fetchSentiment();
-    }
-  }, [selectedSymbols, symbols]);
+  useEffect(() => { fetchSymbols(); }, []);
 
   const fetchSymbols = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/symbols', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch symbols');
-      
-      const data = await response.json();
-      
+      const res  = await fetch('/api/symbols');
+      const data = await res.json();
       if (data.symbols && Array.isArray(data.symbols)) {
-        // Sort symbols alphabetically
-        const sortedSymbols = data.symbols.sort((a, b) => 
-          a.symbol.localeCompare(b.symbol)
-        );
-        setSymbols(sortedSymbols);
-      } else {
-        throw new Error('Invalid symbols response format');
-      }
-    } catch (err) {
-      console.error('Error fetching symbols:', err);
-      // Fallback to hardcoded symbols
-      const fallbackSymbols = [
-        { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology' },
-        { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology' },
-        { symbol: 'GOOGL', name: 'Alphabet Inc.', sector: 'Technology' },
-        { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology' },
-        { symbol: 'META', name: 'Meta Platforms Inc.', sector: 'Technology' },
-        { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Technology' },
-        { symbol: 'AMZN', name: 'Amazon.com Inc.', sector: 'Consumer' },
-        { symbol: 'JPM', name: 'JPMorgan Chase & Co.', sector: 'Finance' },
-        { symbol: 'JNJ', name: 'Johnson & Johnson', sector: 'Healthcare' },
-        { symbol: 'WMT', name: 'Walmart Inc.', sector: 'Consumer' },
-      ];
-      setSymbols(fallbackSymbols);
+        setSymbols(data.symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)));
+      } else throw new Error('Bad response');
+    } catch {
+      setSymbols([
+        { symbol: 'AAPL',  name: 'Apple Inc.',             sector: 'Technology' },
+        { symbol: 'MSFT',  name: 'Microsoft Corporation',  sector: 'Technology' },
+        { symbol: 'GOOGL', name: 'Alphabet Inc.',          sector: 'Technology' },
+        { symbol: 'NVDA',  name: 'NVIDIA Corporation',     sector: 'Technology' },
+        { symbol: 'META',  name: 'Meta Platforms Inc.',    sector: 'Technology' },
+        { symbol: 'TSLA',  name: 'Tesla Inc.',             sector: 'Technology' },
+        { symbol: 'AMZN',  name: 'Amazon.com Inc.',        sector: 'Consumer' },
+        { symbol: 'JPM',   name: 'JPMorgan Chase & Co.',   sector: 'Finance' },
+        { symbol: 'JNJ',   name: 'Johnson & Johnson',      sector: 'Healthcare' },
+        { symbol: 'WMT',   name: 'Walmart Inc.',           sector: 'Consumer' },
+      ]);
     }
   };
 
   const fetchSentiment = async () => {
     setLoading(true);
     setError(null);
+    setSentimentData(null);
+    setStreamUrl(null);
+
     try {
-      const symbolsStr = selectedSymbols.join(',');
-      const url = `http://localhost:5000/api/sentiment?symbols=${encodeURIComponent(symbolsStr)}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+      const res  = await fetch('/api/sentiment/analyze', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ symbols: selectedSymbols }),
       });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        setSentimentData(data);
-        setError(null);
-      } else {
-        setError(data.error || 'Failed to fetch sentiment data');
-        setSentimentData(null);
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to start analysis');
+      setStreamUrl(`/api/sentiment/stream/${data.stream_id}`);
     } catch (err) {
-      setError('Error fetching sentiment data: ' + err.message);
-      setSentimentData(null);
-    } finally {
+      setError(err.message);
       setLoading(false);
     }
   };
@@ -93,54 +60,47 @@ function SentimentAnalysis({ user }) {
   const handleSymbolToggle = (symbol) => {
     setSelectedSymbols(prev => {
       if (prev.includes(symbol)) {
-        // Don't allow empty selection
         if (prev.length === 1) return prev;
         return prev.filter(s => s !== symbol);
-      } else {
-        // Max 10 symbols
-        if (prev.length >= 10) {
-          return [...prev.slice(1), symbol];
-        }
-        return [...prev, symbol];
       }
+      if (prev.length >= 10) return [...prev.slice(1), symbol];
+      return [...prev, symbol];
     });
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchSentiment();
-    setRefreshing(false);
-  };
-
-  const getSentimentColor = (sentiment) => {
-    if (!sentiment) return '#94a3b8';
-    const score = typeof sentiment === 'string' ? parseFloat(sentiment) : sentiment;
-    if (score > 0.3) return '#10b981';
-    if (score < -0.3) return '#ef4444';
+  const getSentimentColor = (text, sym) => {
+    if (!text) return '#94a3b8';
+    const chunk = text.toLowerCase();
+    const hasBullish = chunk.includes(sym.toLowerCase()) && chunk.includes('bullish');
+    const hasBearish = chunk.includes(sym.toLowerCase()) && chunk.includes('bearish');
+    if (hasBullish) return '#10b981';
+    if (hasBearish) return '#ef4444';
     return '#f59e0b';
   };
 
-  const getSentimentLabel = (sentiment) => {
-    if (!sentiment) return 'Neutral';
-    const score = typeof sentiment === 'string' ? parseFloat(sentiment) : sentiment;
-    if (score > 0.3) return 'Bullish';
-    if (score < -0.3) return 'Bearish';
+  const getSentimentLabel = (text, sym) => {
+    if (!text) return 'Neutral';
+    const chunk = text.toLowerCase();
+    if (chunk.includes(sym.toLowerCase()) && chunk.includes('bullish')) return 'Bullish';
+    if (chunk.includes(sym.toLowerCase()) && chunk.includes('bearish')) return 'Bearish';
     return 'Neutral';
   };
+
+  const sentimentText = sentimentData?.sentiment_analysis || '';
 
   return (
     <div className="sentiment-page">
       <div className="sentiment-header">
         <div>
           <h1>Market Sentiment Analysis</h1>
-          <p>Track market sentiment for multiple stocks</p>
+          <p>Track AI-powered market sentiment for multiple stocks</p>
         </div>
-        <button 
-          className="btn btn-primary" 
-          onClick={handleRefresh}
-          disabled={refreshing || loading}
+        <button
+          className="btn btn-primary"
+          onClick={fetchSentiment}
+          disabled={loading}
         >
-          <FiRefreshCw /> {refreshing ? 'Refreshing...' : 'Refresh'}
+          <FiRefreshCw /> {loading ? 'Analyzing…' : 'Analyze'}
         </button>
       </div>
 
@@ -160,7 +120,7 @@ function SentimentAnalysis({ user }) {
               </button>
             ))
           ) : (
-            <p style={{ color: '#94a3b8', gridColumn: '1/-1' }}>Loading symbols...</p>
+            <p style={{ color: '#94a3b8', gridColumn: '1/-1' }}>Loading symbols…</p>
           )}
         </div>
         <div className="selected-info">
@@ -170,24 +130,24 @@ function SentimentAnalysis({ user }) {
         </div>
       </div>
 
-      {/* Sentiment Results */}
-      {loading && (
-        <div className="sentiment-loading">
-          <div className="spinner"></div>
-          <p>Analyzing market sentiment...</p>
-        </div>
-      )}
+      {/* Live agent thinking */}
+      <ThinkingStream
+        streamUrl={streamUrl}
+        onResult={(data) => { setSentimentData(data); setLoading(false); }}
+        onError={(msg)  => { setError(msg); setLoading(false); }}
+        onDone={()      => setLoading(false)}
+      />
 
+      {/* Error */}
       {error && (
         <div className="error-message card">
           <strong>Error:</strong> {error}
-          <p>Try selecting different symbols or refreshing the page</p>
         </div>
       )}
 
+      {/* Results */}
       {sentimentData && !loading && (
         <div className="sentiment-results">
-          {/* Summary Stats */}
           <div className="sentiment-summary card">
             <h3>Sentiment Overview</h3>
             <div className="summary-grid">
@@ -196,111 +156,60 @@ function SentimentAnalysis({ user }) {
                 <div className="stat-value">{selectedSymbols.length}</div>
               </div>
               <div className="summary-stat">
-                <div className="stat-label">Bullish Count</div>
+                <div className="stat-label">Bullish</div>
                 <div className="stat-value" style={{ color: '#10b981' }}>
-                  {selectedSymbols.filter(s => {
-                    const sentimentText = sentimentData.sentiment_analysis || '';
-                    return sentimentText.toLowerCase().includes(s.toLowerCase()) && 
-                           sentimentText.toLowerCase().includes('bullish');
-                  }).length || 0}
+                  {selectedSymbols.filter(s => getSentimentLabel(sentimentText, s) === 'Bullish').length}
                 </div>
               </div>
               <div className="summary-stat">
-                <div className="stat-label">Bearish Count</div>
+                <div className="stat-label">Bearish</div>
                 <div className="stat-value" style={{ color: '#ef4444' }}>
-                  {selectedSymbols.filter(s => {
-                    const sentimentText = sentimentData.sentiment_analysis || '';
-                    return sentimentText.toLowerCase().includes(s.toLowerCase()) && 
-                           sentimentText.toLowerCase().includes('bearish');
-                  }).length || 0}
+                  {selectedSymbols.filter(s => getSentimentLabel(sentimentText, s) === 'Bearish').length}
                 </div>
               </div>
               <div className="summary-stat">
-                <div className="stat-label">Neutral Count</div>
+                <div className="stat-label">Neutral</div>
                 <div className="stat-value" style={{ color: '#f59e0b' }}>
-                  {selectedSymbols.filter(s => {
-                    const sentimentText = sentimentData.sentiment_analysis || '';
-                    const isBullish = sentimentText.toLowerCase().includes(s.toLowerCase()) && 
-                                     sentimentText.toLowerCase().includes('bullish');
-                    const isBearish = sentimentText.toLowerCase().includes(s.toLowerCase()) && 
-                                     sentimentText.toLowerCase().includes('bearish');
-                    return !(isBullish || isBearish);
-                  }).length || 0}
+                  {selectedSymbols.filter(s => getSentimentLabel(sentimentText, s) === 'Neutral').length}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Detailed Analysis */}
           <div className="sentiment-details card">
             <h3>Detailed Analysis</h3>
             <div className="analysis-text">
-              <p>{sentimentData.sentiment_analysis || 'No sentiment data available'}</p>
+              <p>{sentimentText || 'No sentiment data available'}</p>
             </div>
           </div>
 
-          {/* Symbol Details */}
           <div className="symbol-details card">
-            <h3>Symbol Sentiment Details</h3>
+            <h3>Symbol Breakdown</h3>
             <div className="symbol-list">
               {selectedSymbols.map((symbol) => (
                 <div key={symbol} className="symbol-detail-item">
                   <div className="symbol-name">{symbol}</div>
                   <div className="symbol-sentiment">
-                    <div 
+                    <div
                       className="sentiment-indicator"
-                      style={{ backgroundColor: getSentimentColor(null) }}
+                      style={{ backgroundColor: getSentimentColor(sentimentText, symbol) }}
                     >
-                      {getSentimentLabel(null)}
+                      {getSentimentLabel(sentimentText, symbol)}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Recommendations */}
-          <div className="recommendations card">
-            <h3>AI Recommendations</h3>
-            <div className="recommendation-list">
-              <div className="recommendation-item">
-                <div className="recommendation-icon">📊</div>
-                <div className="recommendation-content">
-                  <div className="recommendation-title">Portfolio Analysis</div>
-                  <div className="recommendation-text">
-                    Based on the sentiment analysis of {selectedSymbols.length} symbols, 
-                    consider reviewing your holdings and diversification strategy.
-                  </div>
-                </div>
-              </div>
-              <div className="recommendation-item">
-                <div className="recommendation-icon">⚡</div>
-                <div className="recommendation-content">
-                  <div className="recommendation-title">Trading Opportunity</div>
-                  <div className="recommendation-text">
-                    Current market sentiment shows mixed signals. Monitor closely before making significant trades.
-                  </div>
-                </div>
-              </div>
-              <div className="recommendation-item">
-                <div className="recommendation-icon">🎯</div>
-                <div className="recommendation-content">
-                  <div className="recommendation-title">Risk Assessment</div>
-                  <div className="recommendation-text">
-                    Evaluate correlation between selected symbols to ensure proper portfolio diversification.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
-      {!loading && !sentimentData && !error && symbols.length > 0 && (
+      {/* Empty state */}
+      {!loading && !sentimentData && !error && (
         <div className="empty-state card">
           <div className="empty-icon">📈</div>
           <h3>No Sentiment Data Yet</h3>
-          <p>Select one or more symbols above to get started with sentiment analysis</p>
+          <p>Select symbols above and click <strong>Analyze</strong> to get AI-powered market sentiment with live agent thinking</p>
         </div>
       )}
     </div>
