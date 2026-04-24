@@ -43,3 +43,8 @@ frontend/build/
 
 # ── Logs ──
 *.log
+
+# ── Miscellaneous ──
+references/
+AGENTS.md
+last_version/

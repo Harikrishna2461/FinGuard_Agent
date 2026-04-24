@@ -1,0 +1,27 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "15050:5000"
+    depends_on:
+      - ai_system
+    volumes:
+      - ./backend/data:/app/data
+
+  ai_system:
+    build:
+      context: .
+      dockerfile: ai_system/Dockerfile
+    env_file:
+      - ./ai_system/.env
+    ports:
+      - "18000:8000"

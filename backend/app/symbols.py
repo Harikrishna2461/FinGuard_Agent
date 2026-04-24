@@ -1,9 +1,8 @@
-"""
-Stock symbol configuration for the app.
-Includes popular symbols across different sectors.
-"""
+"""Static stock symbol catalog used by backend metadata endpoints."""
 
-# Popular stock symbols organized by sector
+from __future__ import annotations
+
+
 STOCK_SYMBOLS = {
     "technology": [
         {"symbol": "AAPL", "name": "Apple Inc.", "sector": "Technology"},
@@ -53,26 +52,15 @@ STOCK_SYMBOLS = {
     ],
 }
 
-def get_all_symbols():
-    """Get all available symbols as a flat list."""
-    symbols = []
+DEFAULT_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN", "NVDA"]
+
+
+def get_all_symbols() -> list[dict[str, str]]:
+    symbols: list[dict[str, str]] = []
     for sector_symbols in STOCK_SYMBOLS.values():
         symbols.extend(sector_symbols)
-    return sorted(symbols, key=lambda x: x["symbol"])
+    return sorted(symbols, key=lambda item: item["symbol"])
 
-def get_symbols_by_sector():
-    """Get symbols grouped by sector."""
+
+def get_symbols_by_sector() -> dict[str, list[dict[str, str]]]:
     return STOCK_SYMBOLS
-
-def get_symbol_names():
-    """Get a mapping of symbol to name."""
-    all_symbols = get_all_symbols()
-    return {sym["symbol"]: sym["name"] for sym in all_symbols}
-
-def is_valid_symbol(symbol: str) -> bool:
-    """Check if a symbol is valid."""
-    all_symbols = get_all_symbols()
-    return any(sym["symbol"] == symbol.upper() for sym in all_symbols)
-
-# Default symbols to display (popular ones)
-DEFAULT_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN", "NVDA"]

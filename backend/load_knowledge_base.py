@@ -14,14 +14,18 @@ and upserts them into the  "knowledge_base"  ChromaDB collection with
 metadata for domain-filtered retrieval.
 """
 
-import os, sys, re, hashlib, argparse, textwrap
+import os
+import sys
+import re
+import hashlib
+import argparse
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Ensure imports resolve when running from backend/
 # ---------------------------------------------------------------------------
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import vector_store                       # noqa: E402
+import vector_store  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -32,27 +36,31 @@ KB_ROOT = Path(__file__).parent / "data" / "knowledge_base"
 # Map sub-folder names → agent_domain metadata values.
 # Multiple agents can share the same domain docs.
 DOMAIN_MAP = {
-    "alert_intake":        "alert_intake",
-    "compliance":          "compliance",
-    "customer_context":    "customer_context",
-    "escalation":          "escalation",
-    "explanation":         "explanation",
+    "alert_intake": "alert_intake",
+    "compliance": "compliance",
+    "customer_context": "customer_context",
+    "escalation": "escalation",
+    "explanation": "explanation",
     "market_intelligence": "market_intelligence",
-    "portfolio_analysis":  "portfolio_analysis",
-    "risk_assessment":     "risk_assessment",
-    "risk_detection":      "risk_detection",
+    "portfolio_analysis": "portfolio_analysis",
+    "risk_assessment": "risk_assessment",
+    "risk_detection": "risk_detection",
 }
 
 # Cross-domain aliases: documents in these folders are ALSO useful for these
 # extra domains.  Enables agents to pick up related knowledge.
 CROSS_DOMAIN = {
-    "compliance":       ["alert_intake", "escalation", "risk_assessment"],
-    "risk_assessment":  ["risk_detection", "alert_intake", "compliance"],
-    "risk_detection":   ["risk_assessment", "alert_intake"],
-    "alert_intake":     ["risk_detection", "escalation"],
-    "escalation":       ["compliance", "alert_intake"],
-    "explanation":      ["compliance", "risk_assessment", "portfolio_analysis",
-                         "market_intelligence"],
+    "compliance": ["alert_intake", "escalation", "risk_assessment"],
+    "risk_assessment": ["risk_detection", "alert_intake", "compliance"],
+    "risk_detection": ["risk_assessment", "alert_intake"],
+    "alert_intake": ["risk_detection", "escalation"],
+    "escalation": ["compliance", "alert_intake"],
+    "explanation": [
+        "compliance",
+        "risk_assessment",
+        "portfolio_analysis",
+        "market_intelligence",
+    ],
 }
 
 
@@ -88,12 +96,12 @@ def _chunk_markdown(text: str, source_file: str, max_tokens: int = 700):
             yield section_title, section_text
         else:
             # Sub-split large sections by paragraph
-            yield from _paragraph_split(section_text, section_title,
-                                        source_file, max_tokens)
+            yield from _paragraph_split(
+                section_text, section_title, source_file, max_tokens
+            )
 
 
-def _paragraph_split(text: str, section: str, source_file: str,
-                     max_tokens: int):
+def _paragraph_split(text: str, section: str, source_file: str, max_tokens: int):
     """Split text into paragraph-based chunks."""
     paragraphs = re.split(r"\n{2,}", text)
     buf, buf_section = [], section
@@ -115,6 +123,7 @@ def _paragraph_split(text: str, section: str, source_file: str,
 # Stable doc-id helper
 # ---------------------------------------------------------------------------
 
+
 def _doc_id(domain: str, source: str, section: str, idx: int) -> str:
     """Deterministic id so re-runs upsert rather than duplicate."""
     raw = f"{domain}::{source}::{section}::{idx}"
@@ -124,6 +133,7 @@ def _doc_id(domain: str, source: str, section: str, idx: int) -> str:
 # ---------------------------------------------------------------------------
 # Loader
 # ---------------------------------------------------------------------------
+
 
 def load_all(reset: bool = False):
     """Walk KB_ROOT, chunk, and upsert into ChromaDB."""
@@ -178,34 +188,36 @@ def load_all(reset: bool = False):
                     )
                     total += 1
 
-    print(f"\n✅ Loaded {total} knowledge-base chunks into ChromaDB "
-          f"(collection: '{vector_store.KNOWLEDGE}').")
+    print(
+        f"\n✅ Loaded {total} knowledge-base chunks into ChromaDB "
+        f"(collection: '{vector_store.KNOWLEDGE}')."
+    )
 
 
 # ---------------------------------------------------------------------------
 # Verify
 # ---------------------------------------------------------------------------
 
+
 def verify():
     """Quick sanity check: run a search per domain and print results."""
     test_queries = {
-        "alert_intake":        "How do I classify a fraud alert?",
-        "compliance":          "What are the PDT rules for day trading?",
-        "customer_context":    "How to segment high net worth customers?",
-        "escalation":          "When should I escalate a case to senior management?",
-        "explanation":         "How to explain a risk score to a retail customer?",
+        "alert_intake": "How do I classify a fraud alert?",
+        "compliance": "What are the PDT rules for day trading?",
+        "customer_context": "How to segment high net worth customers?",
+        "escalation": "When should I escalate a case to senior management?",
+        "explanation": "How to explain a risk score to a retail customer?",
         "market_intelligence": "What does the RSI indicator tell us?",
-        "portfolio_analysis":  "What is the efficient frontier?",
-        "risk_assessment":     "How is Value at Risk calculated?",
-        "risk_detection":      "What are signs of account takeover fraud?",
+        "portfolio_analysis": "What is the efficient frontier?",
+        "risk_assessment": "How is Value at Risk calculated?",
+        "risk_detection": "What are signs of account takeover fraud?",
     }
     print("\n── Verification Searches ──")
     for domain, query in test_queries.items():
         results = vector_store.search_knowledge(query, agent_domain=domain, n=2)
         n_found = len(results)
         top_section = results[0]["metadata"].get("section", "?") if results else "—"
-        print(f"  {domain:25s}  →  {n_found} results  "
-              f"(top: {top_section[:60]})")
+        print(f"  {domain:25s}  →  {n_found} results  (top: {top_section[:60]})")
 
 
 # ---------------------------------------------------------------------------
@@ -213,11 +225,17 @@ def verify():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Load FinGuard knowledge base into ChromaDB")
-    parser.add_argument("--reset", action="store_true",
-                        help="Delete and recreate the knowledge_base collection")
-    parser.add_argument("--verify", action="store_true",
-                        help="Run verification searches after loading")
+    parser = argparse.ArgumentParser(
+        description="Load FinGuard knowledge base into ChromaDB"
+    )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Delete and recreate the knowledge_base collection",
+    )
+    parser.add_argument(
+        "--verify", action="store_true", help="Run verification searches after loading"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
