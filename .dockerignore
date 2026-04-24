@@ -1,0 +1,6 @@
+.git
+.gitignore
+backend/.venv
+frontend/node_modules
+frontend/build
+**/__pycache__
