@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowUp, FiArrowDown, FiRefreshCw } from 'react-icons/fi';
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { FiArrowUp, FiRefreshCw } from 'react-icons/fi';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import './Dashboard.css';
 
 function Dashboard({ user }) {
   const [portfolioData, setPortfolioData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Initialize with demo data

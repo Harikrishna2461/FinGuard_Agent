@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FiRefreshCw, FiDownload } from 'react-icons/fi';
+import { FiDownload } from 'react-icons/fi';
 import './Analytics.css';
 
 function Analytics({ user }) {

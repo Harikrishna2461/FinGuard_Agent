@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiRefreshCw, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FiRefreshCw } from 'react-icons/fi';
 import API_BASE_URL from '../config/api';
 import './SentimentAnalysis.css';
 
@@ -15,13 +15,6 @@ function SentimentAnalysis({ user }) {
   useEffect(() => {
     fetchSymbols();
   }, []);
-
-  // Fetch sentiment when component loads or selected symbols change
-  useEffect(() => {
-    if (selectedSymbols.length > 0 && symbols.length > 0) {
-      fetchSentiment();
-    }
-  }, [selectedSymbols, symbols]);
 
   const fetchSymbols = async () => {
     try {
@@ -62,7 +55,7 @@ function SentimentAnalysis({ user }) {
     }
   };
 
-  const fetchSentiment = async () => {
+  const fetchSentiment = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -89,7 +82,14 @@ function SentimentAnalysis({ user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSymbols]);
+
+  // Fetch sentiment when component loads or selected symbols change
+  useEffect(() => {
+    if (selectedSymbols.length > 0 && symbols.length > 0) {
+      fetchSentiment();
+    }
+  }, [fetchSentiment, selectedSymbols, symbols]);
 
   const handleSymbolToggle = (symbol) => {
     setSelectedSymbols(prev => {
