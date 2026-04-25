@@ -338,7 +338,7 @@ class AIAgentOrchestrator:
         
         txn_summary = (
             f"Recent {len(transactions[:10])} transactions; "
-            f"types: {', '.join(set(t['type'] for t in transactions[:10]))}"
+            f"types: {', '.join(set(t.get('type') or t.get('transaction_type', 'unknown') for t in transactions[:10]))}"
         )
         
         # ── Pre-score transactions via ML hybrid engine ──────────

@@ -1758,6 +1758,8 @@ async function runSearch() {
     searchEl.appendChild(resultBox);
     toast(`Found ${d.results.length} results`);
   } catch(e) {
+    const statusEl = document.getElementById('search-status');
+    if (statusEl) statusEl.remove();
     const errBox = document.createElement('div');
     errBox.className = 'result-box error';
     errBox.textContent = '❌ ' + e.message;
