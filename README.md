@@ -3,7 +3,7 @@
 FinGuard is an AI-assisted fraud and portfolio risk investigation system.
 
 ```text
-Frontend (React)
+Frontend (React analyst UI)
   -> Backend (FastAPI)
       -> AI System (FastAPI + LangGraph)
           -> Internal agent modules
@@ -11,7 +11,7 @@ Frontend (React)
 
 ## Services
 
-- `frontend`: React analyst UI.
+- `frontend`: primary React frontend for the analyst UI.
 - `backend`: FastAPI business API, persistence, auth, cases, audit, SAR, and API compatibility.
 - `ai_system`: FastAPI AI service with LangGraph orchestration, OpenAI adapter, ML/rules risk adapter, and internal agents.
 
@@ -74,10 +74,10 @@ CORS_ORIGINS=http://localhost:13000,http://localhost:3000
 
 ## Main User Flow
 
-1. Open `http://localhost:13000/ai-analysis`.
+1. Open `http://localhost:13000/`.
 2. Select a portfolio.
-3. Click `Run Analysis`.
-4. Review progress and final real `analysis_trace`.
+3. Open the AI Analysis section and click `Run Analysis`.
+4. Review the final real `analysis_trace`.
 
 ## Important API Docs
 
@@ -121,10 +121,9 @@ Required GitHub secrets:
 
 ## Current Gaps
 
-- Several frontend pages still use static/local data instead of backend APIs.
+- Some frontend flows still fall back to direct JSON responses because backend SSE endpoints are not implemented yet.
 - Agent trace is real after completion, but not streamed live yet.
-- Frontend lockfile is out of sync, so Docker currently uses `npm install`.
-- Frontend auth UI is not implemented.
+- Cases still rely on pasted bearer tokens instead of a full auth session UX.
 - SQLite is suitable for demo, but cloud persistence needs hardening.
 - CI/CD currently deploys backend only.
 
