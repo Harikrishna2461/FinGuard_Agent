@@ -13,8 +13,7 @@ permissions:
   id-token: write   # needed for OIDC Azure login
 
 env:
-  PYTHON_VERSION: "3.12"
-  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
   # Set these in GitHub → Settings → Secrets and Variables → Actions
   ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}      # e.g. finguard.azurecr.io
   RESOURCE_GROUP:   ${{ vars.AZURE_RESOURCE_GROUP }}  # e.g. finguard-rg
@@ -88,20 +87,23 @@ jobs:
           path: build/evaluation_report.json
           if-no-files-found: ignore
 
-  # ── 4. FRONTEND BUILD ───────────────────────────────────────────────────────
+  # ── 4. FRONTEND VALIDATE ────────────────────────────────────────────────────
+  # Frontend is a single static index.html served by nginx — no Node/npm needed.
   frontend-build:
-    name: Frontend build
+    name: Frontend validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "${{ env.NODE_VERSION }}" }
-      - run: cd frontend && (npm ci --no-audit --no-fund || npm install --no-audit --no-fund)
-      - run: cd frontend && CI=false npm run build
+      - name: Verify frontend assets exist
+        run: |
+          test -f frontend/index.html        || (echo "❌ frontend/index.html missing" && exit 1)
+          test -f frontend/Dockerfile        || (echo "❌ frontend/Dockerfile missing" && exit 1)
+          test -f frontend/nginx.conf.template || (echo "❌ nginx.conf.template missing" && exit 1)
+          echo "✅ Frontend assets OK ($(wc -l < frontend/index.html | tr -d ' ') lines)"
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: frontend/build
+          path: frontend/index.html
 
   # ── 5. RESPONSIBLE-AI ARTEFACTS ─────────────────────────────────────────────
   responsible-ai:
@@ -132,7 +134,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PYTHON_VERSION }}" }
-      - run: python scripts/register_model.py || true
+      - name: Hash ML model files
+        run: |
+          find backend/ml/models backend/agents/tools -name "*.joblib" -o -name "*.json" 2>/dev/null \
+            | sort | xargs sha256sum > build/model_manifest.json || true
+          cat build/model_manifest.json || true
       - uses: actions/upload-artifact@v4
         with:
           name: model-manifest
@@ -216,7 +222,7 @@ jobs:
           output: trivy-results.sarif
 
       - name: Upload Trivy SARIF
-        if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && always()
+        if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
         uses: github/codeql-action/upload-sarif@v3
         with: { sarif_file: trivy-results.sarif }
 
