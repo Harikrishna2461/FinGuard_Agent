@@ -1,0 +1,445 @@
+{
+  "overall_selection_rate": 0.3933333333333333,
+  "slices": {
+    "sector": {
+      "Consumer": {
+        "n": 12,
+        "selection_rate": 0.0833,
+        "demographic_parity_diff": -0.31,
+        "false_positive_rate": 0.0
+      },
+      "Corporate": {
+        "n": 3,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "Cryptocurrency": {
+        "n": 24,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "Diversified": {
+        "n": 9,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "Energy": {
+        "n": 13,
+        "selection_rate": 0.4615,
+        "demographic_parity_diff": 0.0682,
+        "false_positive_rate": 0.0
+      },
+      "Finance": {
+        "n": 22,
+        "selection_rate": 0.6818,
+        "demographic_parity_diff": 0.2885,
+        "false_positive_rate": 0.0
+      },
+      "Government": {
+        "n": 4,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "Healthcare": {
+        "n": 16,
+        "selection_rate": 0.3125,
+        "demographic_parity_diff": -0.0808,
+        "false_positive_rate": 0.0
+      },
+      "Industrials": {
+        "n": 9,
+        "selection_rate": 0.4444,
+        "demographic_parity_diff": 0.0511,
+        "false_positive_rate": 0.0
+      },
+      "Materials": {
+        "n": 7,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "Municipal": {
+        "n": 2,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "Technology": {
+        "n": 22,
+        "selection_rate": 0.1818,
+        "demographic_parity_diff": -0.2115,
+        "false_positive_rate": 0.0
+      },
+      "Utilities": {
+        "n": 7,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      }
+    },
+    "receiver_country": {
+      "AE": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "AF": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "AG": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "AU": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "BS": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "BY": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "BZ": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "CA": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "CD": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "CF": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "CH": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "CU": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "CY": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "DE": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "ER": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "FR": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "GB": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "GI": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "GN": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "GW": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "HK": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "IE": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "IR": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "JE": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "JP": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "KH": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "KP": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "KY": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "LA": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "LB": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "LI": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "LY": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "MM": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "MT": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "MV": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "NG": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "NI": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "NL": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "PA": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "PK": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "RU": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "SB": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "SC": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "SD": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "SG": {
+        "n": 1,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      },
+      "SO": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "SS": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "SY": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "TD": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "US": {
+        "n": 97,
+        "selection_rate": 0.1546,
+        "demographic_parity_diff": -0.2387,
+        "false_positive_rate": 0.0
+      },
+      "VE": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "VG": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "YE": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "ZW": {
+        "n": 1,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      }
+    },
+    "transaction_type": {
+      "buy": {
+        "n": 100,
+        "selection_rate": 0.27,
+        "demographic_parity_diff": -0.1233,
+        "false_positive_rate": 0.0
+      },
+      "sell": {
+        "n": 50,
+        "selection_rate": 0.64,
+        "demographic_parity_diff": 0.2467,
+        "false_positive_rate": 0.0
+      }
+    },
+    "channel": {
+      "api": {
+        "n": 12,
+        "selection_rate": 1.0,
+        "demographic_parity_diff": 0.6067,
+        "false_positive_rate": 0.0
+      },
+      "mobile": {
+        "n": 53,
+        "selection_rate": 0.8868,
+        "demographic_parity_diff": 0.4935,
+        "false_positive_rate": 0.0
+      },
+      "web": {
+        "n": 85,
+        "selection_rate": 0.0,
+        "demographic_parity_diff": -0.3933,
+        "false_positive_rate": 0.0
+      }
+    }
+  }
+}

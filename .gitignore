@@ -9,20 +9,17 @@ __pycache__/
 *.pyo
 *.egg-info/
 dist/
-build/
 *.egg
 
-# ── ML model artifacts ──
-backend/ml/models/*.joblib
-
-# ── Database ──
+# ── Database (runtime) ──
 *.db
 *.sqlite3
 
-# ── ChromaDB persistent data ──
+# ── ChromaDB persistent data (runtime) ──
 data/chroma/
+backend/data/chroma/
 
-# ── Environment variables ──
+# ── Environment variables (secrets) ──
 .env
 backend/.env
 
@@ -36,10 +33,13 @@ Thumbs.db
 *.swp
 *.swo
 
-# ── Node / Frontend ──
+# ── Node ──
 node_modules/
 frontend/node_modules/
 frontend/build/
 
 # ── Logs ──
 *.log
+
+# ── Claude internal ──
+.claude/
