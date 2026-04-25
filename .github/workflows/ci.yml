@@ -2,7 +2,7 @@ name: FinGuard CI/CD — MLSecOps + Azure Deploy
 
 on:
   push:
-    branches: ["main", "finguard_crewai_base"]
+    branches: ["main", "finguard_crewai_base", "finguard_crewai_base_v2"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -169,7 +169,7 @@ jobs:
       - name: Build backend image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: .
           file: ./backend/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
           tags: |
@@ -204,8 +204,9 @@ jobs:
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-      # Trivy scan on the backend image (most sensitive)
+      # Trivy scan — only when we actually pushed the image (main / manual)
       - name: Trivy image scan (backend)
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ env.ACR_LOGIN_SERVER }}/finguard-backend:${{ steps.meta.outputs.tag }}
@@ -215,7 +216,7 @@ jobs:
           output: trivy-results.sarif
 
       - name: Upload Trivy SARIF
-        if: always()
+        if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && always()
         uses: github/codeql-action/upload-sarif@v3
         with: { sarif_file: trivy-results.sarif }
 

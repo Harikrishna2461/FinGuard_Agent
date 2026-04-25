@@ -1,0 +1,85 @@
+version: "3.9"
+
+# ── FinGuard local dev stack ───────────────────────────────────────────────────
+# Usage:
+#   docker compose up --build          # first run (builds all images)
+#   docker compose up                  # subsequent runs (uses cached images)
+#   docker compose down -v             # stop + wipe volumes
+#
+# Services:
+#   agent-service  → http://localhost:5002  (internal; called by backend)
+#   backend        → http://localhost:5001  (API + UI fallback)
+#   frontend       → http://localhost:80    (nginx; recommended entry point)
+#
+# Copy backend/.env.example → backend/.env and fill in GROQ_API_KEY before
+# running. All other env vars have sensible defaults below.
+
+services:
+
+  # ── Agent-service ────────────────────────────────────────────────────────────
+  agent-service:
+    build:
+      context: .
+      dockerfile: agent-service/Dockerfile
+    env_file:
+      - backend/.env
+    environment:
+      CHROMA_PERSIST_DIR: /data/chroma
+      AGENT_SERVICE_PORT: "5002"
+    volumes:
+      - chroma_data:/data/chroma
+    ports:
+      - "5002:5002"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Backend (Flask API) ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - backend/.env
+    environment:
+      FLASK_ENV: production
+      AGENT_SERVICE_URL: http://agent-service:5002
+      CHROMA_PERSIST_DIR: /data/chroma
+      SQLALCHEMY_DATABASE_URI: sqlite:////data/db/finguard.db
+    volumes:
+      - chroma_data:/data/chroma
+      - sqlite_data:/data/db
+    ports:
+      - "5001:5001"
+    depends_on:
+      agent-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Frontend (nginx reverse proxy + static UI) ────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      BACKEND_URL: http://backend:5001
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
+  sqlite_data:

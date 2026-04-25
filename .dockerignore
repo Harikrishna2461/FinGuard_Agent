@@ -1,0 +1,40 @@
+# Git & IDE
+.git
+.gitignore
+.DS_Store
+.vscode
+.idea
+
+# Python artifacts
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/*.egg-info
+.venv
+venv
+
+# Secrets — never bake into images
+backend/.env
+**/.env
+
+# Runtime data — provided via volumes at container start
+backend/instance/
+backend/data/chroma/
+data/chroma/
+data/
+
+# Training data and notebooks (large, not needed at runtime)
+Credit_Risk_And_Fraud_Detection_Classifer/*.csv
+Credit_Risk_And_Fraud_Detection_Classifer/*.ipynb
+
+# Build artefacts
+build/
+*.sarif
+docs/
+scripts/
+
+# Node (frontend only uses plain HTML)
+node_modules/
+frontend/build/
