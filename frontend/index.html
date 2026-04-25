@@ -818,12 +818,14 @@ tr:hover td{background:rgba(56,189,248,.03)}
 
       <h4 style="margin-top:14px">Re-run AI analysis</h4>
       <div class="btn-group" style="flex-wrap:wrap">
-        <button class="btn btn-secondary" onclick="analyzeCase('risk')">Risk reassessment</button>
-        <button class="btn btn-secondary" onclick="analyzeCase('compliance')">Compliance review</button>
-        <button class="btn btn-secondary" onclick="analyzeCase('portfolio')">Portfolio review</button>
-        <button class="btn btn-secondary" onclick="analyzeCase('recommendation')">Lightweight recommendation</button>
+        <button class="btn btn-secondary" id="case-btn-risk"           onclick="analyzeCase('risk')">Risk reassessment</button>
+        <button class="btn btn-secondary" id="case-btn-compliance"     onclick="analyzeCase('compliance')">Compliance review</button>
+        <button class="btn btn-secondary" id="case-btn-portfolio"      onclick="analyzeCase('portfolio')">Portfolio review</button>
+        <button class="btn btn-secondary" id="case-btn-recommendation" onclick="analyzeCase('recommendation')">Lightweight recommendation</button>
         <span id="case-analyze-status" style="color:#888;margin-left:8px"></span>
       </div>
+      <div id="case-think" style="margin-top:12px"></div>
+      <div id="case-analyze-result" style="margin-top:8px"></div>
 
       <h4 style="margin-top:14px">Customer 360</h4>
       <div id="case-customer-360"><em style="color:#888">Loading…</em></div>
@@ -902,6 +904,10 @@ function resultHtml(el, html, cls='success') {
 // Usage: const data = await consumeSSE('/api/portfolio/1/analyze/stream/<id>', 'ai-think');
 function consumeSSE(streamUrl, thinkEl) {
   return new Promise((resolve, reject) => {
+    let _settled = false;
+    function _resolve(v) { if (!_settled) { _settled = true; resolve(v); } }
+    function _reject(e)  { if (!_settled) { _settled = true; reject(e);  } }
+
     const container = document.getElementById(thinkEl);
     let showThinking = true;
     let blockId = 0;
@@ -1005,25 +1011,26 @@ function consumeSSE(streamUrl, thinkEl) {
         if (msg.type === 'result') {
           if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
           es.close();
-          // update live pill to done
           const pill = document.getElementById(`${thinkEl}-pill`);
           if (pill) { pill.style.background='rgba(34,197,94,.1)'; pill.style.borderColor='rgba(34,197,94,.3)'; pill.style.color='var(--green)'; pill.textContent='✓ done'; }
-          resolve(msg.data);
+          _resolve(msg.data);
         }
 
         if (msg.type === 'error') {
           if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
           es.close();
-          reject(new Error(msg.data.message || 'Analysis error'));
+          _reject(new Error(msg.data.message || 'Analysis error'));
         }
 
         if (msg.type === 'done') {
           es.close();
+          // Stream ended without a result — surface a clear error instead of hanging
+          _reject(new Error('Agent service returned no result. Make sure agent-service is running: python3 agent-service/app.py'));
         }
       } catch {}
     };
 
-    es.onerror = () => { es.close(); reject(new Error('Stream connection lost')); };
+    es.onerror = () => { es.close(); _reject(new Error('Stream connection lost')); };
   });
 }
 
@@ -1942,19 +1949,60 @@ async function addCaseNote() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+const _caseBtns = ['risk','compliance','portfolio','recommendation'];
+
 async function analyzeCase(action) {
   if (!_currentCase) return;
   const status = document.getElementById('case-analyze-status');
-  status.textContent = `Running ${action}…`;
+  const thinkEl = 'case-think';
+  const resultEl = document.getElementById('case-analyze-result');
+
+  // Disable all analysis buttons while running
+  _caseBtns.forEach(a => {
+    const b = document.getElementById('case-btn-' + a);
+    if (b) b.disabled = true;
+  });
+  document.getElementById(thinkEl).innerHTML = '';
+  resultEl.innerHTML = '';
+  status.textContent = '';
+
   try {
+    // Step 1: fire the analysis job, get stream_id
     const r = await api(`/cases/${_currentCase.id}/analyze`, 'POST', { action });
-    status.textContent = `${r.label} complete.`;
-    toast(r.label + ' complete');
-    // Refresh the detail view so the new timeline entry shows up.
+    if (!r.stream_id) throw new Error('No stream_id returned');
+
+    // Step 2: consume SSE — thinking blocks appear live in case-think div
+    const d = await consumeSSE(
+      `/api/cases/${_currentCase.id}/analyze/stream/${r.stream_id}`,
+      thinkEl
+    );
+
+    // Step 3: render the final result
+    const label = r.label || action;
+    const pills = [
+      { label: '✅ ' + label + ' complete', tone: 'green' },
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    let html = metaRow(pills);
+    const text =
+      d.crew_output || d.insights || d.recommendation ||
+      d.sentiment_analysis || d.explanation ||
+      (typeof d === 'string' ? d : JSON.stringify(d, null, 2));
+    html += renderMarkdown(String(text));
+    resultEl.innerHTML = `<div class="result-box success rich">${html}</div>`;
+
+    toast(label + ' complete');
+    // Reload timeline so the new analysis_requested event shows up
     openCase(_currentCase.id);
   } catch (e) {
     status.textContent = '';
+    resultEl.innerHTML = `<div class="result-box error">❌ ${escapeHtml(e.message)}</div>`;
     toast(e.message, 'error');
+  } finally {
+    _caseBtns.forEach(a => {
+      const b = document.getElementById('case-btn-' + a);
+      if (b) b.disabled = false;
+    });
   }
 }
 

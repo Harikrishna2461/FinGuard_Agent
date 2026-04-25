@@ -547,66 +547,67 @@ def analyze_case(case_id: int):
         if t:
             transactions = [_txn_dict(t)]
 
-    # Delegate to the orchestrator. Lazy-import to keep app cold-start fast.
-    from app.routes import _get_orchestrator
-    orch = _get_orchestrator()
-    method = getattr(orch, method_name, None)
-    if method is None:
-        return jsonify({"error": f"Orchestrator has no method {method_name!r}"}), 500
-
-    try:
-        if action == "risk":
-            result = method(transactions, _portfolio_dict(portfolio))
-        elif action == "compliance":
-            result = method(transactions)
-        elif action == "portfolio":
-            result = method(_portfolio_dict(portfolio))
-        else:  # recommendation
-            result = method(_portfolio_dict(portfolio), transactions)
-    except Exception as e:
-        logger.exception("Case %s analyze (%s) failed", case.id, action)
-        return jsonify({
-            "error": "Analysis failed",
-            "detail": str(e),
-            "action": action,
-        }), 502
-
-    # Pull out a human-readable body from whichever field the crew populated.
-    body_text = (
-        result.get("assessment")
-        or result.get("findings")
-        or result.get("analysis")
-        or result.get("recommendation")
-        or result.get("output")
-        or ""
+    # Delegate to the agent-service over HTTP (non-blocking).
+    # The frontend will open an SSE stream to get real-time thinking + results.
+    from app.routes import _fire_agent
+    import uuid
+    
+    stream_id = str(uuid.uuid4())
+    
+    # Map case analysis actions to agent-service endpoints
+    endpoint_map = {
+        "risk":          ("insights", {"transaction": {}, "score": 0, "factors": {}, "cleaned_input": f"Risk assessment for case {case.id}"}),
+        "compliance":    ("insights", {"transaction": {}, "score": 0, "factors": {}, "cleaned_input": f"Compliance check for case {case.id}"}),
+        "portfolio":     ("analyze", {"portfolio_data": _portfolio_dict(portfolio) if portfolio else {}, "transactions": transactions}),
+        "recommendation":("quick-recommendation", {"portfolio_data": _portfolio_dict(portfolio) if portfolio else {}, "transactions": transactions}),
+    }
+    
+    agent_endpoint, base_payload = endpoint_map.get(action, ("analyze", {}))
+    
+    # Add case context to payload
+    payload = {
+        "case_id": case.id,
+        "action": action,
+        "label": label,
+        **base_payload
+    }
+    
+    # Fire async job to agent-service
+    _fire_agent(agent_endpoint, stream_id, payload)
+    
+    # Log that analysis was requested
+    _log_event(
+        case, "analysis_requested",
+        body=f"Analysis requested: {label}",
+        data={"action": action, "stream_id": stream_id, "endpoint": agent_endpoint},
     )
-    if not isinstance(body_text, str):
-        body_text = str(body_text)
-
-    ev = _log_event(
-        case, "ai_analysis",
-        body=f"{label}\n\n{body_text}".strip(),
-        data={"action": action, "raw": {k: v for k, v in result.items() if k != "raw"}},
-    )
-    # Append onto ai_analysis so SAR export surfaces the latest chain of runs.
-    stamp = datetime.utcnow().isoformat() + "Z"
-    header = f"\n\n── {label} · {stamp} ──\n"
-    case.ai_analysis = ((case.ai_analysis or "") + header + body_text).strip()
-
+    
     audit.record(
-        "case.analyzed",
+        "case.analysis_requested",
         resource="case",
         resource_id=str(case.id),
-        details={"action": action, "length": len(body_text)},
+        details={"action": action, "stream_id": stream_id, "endpoint": agent_endpoint},
         commit=False,
     )
     db.session.commit()
+    
+    # Return stream_id for frontend to connect via SSE
     return jsonify({
-        "event_id": ev.id,
+        "stream_id": stream_id,
         "action": action,
         "label": label,
-        "body": body_text,
-    }), 200
+    }), 202
+
+
+@cases_bp.route("/cases/<int:case_id>/analyze/stream/<stream_id>", methods=["GET"])
+@require_auth
+def analyze_case_stream(case_id: int, stream_id: str):
+    """
+    Proxy SSE stream from agent-service for case analysis.
+    Streams real-time agent thinking, crew updates, and final results.
+    """
+    from app.routes import _local_or_proxy_stream
+    return _local_or_proxy_stream(stream_id)
 
 
 # ─────────────────────────────────────────────────────────────────────

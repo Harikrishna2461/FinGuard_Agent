@@ -308,6 +308,7 @@ class AIAgentOrchestrator:
         portfolio_data: Dict[str, Any],
         transactions: List[Dict[str, Any]],
         stream_id: str | None = None,
+        emit_fn=None,
     ) -> Dict[str, Any]:
         """
         Run three smaller crews sequentially to work around Groq free tier (12k TPM).
@@ -321,10 +322,9 @@ class AIAgentOrchestrator:
         import time
 
         def _emit(event_type: str, data: dict):
-            if stream_id:
+            if stream_id and emit_fn:
                 try:
-                    from app.agent_stream import emit
-                    emit(stream_id, event_type, data)
+                    emit_fn(stream_id, event_type, data)
                 except Exception:
                     pass
         
@@ -368,7 +368,9 @@ class AIAgentOrchestrator:
         try:
             logger.info("Crew 1/3: Risk Analysis (Risk Assessment + Detection + Compliance)")
             _emit("crew_start", {"crew": 1, "name": "Risk Analysis", "agents": ["Risk Assessment", "Risk Detection", "Compliance"]})
-            _emit("agent_thinking", {"agent": "Risk Assessment Agent", "crew": 1, "thought": f"Analyzing portfolio risk:\n{portfolio_summary}\n\nChecking transactions for AML flags, fraud patterns, and compliance violations...\n{ml_summary}"})
+            _emit("agent_thinking", {"agent": "Risk Assessment Agent", "crew": 1, "thought": f"Step 1/3 in Crew 1.\n\nAnalyzing portfolio risk:\n{portfolio_summary}\n\nChecking transactions for AML flags, fraud patterns, and compliance violations...\n{ml_summary}\n\n→ Handing risk scores to Risk Detection Agent."})
+            _emit("agent_thinking", {"agent": "Risk Detection Agent", "crew": 1, "thought": f"Step 2/3 in Crew 1.\n\nReceived risk scores from Risk Assessment Agent.\n\nScanning {txn_summary} for fraud patterns, anomalous behaviour, structuring, and velocity spikes.\n\n→ Forwarding flagged transactions to Compliance Agent."})
+            _emit("agent_thinking", {"agent": "Compliance Agent", "crew": 1, "thought": f"Step 3/3 in Crew 1.\n\nReviewing flagged transactions from Risk Detection Agent against SEC, FINRA, AML, and PDT rules.\n\nProducing final compliance findings for Crew 1 output.\n\n→ Handing Crew 1 output (risk + fraud + compliance) to Crew 2: Portfolio Analysis."})
             crew1 = Crew(
                 agents=[task_risk_assessment.agent, task_risk_detection.agent, task_compliance.agent],
                 tasks=[task_risk_assessment, task_risk_detection, task_compliance],
@@ -441,8 +443,9 @@ class AIAgentOrchestrator:
         try:
             logger.info("Crew 2/3: Portfolio Analysis (Portfolio + Market + Customer)")
             _emit("crew_start", {"crew": 2, "name": "Portfolio Analysis", "agents": ["Portfolio Analyst", "Market Intelligence", "Customer Context"]})
-            _emit("agent_thinking", {"agent": "Portfolio Analyst", "crew": 2, "thought": f"Analyzing portfolio allocation and diversification:\n{portfolio_summary}\n\nEvaluating asset weights, concentration risk, and rebalancing opportunities..."})
-            _emit("agent_thinking", {"agent": "Market Intelligence Agent", "crew": 2, "thought": f"Assessing market sentiment and trends for assets in portfolio:\n{portfolio_summary}\n\nAnalyzing sentiment scores, trend signals, and investment recommendations..."})
+            _emit("agent_thinking", {"agent": "Portfolio Analyst", "crew": 2, "thought": f"Step 1/3 in Crew 2.\n\nReceived Crew 1 risk findings as context.\n\nAnalyzing portfolio allocation and diversification:\n{portfolio_summary}\n\nEvaluating asset weights, concentration risk, and rebalancing opportunities.\n\n→ Handing diversification metrics to Market Intelligence Agent."})
+            _emit("agent_thinking", {"agent": "Market Intelligence Agent", "crew": 2, "thought": f"Step 2/3 in Crew 2.\n\nReceived diversification metrics from Portfolio Analyst.\n\nAssessing market sentiment and trends for assets in portfolio:\n{portfolio_summary}\n\nAnalyzing sentiment scores, trend signals, and investment recommendations.\n\n→ Forwarding outlook to Customer Context Agent."})
+            _emit("agent_thinking", {"agent": "Customer Context Agent", "crew": 2, "thought": f"Step 3/3 in Crew 2.\n\nMerging portfolio metrics + market outlook with the customer's profile.\n\nDeriving suitability, risk-tolerance alignment, and personalised insights.\n\n→ Handing Crew 2 output to Crew 3: Summary & Escalation."})
             crew2 = Crew(
                 agents=[task_portfolio.agent, task_market.agent, task_customer_context.agent],
                 tasks=[task_portfolio, task_market, task_customer_context],
@@ -517,8 +520,9 @@ class AIAgentOrchestrator:
         try:
             logger.info("Crew 3/3: Summary (Alert Intake + Explanation + Escalation)")
             _emit("crew_start", {"crew": 3, "name": "Summary & Escalation", "agents": ["Alert Intake", "Explanation", "Escalation"]})
-            _emit("agent_thinking", {"agent": "Alert Intake Agent", "crew": 3, "thought": f"Categorizing and prioritizing alerts from Crew 1 and Crew 2 outputs:\n{portfolio_summary}\n\nDetermining alert severity, routing, and escalation requirements..."})
-            _emit("agent_thinking", {"agent": "Escalation Agent", "crew": 3, "thought": "Synthesizing all crew outputs into final case summary. Determining if manual review is required based on risk scores, compliance flags, and portfolio risk level..."})
+            _emit("agent_thinking", {"agent": "Alert Intake Agent", "crew": 3, "thought": f"Step 1/3 in Crew 3.\n\nReceived combined Crew 1 + Crew 2 outputs.\n\nCategorizing and prioritizing alerts from those findings:\n{portfolio_summary}\n\nDetermining alert severity, routing, and escalation requirements.\n\n→ Handing prioritised alerts to Explanation Agent."})
+            _emit("agent_thinking", {"agent": "Explanation Agent", "crew": 3, "thought": "Step 2/3 in Crew 3.\n\nReceived prioritised alerts from Alert Intake Agent.\n\nProducing a clear, human-readable narrative that explains the risk drivers, portfolio posture, and recommended actions.\n\n→ Forwarding narrative to Escalation Agent."})
+            _emit("agent_thinking", {"agent": "Escalation Agent", "crew": 3, "thought": "Step 3/3 in Crew 3.\n\nReceived narrative from Explanation Agent.\n\nSynthesizing all crew outputs into final case summary. Determining if manual review is required based on risk scores, compliance flags, and portfolio risk level.\n\n→ Emitting final result for the UI."})
             crew3 = Crew(
                 agents=[task_alert_intake.agent, task_explanation.agent, task_escalation.agent],
                 tasks=[task_alert_intake, task_explanation, task_escalation],
@@ -630,22 +634,27 @@ class AIAgentOrchestrator:
         profile = customer_profile or {}
         return self.risk_assessment_agent.score_transaction_risk(transaction, profile)
 
-    def quick_market_sentiment(self, symbols, stream_id=None):
+    def quick_market_sentiment(self, symbols, stream_id=None, emit_fn=None):
         def _emit(event_type, data):
-            if stream_id:
+            if stream_id and emit_fn:
                 try:
-                    from app.agent_stream import emit
-                    emit(stream_id, event_type, data)
+                    emit_fn(stream_id, event_type, data)
                 except Exception:
                     pass
 
         symbols_str = ', '.join(symbols)
         _emit("crew_start", {"crew": 1, "name": "Market Sentiment Analysis", "agents": ["Market Intelligence Agent"]})
         _emit("agent_thinking", {"agent": "Market Intelligence Agent", "crew": 1,
-              "thought": f"Analyzing market sentiment for: {symbols_str}\n\n"
-                         f"Fetching sentiment scores, evaluating technical momentum, and generating "
-                         f"investment insights for each symbol. Checking news headlines, analyst "
-                         f"sentiment, and recent price action trends..."})
+              "thought": f"Step 1/2 — Data gathering.\n\n"
+                         f"Symbols requested: {symbols_str}\n\n"
+                         f"Fetching latest sentiment scores, news headlines, analyst ratings, "
+                         f"and recent price-action signals for each symbol from the market knowledge base."})
+        _emit("agent_thinking", {"agent": "Market Intelligence Agent", "crew": 1,
+              "thought": f"Step 2/2 — Synthesis.\n\n"
+                         f"Combining bullish/bearish drivers, technical momentum, "
+                         f"macro context and risk factors into a unified sentiment narrative for "
+                         f"{symbols_str}.\n\n"
+                         f"→ Emitting structured sentiment result to the UI."})
 
         res = self.market_agent.analyze_market_sentiment(symbols)
 
@@ -656,12 +665,11 @@ class AIAgentOrchestrator:
             vector_store.store_market_analysis(sym, res.get("sentiment_analysis", ""))
         return res
 
-    def quick_recommendation(self, symbol, portfolio_size, risk_profile, stream_id=None):
+    def quick_recommendation(self, symbol, portfolio_size, risk_profile, stream_id=None, emit_fn=None):
         def _emit(event_type, data):
-            if stream_id:
+            if stream_id and emit_fn:
                 try:
-                    from app.agent_stream import emit
-                    emit(stream_id, event_type, data)
+                    emit_fn(stream_id, event_type, data)
                 except Exception:
                     pass
 
@@ -690,19 +698,19 @@ class AIAgentOrchestrator:
         portfolio_data: Dict[str, Any],
         transactions: List[Dict[str, Any]],
         stream_id: str | None = None,
+        emit_fn=None,
     ) -> Dict[str, Any]:
         """
         Ultra-lightweight portfolio assessment using single Risk Assessment agent.
         Token budget: ~1k tokens (well under 12k TPM free tier).
-        
+
         Returns immediate actionable risk recommendations in seconds.
         Perfect fallback when comprehensive analysis hits rate limit.
         """
         def _emit(event_type, data):
-            if stream_id:
+            if stream_id and emit_fn:
                 try:
-                    from app.agent_stream import emit
-                    emit(stream_id, event_type, data)
+                    emit_fn(stream_id, event_type, data)
                 except Exception:
                     pass
 

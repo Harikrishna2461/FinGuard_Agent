@@ -83,25 +83,28 @@ def _run_in_bg(fn, stream_id, *args, **kwargs):
 
 def _job_analyze(stream_id, portfolio_data, transactions):
     orch = _get_orchestrator()
-    result = orch.comprehensive_portfolio_review(portfolio_data, transactions, stream_id=stream_id)
+    result = orch.comprehensive_portfolio_review(
+        portfolio_data, transactions, stream_id=stream_id, emit_fn=emit)
     emit(stream_id, "result", result)
 
 
 def _job_quick_recommendation(stream_id, portfolio_data, transactions):
     orch = _get_orchestrator()
-    result = orch.quick_portfolio_recommendation(portfolio_data, transactions, stream_id=stream_id)
+    result = orch.quick_portfolio_recommendation(
+        portfolio_data, transactions, stream_id=stream_id, emit_fn=emit)
     emit(stream_id, "result", result)
 
 
 def _job_recommendation(stream_id, symbol, portfolio_size, risk_profile):
     orch = _get_orchestrator()
-    result = orch.quick_recommendation(symbol, portfolio_size, risk_profile, stream_id=stream_id)
+    result = orch.quick_recommendation(
+        symbol, portfolio_size, risk_profile, stream_id=stream_id, emit_fn=emit)
     emit(stream_id, "result", result)
 
 
 def _job_sentiment(stream_id, symbols):
     orch = _get_orchestrator()
-    result = orch.quick_market_sentiment(symbols, stream_id=stream_id)
+    result = orch.quick_market_sentiment(symbols, stream_id=stream_id, emit_fn=emit)
     emit(stream_id, "result", result)
 
 
@@ -121,9 +124,9 @@ def _job_insights(stream_id, transaction, score, factors, cleaned_input):
     })
     try:
         result = orch.explanation_agent.explain_risk_score(
-            risk_score=score,
-            transaction_data=transaction,
-            risk_factors=factors or {},
+            transaction=transaction,
+            score=score,
+            factors=factors or {},
         )
         text = result.get("explanation", str(result))
         emit(stream_id, "crew_done", {"crew": 2, "name": "Risk Explanation", "output": text[:300]})
@@ -272,5 +275,39 @@ def stream(stream_id):
 
 if __name__ == "__main__":
     port = int(os.getenv("AGENT_SERVICE_PORT", 5002))
-    logger.info("agent-service starting on port %d", port)
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    host = "0.0.0.0"
+
+    # On macOS, skip gunicorn (fork() conflicts with Objective-C runtime).
+    # Everywhere else, prefer gunicorn (gthread worker) so SSE streams don't block.
+    import platform
+    import shutil, subprocess  # noqa: E401
+    
+    use_gunicorn = platform.system() != "Darwin"  # Skip gunicorn on macOS
+    gunicorn = None
+    
+    if use_gunicorn:
+        gunicorn = shutil.which("gunicorn")
+        if not gunicorn:
+            # Also check the sibling .venv used by the project
+            _venv = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "gunicorn"
+            if _venv.exists():
+                gunicorn = str(_venv)
+
+    if gunicorn:
+        logger.info("agent-service starting via gunicorn on %s:%d", host, port)
+        subprocess.run([
+            gunicorn,
+            "--worker-class", "gthread",
+            "--workers", "1",
+            "--threads", "32",         # high thread count: each SSE stream holds a thread
+            "--bind", f"{host}:{port}",
+            "--timeout", "0",          # disable worker timeout — SSE streams are long-lived
+            "--graceful-timeout", "30",
+            "--keep-alive", "75",
+            "--access-logfile", "-",   # log requests to stdout for debugging
+            "--chdir", str(SERVICE_DIR),  # must cd into agent-service/ so app:app resolves
+            "app:app",
+        ])
+    else:
+        logger.info("agent-service starting (Flask dev) on port %d", port)
+        app.run(host=host, port=port, debug=False, threaded=True)

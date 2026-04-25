@@ -1,6 +1,7 @@
 """Flask application factory and initialisation."""
 import os
-from flask import Flask, render_template
+from pathlib import Path
+from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -10,6 +11,9 @@ load_dotenv()
 
 # Extensions (shared with models & routes)
 db = SQLAlchemy()
+
+# frontend/ lives two levels up from backend/app/  (project_root/frontend/)
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 
 
 def create_app(config_name: str = "development") -> Flask:
@@ -68,8 +72,13 @@ def create_app(config_name: str = "development") -> Flask:
 
     @app.route("/")
     def index():
-        """Full web application UI."""
-        return render_template("index.html")
+        """Serve the single-page UI from project_root/frontend/index.html."""
+        return send_from_directory(str(_FRONTEND_DIR), "index.html")
+
+    @app.route("/frontend/<path:filename>")
+    def frontend_static(filename):
+        """Serve any other static assets placed in frontend/ (e.g. CSS, JS files)."""
+        return send_from_directory(str(_FRONTEND_DIR), filename)
 
     return app
 

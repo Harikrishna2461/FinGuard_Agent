@@ -38,16 +38,31 @@ def _agent_url() -> str:
     return current_app.config.get("AGENT_SERVICE_URL", "http://localhost:5002")
 
 
-def _fire_agent(endpoint: str, stream_id: str, payload: dict) -> None:
-    """POST job to agent-service synchronously (fast — agent-service returns 202 immediately)."""
+def _fire_agent(endpoint: str, stream_id: str, payload: dict) -> bool:
+    """POST job to agent-service. Returns True on success.
+    On failure creates a local error stream so the browser sees an error instead of hanging."""
     try:
         http_requests.post(
             f"{_agent_url()}/{endpoint.lstrip('/')}",
             json={"stream_id": stream_id, **payload},
-            timeout=8,
+            timeout=None,  # No timeout - agent processing can take a while
         )
+        return True
     except Exception as exc:
         logger.warning("agent-service unreachable (%s): %s", endpoint, exc)
+        from app.agent_stream import create_stream as _cs, emit as _e, close_stream as _c
+        _cs(stream_id)
+        def _emit_err(e=exc):
+            _e(stream_id, "error", {
+                "message": (
+                    "Agent service is unavailable — start it with: "
+                    "python3 agent-service/app.py\n"
+                    f"Error: {e}"
+                )
+            })
+            _c(stream_id)
+        threading.Thread(target=_emit_err, daemon=True).start()
+        return False
 
 
 def _proxy_agent_stream(stream_id: str) -> Response:
@@ -59,7 +74,7 @@ def _proxy_agent_stream(stream_id: str) -> Response:
             with http_requests.get(
                 f"{agent_svc}/stream/{stream_id}",
                 stream=True,
-                timeout=600,
+                timeout=None,  # No timeout - agents can take minutes to process
             ) as r:
                 for chunk in r.iter_content(chunk_size=None):
                     if chunk:
@@ -78,6 +93,19 @@ def _proxy_agent_stream(stream_id: str) -> Response:
             "Connection":        "keep-alive",
         },
     )
+
+
+def _local_or_proxy_stream(stream_id: str) -> Response:
+    """Serve from local backend queue if one exists (e.g. after _fire_agent failure),
+    otherwise proxy the SSE stream from agent-service."""
+    from app.agent_stream import _queues, sse_generator as local_sse
+    if stream_id in _queues:
+        return Response(
+            stream_with_context(local_sse(stream_id)),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+        )
+    return _proxy_agent_stream(stream_id)
 
 
 def _get_risk_engine():
@@ -228,7 +256,7 @@ def analyze_portfolio(portfolio_id):
 
 @api_bp.route("/portfolio/<int:portfolio_id>/analyze/stream/<stream_id>", methods=["GET"])
 def analyze_portfolio_stream(portfolio_id, stream_id):
-    return _proxy_agent_stream(stream_id)
+    return _local_or_proxy_stream(stream_id)
 
 
 @api_bp.route("/portfolio/<int:portfolio_id>/quick-recommendation", methods=["POST"])
@@ -264,7 +292,7 @@ def quick_recommendation(portfolio_id):
 
 @api_bp.route("/portfolio/<int:portfolio_id>/quick-recommendation/stream/<stream_id>", methods=["GET"])
 def quick_recommendation_stream(portfolio_id, stream_id):
-    return _proxy_agent_stream(stream_id)
+    return _local_or_proxy_stream(stream_id)
 
 
 # ============= Asset Routes =============
@@ -704,7 +732,7 @@ def get_recommendation(portfolio_id):
 
 @api_bp.route("/portfolio/<int:portfolio_id>/recommendation/stream/<stream_id>", methods=["GET"])
 def recommendation_stream(portfolio_id, stream_id):
-    return _proxy_agent_stream(stream_id)
+    return _local_or_proxy_stream(stream_id)
 
 
 @api_bp.route("/sentiment/analyze", methods=["POST"])
@@ -724,7 +752,7 @@ def analyze_sentiment():
 
 @api_bp.route("/sentiment/stream/<stream_id>", methods=["GET"])
 def sentiment_stream(stream_id):
-    return _proxy_agent_stream(stream_id)
+    return _local_or_proxy_stream(stream_id)
 
 
 # ============= Vector search endpoints =============
@@ -759,7 +787,7 @@ def search_analyses():
 
 @api_bp.route("/search/analyses/stream/<stream_id>", methods=["GET"])
 def search_analyses_stream(stream_id):
-    return _proxy_agent_stream(stream_id)
+    return _local_or_proxy_stream(stream_id)
 
 
 @api_bp.route("/search/risks", methods=["POST"])
@@ -781,7 +809,7 @@ def search_risks():
 
 @api_bp.route("/search/risks/stream/<stream_id>", methods=["GET"])
 def search_risks_stream(stream_id):
-    return _proxy_agent_stream(stream_id)
+    return _local_or_proxy_stream(stream_id)
 
 
 @api_bp.route("/search/market", methods=["POST"])
@@ -803,7 +831,7 @@ def search_market():
 
 @api_bp.route("/search/market/stream/<stream_id>", methods=["GET"])
 def search_market_stream(stream_id):
-    return _proxy_agent_stream(stream_id)
+    return _local_or_proxy_stream(stream_id)
 
 
 # ============= Agent Reasoning Demo =============
