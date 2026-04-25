@@ -261,6 +261,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [docker-build-push, frontend-build, model-versioning, responsible-ai]
     if: github.ref == 'refs/heads/main'
+    environment: staging
     env:
       IMAGE_TAG: ${{ needs.docker-build-push.outputs.image_tag }}
     steps:
@@ -339,6 +340,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-staging, docker-build-push]
     if: github.ref == 'refs/heads/main'
+    environment: production
     env:
       IMAGE_TAG: ${{ needs.docker-build-push.outputs.image_tag }}
     steps:
