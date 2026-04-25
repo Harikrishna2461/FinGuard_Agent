@@ -45,11 +45,15 @@ Create profile including:
 Provide structured profile for downstream agents."""
         
         result = self.chat(prompt)
-        return self._stamp({
+        stamped = self._stamp({
             "customer_id": customer_id,
             "profile": result,
             "profile_complete": True
         })
+
+
+
+        return stamped
 
     def get_customer_history(self, customer_id: str, history_type: str) -> dict:
         """

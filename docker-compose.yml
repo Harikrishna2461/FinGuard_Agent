@@ -1,0 +1,77 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  FinGuard Agent  –  Microservices layout
+#
+#  backend       (Flask:5001) → DB, ML, auth, guardrails; delegates agents
+#  agent-service (Flask:5002) → CrewAI agents, ChromaDB, SSE streams
+#
+#  All services share a single .env file (backend/.env).
+#  ChromaDB and SQLite data are persisted on named volumes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── backend (API gateway + DB + ML) ─────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    env_file: ./backend/.env
+    environment:
+      AGENT_SERVICE_URL: http://agent-service:5002
+      FLASK_ENV: production
+      CHROMA_PERSIST_DIR: /data/chroma
+    volumes:
+      - db-data:/app/instance          # SQLite database
+      - chroma-data:/data/chroma       # ChromaDB (read access for history queries)
+      - kb-data:/app/data/knowledge_base
+    depends_on:
+      agent-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - finguard-net
+    restart: unless-stopped
+
+  # ── agent-service (CrewAI + ChromaDB + SSE) ──────────────────────────────────
+  agent-service:
+    build:
+      context: .                          # repo root — Dockerfile COPYs backend/ code
+      dockerfile: agent-service/Dockerfile
+    ports:
+      - "5002:5002"
+    env_file: ./backend/.env
+    environment:
+      CHROMA_PERSIST_DIR: /data/chroma
+      AGENT_SERVICE_PORT: "5002"
+    volumes:
+      # Live-reload agent code during local development without rebuilding
+      - ./backend/agents:/app/agents:ro
+      - ./backend/ml:/app/ml:ro
+      - ./backend/vector_store.py:/app/vector_store.py:ro
+      - chroma-data:/data/chroma          # ChromaDB (read+write)
+      - kb-data:/app/data/knowledge_base:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - finguard-net
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  chroma-data:
+  kb-data:
+
+networks:
+  finguard-net:
+    driver: bridge

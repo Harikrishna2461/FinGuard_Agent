@@ -8,7 +8,6 @@ LLM configuration is in one place.
 import os
 import logging
 import time
-from groq import Groq
 from typing import Dict, Any, List
 from datetime import datetime
 
@@ -30,17 +29,23 @@ class FinancialBaseAgent:
 
     def __init__(self, agent_name: str):
         self.agent_name = agent_name
-        
-        # Verify API key is available
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            error_msg = "GROQ_API_KEY environment variable not set"
-            logger.error(f"{agent_name}: {error_msg}")
-            raise ValueError(error_msg)
-        
-        self.client = Groq(api_key=api_key)
-        self.model = os.getenv("GROQ_MODEL", "llama-3.3-70b")#-versatile")
         self.conversation_history: List[Dict[str, str]] = []
+
+        # LLM configuration
+        self.model = os.getenv("GROQ_MODEL", "llama-3.3-70b")
+        self.client = None
+
+        # Initialize Groq client only if API key is provided (guarded import)
+        api_key = os.getenv("GROQ_API_KEY")
+        if api_key:
+            try:
+                from groq import Groq
+                self.client = Groq(api_key=api_key)
+            except Exception as e:
+                logger.warning(f"{agent_name}: Groq client unavailable, running in simulated mode: {e}")
+        else:
+            logger.warning(f"{agent_name}: GROQ_API_KEY not set — running in simulated/offline mode")
+
         logger.info(f"{agent_name}: Initialized with model {self.model}")
 
     # ── RAG context retrieval ──────────────────────────────────────
@@ -83,29 +88,14 @@ class FinancialBaseAgent:
         # Retry loop for rate limits
         for attempt in range(max_retries):
             try:
-                # Check API key
-                api_key = os.getenv("GROQ_API_KEY")
-                if not api_key:
-                    error_msg = (
-                        "❌ LLM Configuration Error: GROQ_API_KEY environment variable is not set.\n"
-                        "Please set GROQ_API_KEY in your .env file: GROQ_API_KEY=gsk_..."
-                    )
-                    logger.error(error_msg)
-                    raise ValueError(error_msg)
-                
-                if api_key.startswith("gsk_") and len(api_key) < 20:
-                    error_msg = (
-                        "❌ LLM Configuration Error: GROQ_API_KEY appears to be invalid or incomplete.\n"
-                        f"Current key length: {len(api_key)} (expected 100+)"
-                    )
-                    logger.error(error_msg)
-                    raise ValueError(error_msg)
+                # Additional runtime checks are handled by the Groq client
+                # itself; we don't re-check the API key here.
 
                 if attempt == 0:
-                    logger.info(f"{self.agent_name}: Calling Groq LLM (model: {self.model})")
+                     logger.info(f"{self.agent_name}: Calling Groq LLM (model: {self.model})")
                 else:
-                    logger.info(f"{self.agent_name}: Retry attempt {attempt}/{max_retries - 1}")
-                
+                     logger.info(f"{self.agent_name}: Retry attempt {attempt}/{max_retries - 1}")
+
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=self.conversation_history,
@@ -116,7 +106,7 @@ class FinancialBaseAgent:
                 reply = response.choices[0].message.content
                 self.conversation_history.append({"role": "assistant", "content": reply})
                 return reply
-                
+
             except ValueError as e:
                 # Configuration errors - don't retry
                 logger.error(f"{self.agent_name}: Configuration error: {str(e)}")
@@ -124,10 +114,10 @@ class FinancialBaseAgent:
             except Exception as e:
                 error_type = type(e).__name__
                 error_msg = str(e)
-                
+
                 # Check if it's a rate limit error
                 is_rate_limit = "429" in error_msg or "rate_limit" in error_msg or "Rate limit" in error_msg
-                
+
                 if is_rate_limit and attempt < max_retries - 1:
                     # Exponential backoff: 2s, 4s, 8s, etc.
                     wait_time = 2 ** attempt
@@ -137,7 +127,7 @@ class FinancialBaseAgent:
                     )
                     time.sleep(wait_time)
                     continue
-                
+
                 # Parse specific Groq API errors
                 if "401" in error_msg or "Unauthorized" in error_msg or "APIError" in error_msg:
                     user_msg = (
@@ -164,7 +154,7 @@ class FinancialBaseAgent:
                         f"Agent: {self.agent_name}\n"
                         "Fix: Check API key, rate limits, and Groq API status"
                     )
-                
+
                 logger.error(
                     f"{self.agent_name}: LLM call failed\n"
                     f"Error Type: {error_type}\n"

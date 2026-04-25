@@ -103,7 +103,8 @@ Provide structured analysis for routing to appropriate agents."""
         }
         if ml_risk_info:
             response["ml_risk"] = ml_risk_info
-        return self._stamp(response)
+        stamped = self._stamp(response)
+        return stamped
 
     def filter_alerts(self, alerts: list) -> dict:
         """Filter and prioritize a batch of alerts."""

@@ -171,6 +171,20 @@ FinGuard_Agent/
    ```
    Frontend will open at `http://localhost:3000`
 
+### Running locally (Windows)
+
+If you want to run both services directly (without Docker) using the project's virtual environment, there's a helper batch script at the repository root that:
+
+- creates/activates a venv at `./venv` if missing
+- installs `backend/requirements.txt` and `agent-service/requirements.txt` into the venv
+- starts the agent-service (`agent-service/app.py`) and backend (`backend/run.py`) in two separate command windows using the venv Python
+
+Run the script from a Windows CMD shell at the repository root:
+
+    run_local_services.bat
+
+This will start the agent-service on http://localhost:5002 and the backend on http://localhost:5001 using the venv Python executable.
+
 ## 📡 API Endpoints
 
 ### Portfolio Management

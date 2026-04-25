@@ -23,8 +23,6 @@ from pathlib import Path
 # ── resolve paths relative to this file (project root) ───────────
 PROJECT_DIR = Path(__file__).resolve().parent              # FinGuard_Agent/
 BACKEND_DIR = PROJECT_DIR / "backend"
-FRONTEND_DIR = PROJECT_DIR / "frontend"
-FRONTEND_BUILD = FRONTEND_DIR / "build"
 
 # Add backend/ to sys.path so that `from app import …`, `from agents import …`,
 # `from ml import …`, etc. work exactly as before.
@@ -52,36 +50,6 @@ def _pip_install():
     print("\n⏳  Checking Python dependencies …")
     _run([sys.executable, "-m", "pip", "install", "-q", "-r", str(req)])
     print("  ✔  Python dependencies OK")
-
-
-def _npm_install():
-    """Run npm install in the frontend directory if node_modules is absent."""
-    if not FRONTEND_DIR.exists():
-        print("  ⚠  frontend/ directory not found – skipping npm install")
-        return
-    node_modules = FRONTEND_DIR / "node_modules"
-    if node_modules.exists():
-        return
-    npm = shutil.which("npm")
-    if npm is None:
-        print("  ⚠  npm not found on PATH – skipping frontend install")
-        return
-    print("\n⏳  Installing frontend dependencies (npm install) …")
-    _run([npm, "install"], cwd=FRONTEND_DIR)
-    print("  ✔  npm install OK")
-
-
-def _npm_build():
-    """Build the React app if build/ does not exist yet."""
-    if FRONTEND_BUILD.exists():
-        return                               # already built
-    npm = shutil.which("npm")
-    if npm is None or not FRONTEND_DIR.exists():
-        return
-    print("\n⏳  Building React production bundle …")
-    _run([npm, "run", "build"], cwd=FRONTEND_DIR)
-    print("  ✔  Frontend build OK")
-
 
 # ───────────────────────────────────────────────────────────────────
 #  Main
@@ -144,7 +112,10 @@ def main():  # sourcery skip: remove-redundant-fstring
         print(f"  🖥️   Frontend → run  cd frontend && npm start  (dev mode on :3000)")
     print()
 
-    app.run(host=host, port=port, debug=debug)
+    # Disable Flask's auto-reloader because we've changed working directory to backend/
+    # and the reloader would try to re-open the original script relative to the
+    # new cwd (e.g. backend/main.py) which doesn't exist when launching from project root.
+    app.run(host=host, port=port, debug=debug, use_reloader=False)
 
 if __name__ == "__main__":
     main()

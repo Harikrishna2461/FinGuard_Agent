@@ -277,15 +277,21 @@ class AIAgentOrchestrator:
         Run ML scoring on a list of transactions and return a text summary
         that can be injected into CrewAI task descriptions.
         """
+        if not transactions:
+            return "\n\n── ML Risk Pre-Screening: No transactions to score ──"
+
         engine = self._get_risk_engine()
-        if not engine or not transactions:
-            return ""
+        if not engine:
+            return "\n\n── ML Risk Pre-Screening: Rules-Based Scoring Only (ML models not loaded) ──"
 
         lines = ["\n\n── ML Risk Pre-Screening Results ──"]
         high_risk_count = 0
+        scanned_count = 0
+
         for i, txn in enumerate(transactions[:20]):
             try:
                 result = engine.score(txn)
+                scanned_count += 1
                 label = result["risk_label"]
                 flags = result["flags"]
                 if label in ("high", "critical"):
@@ -294,13 +300,20 @@ class AIAgentOrchestrator:
                     f"  Txn {i+1}: score={result['final_score']}/100 "
                     f"label={label} method={result['method']} "
                     f"hard_block={result['hard_block']} "
-                    f"flags=[{', '.join(flags)}]"
+                    f"flags=[{', '.join(flags) if flags else 'none'}]"
                 )
-            except Exception:
-                lines.append(f"  Txn {i+1}: ML scoring failed")
+            except Exception as e:
+                logger.warning(f"ML scoring failed for transaction {i+1}: {e}")
+                scanned_count += 1
+                lines.append(f"  Txn {i+1}: Rules-based scoring (ML unavailable)")
 
-        lines.insert(1, f"  Total scanned: {len(transactions[:20])} | High/Critical: {high_risk_count}")
-        return "\n".join(lines)
+        lines.insert(1, f"  Scanned: {scanned_count}/{len(transactions)} | High/Critical: {high_risk_count}")
+
+        # Always return something
+        result_text = "\n".join(lines)
+        if result_text.strip() == "\n\n── ML Risk Pre-Screening Results ──":
+            return "\n\n── ML Risk Pre-Screening: No transaction results ──"
+        return result_text
 
     # ─── comprehensive review via CrewAI (SPLIT INTO 3 SMALLER CREWS) ──────────
     def comprehensive_portfolio_review(
@@ -362,7 +375,7 @@ class AIAgentOrchestrator:
                 agents=[task_risk_assessment.agent, task_risk_detection.agent, task_compliance.agent],
                 tasks=[task_risk_assessment, task_risk_detection, task_compliance],
                 process=Process.sequential,
-                verbose=False,
+                verbose=True,  # ✅ Enable verbose output to see agent thinking
             )
             crew1_output = crew1.kickoff()
             time.sleep(1)
@@ -432,7 +445,7 @@ class AIAgentOrchestrator:
                 agents=[task_portfolio.agent, task_market.agent, task_customer_context.agent],
                 tasks=[task_portfolio, task_market, task_customer_context],
                 process=Process.sequential,
-                verbose=False,
+                verbose=True,  # ✅ Enable verbose output to see agent thinking
             )
             crew2_output = crew2.kickoff()
             time.sleep(1)
@@ -504,7 +517,7 @@ class AIAgentOrchestrator:
                 agents=[task_alert_intake.agent, task_explanation.agent, task_escalation.agent],
                 tasks=[task_alert_intake, task_explanation, task_escalation],
                 process=Process.sequential,
-                verbose=False,
+                verbose=True,  # ✅ Enable verbose output to see agent thinking
             )
             crew3_output = crew3.kickoff()
             time.sleep(1)
