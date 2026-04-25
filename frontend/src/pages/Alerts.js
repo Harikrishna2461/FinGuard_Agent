@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiX, FiPlus, FiEdit2, FiToggleLeft, FiToggleRight, FiBell } from 'react-icons/fi';
+import { FiX, FiPlus, FiEdit2, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
 import './Alerts.css';
 
 function Alerts({ user }) {

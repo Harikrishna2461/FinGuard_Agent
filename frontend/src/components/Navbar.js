@@ -1,11 +1,48 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FiMenu, FiX, FiHome, FiTrendingUp, FiBarChart2, FiBell, FiSettings, FiLogOut, FiActivity } from 'react-icons/fi';
-import { AiFillSafetyCertificate } from 'react-icons/ai';
+import { NavLink } from 'react-router-dom';
+import {
+  FiActivity,
+  FiAlertTriangle,
+  FiBarChart2,
+  FiBell,
+  FiBriefcase,
+  FiCpu,
+  FiDollarSign,
+  FiFileText,
+  FiHome,
+  FiLogOut,
+  FiMenu,
+  FiSearch,
+  FiShield,
+  FiX
+} from 'react-icons/fi';
 import './Navbar.css';
 
 function Navbar({ user }) {
   const [isOpen, setIsOpen] = useState(false);
+
+  const navItems = [
+    { to: '/dashboard', label: 'Dashboard', icon: FiHome },
+    { to: '/portfolio', label: 'Portfolios', icon: FiBriefcase },
+    { to: '/analytics', label: 'Transaction Risk Analysis', icon: FiDollarSign },
+    { to: '/', label: 'AI Analysis', icon: FiCpu },
+    { to: '/alerts', label: 'Alerts', icon: FiBell },
+    { to: '/search', label: 'Search', icon: FiSearch },
+    { to: '/sentiment', label: 'Sentiment', icon: FiBarChart2 },
+    { to: '/cases', label: 'Cases', icon: FiFileText }
+  ];
+
+  const agentChips = [
+    'Alert Intake',
+    'Customer Context',
+    'Risk Assessment',
+    'Risk Detection',
+    'Explanation',
+    'Escalation Summary',
+    'Portfolio Analysis',
+    'Market Intelligence',
+    'Compliance'
+  ];
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -17,58 +54,56 @@ function Navbar({ user }) {
   };
 
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        {/* Logo */}
-        <Link to="/" className="navbar-logo">
-          <AiFillSafetyCertificate className="logo-icon" />
-          <span>FinGuard</span>
-        </Link>
-
-        {/* Menu Toggle */}
-        <div className="menu-toggle" onClick={toggleMenu}>
-          {isOpen ? <FiX /> : <FiMenu />}
+    <>
+      <button className="sidebar-toggle" onClick={toggleMenu} aria-label="Toggle navigation">
+        {isOpen ? <FiX /> : <FiMenu />}
+      </button>
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <div className="sidebar-brand">
+          <FiShield className="brand-icon" />
+          <div>
+            <div className="brand-name">FinGuard</div>
+            <div className="run-status">RUNNING</div>
+          </div>
         </div>
 
-        {/* Navigation Menu */}
-        <div className={`navbar-menu ${isOpen ? 'active' : ''}`}>
-          <div className="nav-links">
-            <Link to="/" className="nav-link">
-              <FiHome /> Dashboard
-            </Link>
-            <Link to="/portfolio" className="nav-link">
-              <FiTrendingUp /> Portfolio
-            </Link>
-            <Link to="/analytics" className="nav-link">
-              <FiBarChart2 /> Analytics
-            </Link>
-            <Link to="/sentiment" className="nav-link">
-              <FiActivity /> Sentiment
-            </Link>
-            <Link to="/alerts" className="nav-link">
-              <FiBell /> Alerts
-            </Link>
-          </div>
+        <nav className="sidebar-nav">
+          {navItems.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+              onClick={() => setIsOpen(false)}
+            >
+              <Icon className="sidebar-icon" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
 
-          {/* Right Side Menu */}
-          <div className="navbar-right">
-            <div className="user-info">
-              <div className="avatar">{user?.name?.charAt(0) || 'U'}</div>
-              <div className="user-details">
-                <div className="user-name">{user?.name || 'User'}</div>
-                <div className="user-email">{user?.email || 'user@finguard.com'}</div>
-              </div>
-            </div>
-            <Link to="/settings" className="nav-link">
-              <FiSettings /> Settings
-            </Link>
-            <button className="logout-btn" onClick={handleLogout}>
-              <FiLogOut /> Logout
+        <div className="sidebar-footer">
+          <div className="agent-count">9 INTERNAL AGENTS</div>
+          <div className="agent-chip-grid">
+            {agentChips.map((agent) => (
+              <span key={agent} className="agent-chip">{agent}</span>
+            ))}
+          </div>
+          <div className="sidebar-user">
+            <span className="avatar">{user?.name?.charAt(0) || 'U'}</span>
+            <span>{user?.name || 'User'}</span>
+            <button className="logout-btn" onClick={handleLogout} title="Logout">
+              <FiLogOut />
             </button>
           </div>
+          <div className="risk-strip">
+            <FiActivity />
+            <FiAlertTriangle />
+            <span>Live monitoring</span>
+          </div>
         </div>
-      </div>
-    </nav>
+      </aside>
+    </>
   );
 }
 

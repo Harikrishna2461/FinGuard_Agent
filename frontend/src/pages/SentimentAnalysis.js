@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiRefreshCw, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
+import API_BASE_URL from '../config/api';
 import './SentimentAnalysis.css';
 
 function SentimentAnalysis({ user }) {
@@ -24,7 +25,7 @@ function SentimentAnalysis({ user }) {
 
   const fetchSymbols = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/symbols', {
+      const response = await fetch(`${API_BASE_URL}/api/symbols`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -66,7 +67,7 @@ function SentimentAnalysis({ user }) {
     setError(null);
     try {
       const symbolsStr = selectedSymbols.join(',');
-      const url = `http://localhost:5000/api/sentiment?symbols=${encodeURIComponent(symbolsStr)}`;
+      const url = `${API_BASE_URL}/api/sentiment?symbols=${encodeURIComponent(symbolsStr)}`;
       
       const response = await fetch(url, {
         method: 'GET',

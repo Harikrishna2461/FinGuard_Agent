@@ -4,10 +4,20 @@ import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import Portfolio from './pages/Portfolio';
 import Analytics from './pages/Analytics';
+import AIAnalysis from './pages/AIAnalysis';
 import SentimentAnalysis from './pages/SentimentAnalysis';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import './App.css';
+
+function PlaceholderPage({ title }) {
+  return (
+    <div className="placeholder-page">
+      <h1>{title}</h1>
+      <p>This workspace is ready for the {title.toLowerCase()} workflow.</p>
+    </div>
+  );
+}
 
 function App() {
   const [user, setUser] = useState(null);
@@ -38,15 +48,19 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="app-shell">
         <Navbar user={user} />
-        <main className="container mx-auto px-4 py-8">
+        <main className="app-main">
           <Routes>
-            <Route path="/" element={<Dashboard user={user} />} />
+            <Route path="/" element={<AIAnalysis user={user} />} />
+            <Route path="/dashboard" element={<Dashboard user={user} />} />
             <Route path="/portfolio" element={<Portfolio user={user} />} />
             <Route path="/analytics" element={<Analytics user={user} />} />
+            <Route path="/ai-analysis" element={<AIAnalysis user={user} />} />
             <Route path="/sentiment" element={<SentimentAnalysis user={user} />} />
             <Route path="/alerts" element={<Alerts user={user} />} />
+            <Route path="/search" element={<PlaceholderPage title="Search" />} />
+            <Route path="/cases" element={<PlaceholderPage title="Cases" />} />
             <Route path="/settings" element={<Settings user={user} />} />
           </Routes>
         </main>

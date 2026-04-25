@@ -1,7 +1,19 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_BASE_URL: http://localhost:15050
+    ports:
+      - "13000:80"
+    depends_on:
+      - backend
+
   backend:
     build:
       context: ./backend
+    environment:
+      CORS_ORIGINS: http://localhost:13000,http://localhost:3000
     ports:
       - "15050:5000"
     depends_on:

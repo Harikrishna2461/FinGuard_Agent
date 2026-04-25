@@ -18,13 +18,50 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: #0d1221;
   color: #e2e8f0;
 }
 
 html, body, #root {
   height: 100%;
   width: 100%;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 80% 0%, rgba(51, 92, 143, 0.18), transparent 34%),
+    linear-gradient(180deg, #101625 0%, #0d1221 100%);
+}
+
+.app-main {
+  min-height: 100vh;
+  margin-left: 280px;
+  padding: 28px 34px;
+}
+
+.placeholder-page {
+  min-height: calc(100vh - 56px);
+  border: 1px solid #273149;
+  border-radius: 10px;
+  background: rgba(17, 24, 39, 0.82);
+  padding: 28px;
+}
+
+.placeholder-page h1 {
+  margin-bottom: 8px;
+  color: #eef5ff;
+}
+
+.placeholder-page p {
+  color: #9ca7bd;
+}
+
+@media (max-width: 860px) {
+  .app-main {
+    margin-left: 0;
+    padding: 72px 16px 20px;
+  }
 }
 
 /* Animations */

@@ -19,3 +19,4 @@ class PortfolioAnalysisState(TypedDict, total=False):
     findings: list[str]
     response: dict[str, Any]
     errors: list[str]
+    analysis_trace: list[dict[str, Any]]
