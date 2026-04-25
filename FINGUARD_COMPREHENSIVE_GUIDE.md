@@ -4,7 +4,7 @@ Last updated: 2026-04-25
 
 ## 1. What FinGuard Is
 
-FinGuard is a fraud and portfolio risk investigation tool. It combines a React analyst UI, a FastAPI backend, and a LangGraph-based AI system with internal agents.
+FinGuard is a fraud and portfolio risk investigation tool. It combines the `frontendv2` analyst UI, a FastAPI backend, and a LangGraph-based AI system with internal agents.
 
 The product is designed for:
 
@@ -18,7 +18,7 @@ The product is designed for:
 ## 2. Architecture
 
 ```text
-React Frontend
+frontendv2 Static SPA
   -> FastAPI Backend
       -> SQLite persistence
       -> AI System over HTTP
@@ -30,7 +30,9 @@ React Frontend
 
 Service responsibilities:
 
-- `frontend`: analyst UI, portfolio selection, AI trace display, sentiment UI.
+- `frontend`: Docker service name for the active analyst UI, built from `frontendv2/`.
+- `frontendv2`: primary analyst UI, portfolio selection, AI trace display, sentiment UI, cases, and search.
+- `frontend/`: legacy React prototype retained for reference.
 - `backend`: stable API, persistence, auth, cases, audit, SAR, and AI proxying.
 - `ai_system`: model calls, LangGraph orchestration, agent strategy, and trace metadata.
 
@@ -117,23 +119,13 @@ Service URLs:
 
 ## 7. Frontend Configuration
 
-Frontend API URL is configured through:
+`frontendv2` calls the backend through same-origin `/api` requests and nginx proxies them to:
 
 ```text
-REACT_APP_API_BASE_URL
+BACKEND_URL=http://backend:5000
 ```
 
-Docker Compose builds the frontend with:
-
-```text
-REACT_APP_API_BASE_URL=http://localhost:15050
-```
-
-For cloud deployment, build with:
-
-```text
-REACT_APP_API_BASE_URL=https://<finguard-backend-url>
-```
+For cloud deployment, set `BACKEND_URL` to the deployed backend origin visible from the frontend container or host.
 
 ## 8. Backend Configuration
 
@@ -220,19 +212,16 @@ Current deployment gap:
 
 ## 12. Current Limitations
 
-- Some frontend pages still use static or local state.
-- Cases/search/settings are not fully implemented in frontend.
+- Some `frontendv2` flows currently wait for direct JSON responses because backend SSE endpoints are not implemented yet.
+- The legacy `frontend/` React app is still present, but it is no longer the primary served UI.
 - Agent trace is returned after completion, not streamed live.
-- Frontend package lock is out of sync, so Docker uses `npm install`.
 - SQLite is demo-friendly but needs a durable production plan.
 - Backend-only CI/CD is not enough for full cloud deployment.
 
 ## 13. Recommended Next Steps
 
-1. Sync frontend `package-lock.json` and switch Dockerfile back to `npm ci`.
-2. Wire Portfolio page to backend portfolio/asset/transaction APIs.
-3. Build real Cases page from backend case APIs.
-4. Add frontend auth flow.
-5. Add SSE streaming for real-time LangGraph status.
-6. Add CI/CD for frontend and `ai_system`.
-7. Move cloud persistence to durable storage.
+1. Add SSE streaming endpoints so `frontendv2` can show live thinking instead of final-only responses.
+2. Complete a first-class auth flow for cases instead of manual bearer token pasting.
+3. Decide whether to retire or modernize the legacy `frontend/` React app.
+4. Add CI/CD for frontend and `ai_system`.
+5. Move cloud persistence to durable storage.

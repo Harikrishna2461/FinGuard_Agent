@@ -13,7 +13,11 @@ from docx import Document
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = REPO_ROOT / "backend"
-FRONTEND_DIR = REPO_ROOT / "frontend"
+FRONTEND_DIR = (
+    REPO_ROOT / "frontendv2"
+    if (REPO_ROOT / "frontendv2").exists()
+    else REPO_ROOT / "frontend"
+)
 DOCS_DIR = REPO_ROOT / "docs"
 
 
@@ -128,6 +132,20 @@ def run_check(
 def detect_frontend_integration(pages_dir: Path) -> list[list[str]]:
     """Return a per-page status table for React pages."""
     rows: list[list[str]] = []
+    index_file = FRONTEND_DIR / "index.html"
+    if index_file.exists():
+        text = _read_text(index_file)
+        calls_api = "/api/" in text
+        uses_fetch = "fetch(" in text
+        rows.append(
+            [
+                index_file.name,
+                "Integrated" if calls_api else "UI-only (mock/static)",
+                "yes" if uses_fetch else "no",
+                "no",
+                "yes" if calls_api else "no",
+            ]
+        )
     for js in sorted(pages_dir.glob("*.js")):
         text = _read_text(js)
         calls_api = "http://localhost:5000/api" in text or "/api/" in text
@@ -166,7 +184,7 @@ def build_doc() -> Document:
                 "docs/aas_practice_module_briefing_v4.2_full_time.txt",
             ),
             ("Backend", "Flask + SQLAlchemy + CrewAI + ChromaDB"),
-            ("Frontend", "React UI + Flask template demo UI"),
+            ("Frontend", f"{FRONTEND_DIR.name} + Flask template demo UI"),
         ],
     )
 
@@ -177,7 +195,7 @@ def build_doc() -> Document:
     )
     _p(
         doc,
-        "Frontend modules reviewed: React pages under frontend/src/pages and the Flask template UI under backend/app/templates/index.html.",
+        f"Frontend modules reviewed: primary UI under {FRONTEND_DIR.name}/ plus the Flask template UI under backend/app/templates/index.html.",
     )
 
     _h1(doc, "2. Backend capabilities observed in code")
@@ -226,11 +244,11 @@ def build_doc() -> Document:
 
     # React pages table
     pages_dir = FRONTEND_DIR / "src" / "pages"
-    if pages_dir.exists():
+    if pages_dir.exists() or (FRONTEND_DIR / "index.html").exists():
         _h2(doc, "3.1 React pages: backend integration status")
         _p(
             doc,
-            "This table is derived by scanning each React page source file for API calls (fetch/axios) to /api endpoints.",
+            "This table is derived by scanning the active frontend source for API calls (fetch/axios) to /api endpoints.",
         )
         _add_table(
             doc,
@@ -238,7 +256,7 @@ def build_doc() -> Document:
             rows=detect_frontend_integration(pages_dir),
         )
     else:
-        _p(doc, "React pages directory not found (frontend/src/pages).")
+        _p(doc, f"Frontend source directory not found under {FRONTEND_DIR.name}.")
 
     _h2(doc, "3.2 Flask template UI")
     _p(

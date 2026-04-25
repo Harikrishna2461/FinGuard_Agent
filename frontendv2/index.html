@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinGuard Agent</title>
+<style>
+:root{
+    --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+    --text:#e2e8f0;--text2:#94a3b8;--accent:#38bdf8;--accent2:#818cf8;
+    --green:#22c55e;--red:#ef4444;--orange:#f59e0b;--cyan:#06b6d4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* ── Sidebar ── */
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10}
+.sidebar .logo{padding:24px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar .logo h1{font-size:1.2rem;color:var(--accent);display:flex;align-items:center;gap:8px}
+.sidebar .logo .badge{background:var(--green);color:#fff;padding:2px 8px;border-radius:999px;font-size:.65rem;font-weight:600}
+.sidebar nav{flex:1;padding:12px 0;overflow-y:auto}
+.sidebar nav button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 20px;border:0;background:0;color:var(--text2);font-size:.875rem;cursor:pointer;transition:.15s;text-align:left}
+.sidebar nav button:hover{background:rgba(56,189,248,.08);color:var(--text)}
+.sidebar nav button.active{background:rgba(56,189,248,.12);color:var(--accent);border-right:3px solid var(--accent)}
+.sidebar nav button .icon{font-size:1.1rem;width:24px;text-align:center}
+.sidebar .agent-list{padding:16px 20px;border-top:1px solid var(--border)}
+.sidebar .agent-list h3{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:8px}
+.sidebar .agent-list .pill{display:inline-block;background:#312e81;color:#a5b4fc;padding:2px 8px;border-radius:999px;font-size:.65rem;margin:2px}
+
+/* ── Main ── */
+.main{margin-left:240px;flex:1;padding:32px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+.page-desc{color:var(--text2);font-size:.9rem;margin-bottom:24px}
+
+/* ── Cards ── */
+.card{background:var(--surface);border-radius:12px;padding:24px;margin-bottom:16px;border:1px solid rgba(71,85,105,.5)}
+.card h3{font-size:1rem;margin-bottom:12px;color:var(--accent)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--surface);border-radius:12px;padding:20px;border:1px solid rgba(71,85,105,.5);text-align:center}
+.stat-card .value{font-size:1.8rem;font-weight:700;color:var(--accent)}
+.stat-card .label{font-size:.75rem;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ── Forms ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group.full{grid-column:1/-1}
+label{font-size:.8rem;color:var(--text2);font-weight:500}
+input,select,textarea{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.875rem;outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:0;transition:.2s}
+.btn-primary{background:var(--accent);color:#0f172a}.btn-primary:hover{background:#7dd3fc}
+.btn-secondary{background:var(--surface2);color:var(--text)}.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{opacity:.85}
+.btn-success{background:var(--green);color:#fff}.btn-success:hover{opacity:.85}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:6px 14px;font-size:.8rem}
+.btn-group{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+
+/* ── Result/Output ── */
+.result-box{background:var(--bg);border-radius:8px;padding:16px;margin-top:12px;border:1px solid var(--border);max-height:600px;overflow-y:auto;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.result-box.success{border-color:var(--green)}
+.result-box.error{border-color:var(--red);color:var(--red)}
+.result-box.info{border-color:var(--accent)}
+.result-box.rich{white-space:normal;max-height:none}
+
+/* ── Rich markdown output ── */
+.md{color:var(--text);line-height:1.7;font-size:.9rem}
+.md h1,.md h2,.md h3,.md h4{margin:18px 0 10px;color:var(--accent);font-weight:700;line-height:1.3}
+.md h1{font-size:1.25rem;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.md h2{font-size:1.1rem;color:var(--accent2)}
+.md h3{font-size:1rem;color:var(--cyan)}
+.md h4{font-size:.92rem;color:#a5b4fc}
+.md p{margin:8px 0;color:var(--text)}
+.md ul{margin:8px 0 8px 4px;padding-left:20px;list-style:none}
+.md ul li{position:relative;margin:6px 0;color:var(--text);padding-left:16px}
+.md ul li::before{content:"▸";position:absolute;left:0;color:var(--accent);font-weight:700}
+.md strong{color:#f1f5f9;font-weight:600}
+.md em{color:#cbd5e1;font-style:italic}
+.md code{background:rgba(148,163,184,.15);color:#fbbf24;padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:.82rem}
+.md pre{background:#0b1120;border:1px solid var(--border);border-radius:6px;padding:12px;margin:10px 0;overflow-x:auto;font-family:ui-monospace,Menlo,monospace;font-size:.78rem;color:#cbd5e1;white-space:pre}
+.md hr{border:0;border-top:1px solid var(--border);margin:14px 0}
+.md .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.md .meta-pill{background:rgba(56,189,248,.1);color:var(--accent);padding:4px 12px;border-radius:999px;font-size:.75rem;font-weight:500;border:1px solid rgba(56,189,248,.2)}
+.md .meta-pill.green{background:rgba(34,197,94,.1);color:var(--green);border-color:rgba(34,197,94,.2)}
+.md .meta-pill.orange{background:rgba(245,158,11,.1);color:var(--orange);border-color:rgba(245,158,11,.2)}
+.md .meta-pill.red{background:rgba(239,68,68,.1);color:var(--red);border-color:rgba(239,68,68,.2)}
+.md .section{background:rgba(30,41,59,.5);border-left:3px solid var(--accent);border-radius:6px;padding:12px 16px;margin:12px 0}
+.md .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:.85rem;margin:6px 0}
+.md .kv dt{color:var(--text2);font-weight:500}
+.md .kv dd{color:var(--text)}
+.md .callout{background:rgba(56,189,248,.06);border-left:3px solid var(--accent);padding:10px 14px;border-radius:4px;margin:10px 0;font-size:.85rem;color:var(--text)}
+.md .callout.warn{background:rgba(245,158,11,.08);border-left-color:var(--orange);color:#fde68a}
+.md .callout.ok{background:rgba(34,197,94,.06);border-left-color:var(--green);color:#bbf7d0}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{padding:10px 12px;text-align:left;color:var(--text2);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--bg)}
+td{padding:10px 12px;border-bottom:1px solid rgba(71,85,105,.3)}
+tr:hover td{background:rgba(56,189,248,.03)}
+
+/* ── Risk badge ── */
+.risk-badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600}
+.risk-low{background:#064e3b;color:#6ee7b7}
+.risk-medium{background:#713f12;color:#fbbf24}
+.risk-high{background:#7c2d12;color:#fb923c}
+.risk-critical{background:#7f1d1d;color:#fca5a5}
+
+/* ── Spinner ── */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toast ── */
+.toast{position:fixed;top:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 20px;font-size:.85rem;z-index:1000;box-shadow:0 10px 40px rgba(0,0,0,.4);transform:translateX(120%);transition:transform .3s}
+.toast.show{transform:translateX(0)}
+.toast.toast-success{border-color:var(--green)}
+.toast.toast-error{border-color:var(--red)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{width:60px}.sidebar .logo h1 span,.sidebar nav button span,.sidebar .agent-list{display:none}
+  .sidebar nav button{justify-content:center;padding:12px}
+  .main{margin-left:60px;padding:16px}
+  .form-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:48px 24px;color:var(--text2)}
+.empty .icon{font-size:3rem;margin-bottom:12px}
+.empty p{margin-bottom:16px}
+
+/* ── Section divider ── */
+.divider{height:1px;background:var(--border);margin:24px 0}
+
+/* ── Live thinking stream ── */
+.think-stream{margin:16px 0;display:flex;flex-direction:column;gap:6px}
+.think-block{border:1px solid rgba(71,85,105,.6);border-radius:10px;overflow:hidden;background:rgba(15,23,42,.6)}
+.think-block.live{border-color:var(--accent);box-shadow:0 0 0 1px rgba(56,189,248,.2)}
+.think-block.done{border-color:rgba(71,85,105,.4)}
+.think-header{width:100%;display:flex;align-items:center;gap:8px;padding:8px 14px;background:none;border:0;cursor:pointer;color:var(--text2);font-size:.8rem;text-align:left}
+.think-header:hover{background:rgba(255,255,255,.03)}
+.think-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.think-block.live .think-dot{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 1.4s ease-in-out infinite}
+.think-block.done .think-dot{background:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.think-agent{font-weight:600;color:var(--text)}
+.think-label{flex:1;color:var(--text2)}
+.think-chevron{font-size:.7rem;transition:.2s;color:var(--text2)}
+.think-body{padding:10px 14px;border-top:1px solid rgba(71,85,105,.4)}
+.think-body pre{font-size:.78rem;color:#94a3b8;line-height:1.6;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,monospace;margin:0}
+.crew-divider{padding:6px 14px;font-size:.75rem;color:var(--text2);background:rgba(56,189,248,.04);border:1px dashed rgba(56,189,248,.2);border-radius:6px;text-align:center}
+.crew-divider.done{color:var(--green);border-color:rgba(34,197,94,.2);background:rgba(34,197,94,.04)}
+.live-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);border-radius:999px;font-size:.75rem;color:var(--accent);margin-top:4px}
+.think-toggle{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.think-toggle-btn{background:none;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:6px;font-size:.75rem;cursor:pointer}
+.think-toggle-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Tabs inside pages ── */
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab-btn{padding:8px 16px;border:0;background:0;color:var(--text2);font-size:.85rem;cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+</style>
+</head>
+<body>
+
+<!-- ═══════ SIDEBAR ═══════ -->
+<div class="sidebar">
+  <div class="logo">
+    <h1>&#128737; <span>FinGuard</span></h1>
+    <div style="margin-top:4px"><span class="badge">RUNNING</span></div>
+  </div>
+  <nav>
+    <button class="active" onclick="showPage('dashboard')"><span class="icon">&#128200;</span><span>Dashboard</span></button>
+    <button onclick="showPage('portfolios')"><span class="icon">&#128188;</span><span>Portfolios</span></button>
+    <button onclick="showPage('risk')"><span class="icon">&#128176;</span><span>Transaction Risk Analysis</span></button>
+    <button onclick="showPage('analysis')"><span class="icon">&#129302;</span><span>AI Analysis</span></button>
+    <button onclick="showPage('alerts')"><span class="icon">&#128276;</span><span>Alerts</span></button>
+    <button onclick="showPage('search')"><span class="icon">&#128269;</span><span>Search</span></button>
+    <button onclick="showPage('sentiment')"><span class="icon">&#128202;</span><span>Sentiment</span></button>
+    <button onclick="showPage('cases')"><span class="icon">&#128196;</span><span>Cases</span></button>
+  </nav>
+  <div class="agent-list">
+    <h3>9 CrewAI Agents</h3>
+    <span class="pill">Alert Intake</span>
+    <span class="pill">Context</span>
+    <span class="pill">Risk</span>
+    <span class="pill">Explanation</span>
+    <span class="pill">Escalation</span>
+    <span class="pill">Portfolio</span>
+    <span class="pill">Detection</span>
+    <span class="pill">Market Intel</span>
+    <span class="pill">Compliance</span>
+  </div>
+</div>
+
+<!-- ═══════ MAIN CONTENT ═══════ -->
+<div class="main">
+
+  <!-- ──── DASHBOARD ──── -->
+  <div id="page-dashboard" class="page active">
+    <h2 class="page-title">Dashboard</h2>
+    <p class="page-desc">FinGuard Agent — Multi-agent financial risk analysis platform</p>
+
+    <div class="stats-grid" id="dashboard-stats">
+      <div class="stat-card"><div class="value" id="stat-portfolios">-</div><div class="label">Portfolios</div></div>
+      <div class="stat-card"><div class="value" id="stat-health">-</div><div class="label">API Status</div></div>
+      <div class="stat-card"><div class="value">9</div><div class="label">AI Agents</div></div>
+      <div class="stat-card"><div class="value">3-Tier</div><div class="label">ML Pipeline</div></div>
+    </div>
+
+    <div class="card">
+      <h3>&#9889; Quick Actions</h3>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="showPage('portfolios')">&#43; Create Portfolio</button>
+        <button class="btn btn-secondary" onclick="showPage('risk')">Score Transaction Risk</button>
+        <button class="btn btn-secondary" onclick="showPage('analysis')">Run AI Analysis</button>
+        <button class="btn btn-secondary" onclick="showPage('search')">Search Knowledge Base</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>&#129302; ML Pipeline</h3>
+      <p style="color:var(--text2);font-size:.9rem;line-height:1.7">
+        <strong style="color:var(--text)">Hybrid 3-tier scoring engine:</strong><br>
+        &#x2460; <strong>13 Deterministic Rules</strong> (AML, sanctions, velocity, concentration) — 40% weight<br>
+        &#x2461; <strong>GradientBoosting Classifier</strong> (97% accuracy) + <strong>IsolationForest</strong> (93% accuracy) — 60% weight<br>
+        &#x2462; <strong>LLM Fallback</strong> via Groq (llama-3.3-70b) for borderline scores (40-60)
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>&#128640; System Architecture</h3>
+      <p style="color:var(--text2);font-size:.9rem;line-height:1.7">
+        <strong style="color:var(--text)">Backend:</strong> Flask + SQLAlchemy &nbsp;|&nbsp;
+        <strong style="color:var(--text)">Agents:</strong> CrewAI (Sequential) &nbsp;|&nbsp;
+        <strong style="color:var(--text)">LLM:</strong> Groq API &nbsp;|&nbsp;
+        <strong style="color:var(--text)">Vector DB:</strong> ChromaDB &nbsp;|&nbsp;
+        <strong style="color:var(--text)">ML:</strong> scikit-learn
+      </p>
+    </div>
+  </div>
+
+  <!-- ──── PORTFOLIOS ──── -->
+  <div id="page-portfolios" class="page">
+    <h2 class="page-title">Portfolios</h2>
+    <p class="page-desc">Create and manage investment portfolios</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab(this,'ptab-create')">Create Portfolio</button>
+      <button class="tab-btn" onclick="switchTab(this,'ptab-view')">View Portfolio</button>
+      <button class="tab-btn" onclick="switchTab(this,'ptab-assets')">Add Asset</button>
+    </div>
+
+    <!-- Create Portfolio -->
+    <div id="ptab-create" class="tab-content active">
+      <div class="card">
+        <h3>&#43; New Portfolio</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Portfolio Name</label>
+            <input type="text" id="pf-name" placeholder="My Investment Portfolio" value="My Portfolio">
+          </div>
+          <div class="form-group">
+            <label>Initial Investment ($)</label>
+            <input type="number" id="pf-investment" placeholder="10000" value="100000">
+          </div>
+          <div class="form-group">
+            <label>User ID (optional)</label>
+            <input type="text" id="pf-user" placeholder="auto-generated">
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="createPortfolio()">Create Portfolio</button>
+        </div>
+        <div id="pf-result"></div>
+      </div>
+    </div>
+
+    <!-- View Portfolio -->
+    <div id="ptab-view" class="tab-content">
+      <div class="card">
+        <h3>&#128270; View Portfolio Details</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Portfolio ID</label>
+            <input type="number" id="pf-view-id" placeholder="1" value="1">
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="viewPortfolio()">Load Portfolio</button>
+          <button class="btn btn-secondary" onclick="viewAssets()">View Assets</button>
+          <button class="btn btn-secondary" onclick="viewTransactions()">View Transactions</button>
+        </div>
+        <div id="pf-view-result"></div>
+      </div>
+    </div>
+
+    <!-- Add Asset -->
+    <div id="ptab-assets" class="tab-content">
+      <div class="card">
+        <h3>&#128200; Add Asset to Portfolio</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Portfolio ID</label>
+            <input type="number" id="asset-pid" placeholder="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>Symbol</label>
+            <input type="text" id="asset-symbol" placeholder="AAPL" value="AAPL">
+          </div>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="asset-name" placeholder="Apple Inc." value="Apple Inc.">
+          </div>
+          <div class="form-group">
+            <label>Quantity</label>
+            <input type="number" id="asset-qty" placeholder="100" value="50">
+          </div>
+          <div class="form-group">
+            <label>Purchase Price ($)</label>
+            <input type="number" id="asset-price" placeholder="150.00" step="0.01" value="175.50">
+          </div>
+          <div class="form-group">
+            <label>Current Price ($)</label>
+            <input type="number" id="asset-current" placeholder="155.00" step="0.01" value="182.30">
+          </div>
+          <div class="form-group">
+            <label>Asset Type</label>
+            <select id="asset-type">
+              <option value="stock">Stock</option>
+              <option value="etf">ETF</option>
+              <option value="crypto">Crypto</option>
+              <option value="bond">Bond</option>
+              <option value="option">Option</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sector</label>
+            <select id="asset-sector">
+              <option value="Technology">Technology</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Finance">Finance</option>
+              <option value="Energy">Energy</option>
+              <option value="Consumer">Consumer</option>
+              <option value="Industrial">Industrial</option>
+              <option value="Real Estate">Real Estate</option>
+              <option value="Utilities">Utilities</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="addAsset()">Add Asset</button>
+        </div>
+        <div id="asset-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──── TRANSACTIONS ──── -->
+  <!-- Shared datalists for type-ahead dropdowns -->
+  <datalist id="dl-symbols">
+    <option value="AAPL"><option value="MSFT"><option value="GOOGL"><option value="AMZN">
+    <option value="META"><option value="NVDA"><option value="TSLA"><option value="JPM">
+    <option value="V"><option value="MA"><option value="BTC"><option value="ETH">
+    <option value="SOL"><option value="SPY"><option value="QQQ"><option value="VTI">
+  </datalist>
+
+  <!--
+    Shared <select> template for symbol pickers. Any <select class="symbol-picker">
+    gets populated on load from window.SYMBOL_GROUPS. Add new tickers in one place.
+  -->
+  <template id="tpl-symbol-options">
+    <optgroup label="Tech (Mega-cap)">
+      <option value="AAPL">AAPL — Apple</option>
+      <option value="MSFT">MSFT — Microsoft</option>
+      <option value="GOOGL">GOOGL — Alphabet</option>
+      <option value="AMZN">AMZN — Amazon</option>
+      <option value="META">META — Meta Platforms</option>
+      <option value="NVDA">NVDA — NVIDIA</option>
+      <option value="TSLA">TSLA — Tesla</option>
+      <option value="NFLX">NFLX — Netflix</option>
+      <option value="ORCL">ORCL — Oracle</option>
+      <option value="AMD">AMD — AMD</option>
+      <option value="INTC">INTC — Intel</option>
+      <option value="CRM">CRM — Salesforce</option>
+      <option value="ADBE">ADBE — Adobe</option>
+      <option value="AVGO">AVGO — Broadcom</option>
+    </optgroup>
+    <optgroup label="Financials">
+      <option value="JPM">JPM — JPMorgan Chase</option>
+      <option value="BAC">BAC — Bank of America</option>
+      <option value="GS">GS — Goldman Sachs</option>
+      <option value="MS">MS — Morgan Stanley</option>
+      <option value="C">C — Citigroup</option>
+      <option value="WFC">WFC — Wells Fargo</option>
+      <option value="V">V — Visa</option>
+      <option value="MA">MA — Mastercard</option>
+      <option value="AXP">AXP — American Express</option>
+      <option value="PYPL">PYPL — PayPal</option>
+    </optgroup>
+    <optgroup label="Consumer / Healthcare / Energy">
+      <option value="WMT">WMT — Walmart</option>
+      <option value="COST">COST — Costco</option>
+      <option value="KO">KO — Coca-Cola</option>
+      <option value="PEP">PEP — PepsiCo</option>
+      <option value="PG">PG — Procter &amp; Gamble</option>
+      <option value="JNJ">JNJ — Johnson &amp; Johnson</option>
+      <option value="UNH">UNH — UnitedHealth</option>
+      <option value="PFE">PFE — Pfizer</option>
+      <option value="LLY">LLY — Eli Lilly</option>
+      <option value="XOM">XOM — ExxonMobil</option>
+      <option value="CVX">CVX — Chevron</option>
+    </optgroup>
+    <optgroup label="ETFs / Index">
+      <option value="SPY">SPY — S&amp;P 500 ETF</option>
+      <option value="QQQ">QQQ — Nasdaq 100 ETF</option>
+      <option value="VTI">VTI — Total Market ETF</option>
+      <option value="IWM">IWM — Russell 2000 ETF</option>
+      <option value="DIA">DIA — Dow Jones ETF</option>
+      <option value="GLD">GLD — Gold ETF</option>
+      <option value="TLT">TLT — 20Y Treasury ETF</option>
+    </optgroup>
+    <optgroup label="Crypto">
+      <option value="BTC">BTC — Bitcoin</option>
+      <option value="ETH">ETH — Ethereum</option>
+      <option value="SOL">SOL — Solana</option>
+      <option value="XRP">XRP — Ripple</option>
+      <option value="USDT">USDT — Tether</option>
+      <option value="USDC">USDC — USD Coin</option>
+      <option value="BNB">BNB — Binance Coin</option>
+      <option value="DOGE">DOGE — Dogecoin</option>
+    </optgroup>
+  </template>
+  <datalist id="dl-countries">
+    <option value="US">United States</option><option value="GB">United Kingdom</option>
+    <option value="CA">Canada</option><option value="AU">Australia</option>
+    <option value="DE">Germany</option><option value="FR">France</option>
+    <option value="NL">Netherlands</option><option value="IE">Ireland</option>
+    <option value="CH">Switzerland</option><option value="SE">Sweden</option>
+    <option value="SG">Singapore</option><option value="HK">Hong Kong</option>
+    <option value="JP">Japan</option><option value="KR">South Korea</option>
+    <option value="IN">India</option><option value="CN">China</option>
+    <option value="BR">Brazil</option><option value="MX">Mexico</option>
+    <option value="AE">UAE</option><option value="ZA">South Africa</option>
+    <option value="NG">Nigeria</option><option value="RU">Russia (high-risk)</option>
+    <option value="IR">Iran (sanctioned)</option><option value="KP">North Korea (sanctioned)</option>
+    <option value="SY">Syria (sanctioned)</option><option value="CU">Cuba (sanctioned)</option>
+    <option value="VE">Venezuela (high-risk)</option><option value="AF">Afghanistan (high-risk)</option>
+  </datalist>
+  <datalist id="dl-currencies">
+    <option value="USD"><option value="EUR"><option value="GBP"><option value="JPY">
+    <option value="CNY"><option value="AUD"><option value="CAD"><option value="SGD">
+    <option value="INR"><option value="CHF"><option value="HKD"><option value="BRL">
+    <option value="MXN"><option value="ZAR"><option value="AED"><option value="RUB">
+  </datalist>
+
+  <!-- ──── TRANSACTION RISK ANALYSIS ──── -->
+  <div id="page-risk" class="page">
+    <h2 class="page-title">&#128176; Transaction Risk Analysis</h2>
+    <p class="page-desc">Record and score a transaction through the hybrid pipeline (Rules + ML + LLM). Scores ≥ 55 auto-open an investigation case.</p>
+
+    <div class="card">
+      <h3>Record &amp; Score a Transaction</h3>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio *</label>
+          <select id="risk-pid"><option value="">— Loading… —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Symbol *</label>
+          <select id="risk-symbol" class="symbol-picker"></select>
+        </div>
+
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" id="risk-amount" placeholder="50000" value="50000" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Transaction Type</label>
+          <select id="risk-type">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+            <option value="transfer">Transfer</option>
+            <option value="withdrawal">Withdrawal</option>
+            <option value="deposit">Deposit</option>
+            <option value="dividend">Dividend</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="risk-qty" value="1" step="0.0001">
+        </div>
+        <div class="form-group">
+          <label>Fees ($)</label>
+          <input type="number" id="risk-fees" value="0" step="0.01">
+        </div>
+
+        <div class="form-group">
+          <label>Asset Type</label>
+          <select id="risk-asset-type">
+            <option value="stock">Stock</option>
+            <option value="crypto">Crypto</option>
+            <option value="bond">Bond</option>
+            <option value="etf">ETF</option>
+            <option value="forex">Forex</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Currency</label>
+          <input type="text" id="risk-currency" list="dl-currencies" value="USD">
+        </div>
+
+        <div class="form-group">
+          <label>Sender Country</label>
+          <input type="text" id="risk-sender" list="dl-countries" value="US">
+        </div>
+        <div class="form-group">
+          <label>Receiver Country</label>
+          <input type="text" id="risk-receiver" list="dl-countries" value="US">
+        </div>
+
+        <div class="form-group">
+          <label>Channel</label>
+          <select id="risk-channel">
+            <option value="web">Web</option>
+            <option value="mobile">Mobile</option>
+            <option value="api">API</option>
+            <option value="wire">Wire</option>
+            <option value="atm">ATM</option>
+            <option value="branch">Branch</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Device Type</label>
+          <select id="risk-device">
+            <option value="desktop">Desktop</option>
+            <option value="mobile">Mobile</option>
+            <option value="tablet">Tablet</option>
+            <option value="api">API/Server</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Is New Payee?</label>
+          <select id="risk-new-payee"><option value="0">No</option><option value="1">Yes</option></select>
+        </div>
+        <div class="form-group">
+          <label>Account Age (days)</label>
+          <input type="number" id="risk-acct-age" value="365">
+        </div>
+
+        <div class="form-group">
+          <label>Customer Avg Txn ($)</label>
+          <input type="number" id="risk-avg-txn" value="5000" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Txn Count (30d)</label>
+          <input type="number" id="risk-txn-count" value="10">
+        </div>
+
+        <div class="form-group">
+          <label>Failed Logins (24h)</label>
+          <input type="number" id="risk-failed-logins" value="0">
+        </div>
+        <div class="form-group">
+          <label>IP Country Match</label>
+          <select id="risk-ip-match"><option value="1">Yes</option><option value="0">No</option></select>
+        </div>
+
+        <div class="form-group">
+          <label>PEP Flag</label>
+          <select id="risk-pep"><option value="0">No</option><option value="1">Yes</option></select>
+        </div>
+        <div class="form-group">
+          <label>Is Sanctioned Country</label>
+          <select id="risk-sanctioned"><option value="0">No</option><option value="1">Yes</option></select>
+        </div>
+
+        <div class="form-group full">
+          <label>Notes</label>
+          <input type="text" id="risk-notes" placeholder="Optional note on this transaction">
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-danger" onclick="scoreRisk()">&#9888;&#65039; Record &amp; Score</button>
+        <button class="btn btn-secondary" onclick="loadSuspiciousTxn()">Load Suspicious Example</button>
+        <button class="btn btn-secondary" onclick="loadPortfoliosForRisk()">Refresh Portfolios</button>
+      </div>
+      <div id="risk-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── AI ANALYSIS ──── -->
+  <div id="page-analysis" class="page">
+    <h2 class="page-title">&#129302; AI Analysis</h2>
+    <p class="page-desc">Run the full 9-agent CrewAI pipeline on a portfolio</p>
+
+    <div class="card">
+      <h3>Full Portfolio Analysis</h3>
+      <p style="color:var(--text2);font-size:.85rem;margin-bottom:16px">
+        This runs all 9 agents sequentially: Alert Intake → Customer Context → Risk Assessment → Explanation → Escalation → Portfolio Analysis → Risk Detection → Market Intelligence → Compliance.
+        <strong style="color:var(--orange)">This may take 1-3 minutes.</strong>
+      </p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="ai-pid" placeholder="1" value="1">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btn-analyze" onclick="runAnalysis()">&#129302; Run Full AI Analysis</button>
+        <button class="btn btn-secondary" id="btn-analyze-stop" onclick="stopAnalysis()" style="display:none">⏹ Stop</button>
+      </div>
+      <div id="ai-think"></div>
+      <div id="ai-result"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <h3>Quick Recommendation</h3>
+      <p style="color:var(--text2);font-size:.85rem;margin-bottom:16px">Get an AI-powered investment recommendation for a specific symbol.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="rec-pid" value="1" onchange="loadPortfolioSymbols()">
+        </div>
+        <div class="form-group">
+          <label>Symbol</label>
+          <select id="rec-symbol">
+            <option value="">— Select a symbol —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Risk Profile</label>
+          <select id="rec-risk">
+            <option value="conservative">Conservative</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="getRecommendation()">Get Recommendation</button>
+      </div>
+      <div id="rec-think"></div>
+      <div id="rec-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── ALERTS ──── -->
+  <div id="page-alerts" class="page">
+    <h2 class="page-title">&#128276; Alerts</h2>
+    <p class="page-desc">View and manage risk alerts for your portfolios</p>
+
+    <div class="card">
+      <h3>View Alerts</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="alert-pid" value="1">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="loadAlerts()">Load Alerts</button>
+        <button class="btn btn-secondary" onclick="showPage('alert-create')">&#43; Create Alert</button>
+      </div>
+      <div id="alert-list"></div>
+    </div>
+  </div>
+
+  <!-- ──── CREATE ALERT ──── -->
+  <div id="page-alert-create" class="page">
+    <h2 class="page-title">Create Alert</h2>
+    <p class="page-desc">Set up a new alert for a portfolio</p>
+
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Portfolio ID</label>
+          <input type="number" id="ca-pid" value="1">
+        </div>
+        <div class="form-group">
+          <label>Alert Type</label>
+          <select id="ca-type">
+            <option value="price_alert">Price Alert</option>
+            <option value="risk_threshold">Risk Threshold</option>
+            <option value="ml_risk_detection">ML Risk Detection</option>
+            <option value="compliance_violation">Compliance Violation</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Symbol</label>
+          <input type="text" id="ca-symbol" placeholder="AAPL">
+        </div>
+        <div class="form-group">
+          <label>Target Price ($)</label>
+          <input type="number" id="ca-target" step="0.01" placeholder="200.00">
+        </div>
+        <div class="form-group">
+          <label>Threshold (%)</label>
+          <input type="number" id="ca-threshold" step="0.01" placeholder="5.0">
+        </div>
+        <div class="form-group full">
+          <label>Message</label>
+          <textarea id="ca-message" placeholder="Alert message..."></textarea>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="createAlert()">Create Alert</button>
+        <button class="btn btn-secondary" onclick="showPage('alerts')">&#8592; Back</button>
+      </div>
+      <div id="ca-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── SEARCH ──── -->
+  <div id="page-search" class="page">
+    <h2 class="page-title">&#128269; Knowledge Search</h2>
+    <p class="page-desc">Semantic search over past analyses, risks, and market data stored in ChromaDB</p>
+
+    <div class="card">
+      <h3>Search</h3>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Search Query</label>
+          <input type="text" id="search-query" placeholder="e.g. high-risk technology stocks, portfolio diversification issues...">
+        </div>
+        <div class="form-group">
+          <label>Search In</label>
+          <select id="search-type">
+            <option value="analyses">Past Analyses</option>
+            <option value="risks">Risk Assessments</option>
+            <option value="market">Market Intelligence</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Portfolio ID (optional)</label>
+          <input type="number" id="search-pid" placeholder="Any">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="runSearch()">&#128269; Search</button>
+      </div>
+      <div id="search-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── SENTIMENT ──── -->
+  <div id="page-sentiment" class="page">
+    <h2 class="page-title">&#128202; Market Sentiment</h2>
+    <p class="page-desc">Get AI-powered market sentiment analysis for any symbol</p>
+
+    <div class="card">
+      <h3>Sentiment Analysis</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Symbol</label>
+          <select id="sent-symbol" class="symbol-picker"></select>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="getSentiment()">Analyze Sentiment</button>
+      </div>
+      <div id="sent-think"></div>
+      <div id="sent-result"></div>
+    </div>
+  </div>
+
+  <!-- ──── CASES ──── -->
+  <div id="page-cases" class="page">
+    <h2 class="page-title">&#128196; Case Queue</h2>
+    <p class="page-desc">Investigation queue for flagged transactions. Cases auto-open when a transaction scores ≥ 55.</p>
+
+    <div class="card">
+      <div class="btn-group" style="margin-bottom:8px">
+        <input type="password" id="cases-token" placeholder="Bearer token (optional — if AUTH_ENFORCED is on)" style="flex:1;min-width:260px;padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee">
+        <button class="btn btn-secondary" onclick="saveToken()">Save Token</button>
+      </div>
+      <div class="btn-group">
+        <select id="cases-state" style="padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee">
+          <option value="">All states</option>
+          <option value="open" selected>Open only</option>
+          <option value="new">new</option>
+          <option value="under_review">under_review</option>
+          <option value="escalated">escalated</option>
+          <option value="closed_cleared">closed_cleared</option>
+          <option value="closed_sar_filed">closed_sar_filed</option>
+          <option value="closed_false_positive">closed_false_positive</option>
+        </select>
+        <select id="cases-assignee" style="padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee">
+          <option value="">Anyone</option>
+          <option value="me">Assigned to me</option>
+          <option value="unassigned">Unassigned</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadCases()">Refresh</button>
+      </div>
+      <div id="cases-list" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card" id="case-detail-card" style="display:none">
+      <h3 id="case-detail-title">Case</h3>
+      <div id="case-detail-body"></div>
+
+      <h4 style="margin-top:14px">State transitions</h4>
+      <div class="btn-group" style="flex-wrap:wrap" id="case-detail-actions"></div>
+
+      <h4 style="margin-top:14px">Re-run AI analysis</h4>
+      <div class="btn-group" style="flex-wrap:wrap">
+        <button class="btn btn-secondary" id="case-btn-risk"           onclick="analyzeCase('risk')">Risk reassessment</button>
+        <button class="btn btn-secondary" id="case-btn-compliance"     onclick="analyzeCase('compliance')">Compliance review</button>
+        <button class="btn btn-secondary" id="case-btn-portfolio"      onclick="analyzeCase('portfolio')">Portfolio review</button>
+        <button class="btn btn-secondary" id="case-btn-recommendation" onclick="analyzeCase('recommendation')">Lightweight recommendation</button>
+        <span id="case-analyze-status" style="color:#888;margin-left:8px"></span>
+      </div>
+      <div id="case-think" style="margin-top:12px"></div>
+      <div id="case-analyze-result" style="margin-top:8px"></div>
+
+      <h4 style="margin-top:14px">Customer 360</h4>
+      <div id="case-customer-360"><em style="color:#888">Loading…</em></div>
+
+      <div style="margin-top:12px">
+        <textarea id="case-note-body" placeholder="Add a note…" style="width:100%;min-height:70px;padding:8px;border:1px solid #334;border-radius:6px;background:#111;color:#eee"></textarea>
+        <div class="btn-group" style="margin-top:6px">
+          <button class="btn btn-secondary" onclick="addCaseNote()">Add note</button>
+          <button class="btn btn-secondary" onclick="exportSar('json')">Export SAR (JSON)</button>
+          <button class="btn btn-secondary" onclick="exportSar('pdf')">Export SAR (PDF)</button>
+        </div>
+      </div>
+      <h4 style="margin-top:14px">Timeline</h4>
+      <div id="case-timeline" class="md"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════ TOAST ═══════ -->
+<div id="toast" class="toast"></div>
+
+<script>
+const API = '/api';
+
+// ── Navigation ──
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.sidebar nav button').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.sidebar nav button');
+  btns.forEach(b => { if (b.textContent.toLowerCase().includes(name.split('-')[0]) || b.getAttribute('onclick')?.includes(name)) b.classList.add('active'); });
+  if (name === 'risk' && typeof loadPortfoliosForRisk === 'function') {
+    loadPortfoliosForRisk();
+    populateSymbolPickers();
+  }
+  if (name === 'portfolios' && typeof populateSymbolPickers === 'function') populateSymbolPickers();
+  if (name === 'sentiment' && typeof populateSymbolPickers === 'function') populateSymbolPickers();
+  if (name === 'analysis' && typeof loadPortfolioSymbols === 'function') loadPortfolioSymbols();
+}
+
+function switchTab(btn, tabId) {
+  const bar = btn.closest('.page');
+  bar.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  bar.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// ── Toast ──
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast toast-' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── API helper ──
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const tok = localStorage.getItem('finguard_token');
+  if (tok) opts.headers['Authorization'] = 'Bearer ' + tok;
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function resultHtml(el, html, cls='success') {
+  document.getElementById(el).innerHTML = `<div class="result-box ${cls}">${html}</div>`;
+}
+
+function setThinkingNotice(el, message) {
+  const host = document.getElementById(el);
+  if (!host) return;
+  host.innerHTML = `<div class="result-box info">${escapeHtml(message)}</div>`;
+}
+
+// ── Reusable SSE consumer ────────────────────────────────────────────────────
+// Renders live thinking blocks in `thinkEl`, resolves with result data.
+// Usage: const data = await consumeSSE('/api/portfolio/1/analyze/stream/<id>', 'ai-think');
+function consumeSSE(streamUrl, thinkEl) {
+  return new Promise((resolve, reject) => {
+    let _settled = false;
+    function _resolve(v) { if (!_settled) { _settled = true; resolve(v); } }
+    function _reject(e)  { if (!_settled) { _settled = true; reject(e);  } }
+
+    const container = document.getElementById(thinkEl);
+    let showThinking = true;
+    let blockId = 0;
+
+    function renderToggle() {
+      const existing = container.querySelector('.think-toggle');
+      if (!existing) {
+        const toggle = document.createElement('div');
+        toggle.className = 'think-toggle';
+        toggle.innerHTML = `<span class="live-pill" id="${thinkEl}-pill">● live</span>
+          <button class="think-toggle-btn" onclick="(function(){
+            var s=document.getElementById('${thinkEl}-stream');
+            if(s){var hidden=s.style.display==='none';s.style.display=hidden?'':'none';this.textContent=hidden?'Hide thinking':'Show thinking';}
+          }).call(this)">Hide thinking</button>`;
+        container.prepend(toggle);
+      }
+    }
+
+    function ensureStream() {
+      let s = document.getElementById(`${thinkEl}-stream`);
+      if (!s) {
+        s = document.createElement('div');
+        s.id = `${thinkEl}-stream`;
+        s.className = 'think-stream';
+        container.appendChild(s);
+      }
+      return s;
+    }
+
+    function addCrewDivider(msg, done=false) {
+      renderToggle();
+      const s = ensureStream();
+      const d = document.createElement('div');
+      d.className = 'crew-divider' + (done ? ' done' : '');
+      d.textContent = done
+        ? `✓ Crew ${msg.crew}: ${msg.name} completed`
+        : `── Crew ${msg.crew}: ${msg.name} started · agents: ${(msg.agents||[]).join(', ')} ──`;
+      s.appendChild(d);
+    }
+
+    function addThinkBlock(agent, thought, isLive) {
+      renderToggle();
+      const s = ensureStream();
+      blockId++;
+      const bid = `think-blk-${thinkEl}-${blockId}`;
+      const div = document.createElement('div');
+      div.id = bid;
+      div.className = 'think-block ' + (isLive ? 'live' : 'done');
+      div.innerHTML = `
+        <button class="think-header" onclick="(function(b){
+          var body=document.getElementById(b+'-body');
+          var chev=document.getElementById(b+'-chev');
+          var open=body.style.display!=='none';
+          body.style.display=open?'none':'block';
+          chev.textContent=open?'▼':'▲';
+        })('${bid}')">
+          <span class="think-dot"></span>
+          <span class="think-agent">${escapeHtml(agent)}</span>
+          <span class="think-label">${isLive ? 'thinking…' : 'thought for a moment'}</span>
+          <span class="think-chevron" id="${bid}-chev">▲</span>
+        </button>
+        <div class="think-body" id="${bid}-body">
+          <pre>${escapeHtml(thought)}</pre>
+        </div>`;
+      s.appendChild(div);
+      return div;
+    }
+
+    function markBlockDone(div) {
+      div.className = 'think-block done';
+      const lbl = div.querySelector('.think-label');
+      if (lbl) lbl.textContent = 'thought for a moment';
+    }
+
+    let lastBlock = null;
+    const es = new EventSource(streamUrl);
+
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'heartbeat') return;
+
+        if (msg.type === 'crew_start') {
+          if (lastBlock) markBlockDone(lastBlock);
+          lastBlock = null;
+          addCrewDivider(msg.data, false);
+        }
+
+        if (msg.type === 'agent_thinking') {
+          if (lastBlock) markBlockDone(lastBlock);
+          lastBlock = addThinkBlock(msg.data.agent, msg.data.thought, true);
+          // scroll into view
+          lastBlock.scrollIntoView({behavior:'smooth',block:'nearest'});
+        }
+
+        if (msg.type === 'crew_done') {
+          if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
+          addCrewDivider(msg.data, true);
+        }
+
+        if (msg.type === 'result') {
+          if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
+          es.close();
+          const pill = document.getElementById(`${thinkEl}-pill`);
+          if (pill) { pill.style.background='rgba(34,197,94,.1)'; pill.style.borderColor='rgba(34,197,94,.3)'; pill.style.color='var(--green)'; pill.textContent='✓ done'; }
+          _resolve(msg.data);
+        }
+
+        if (msg.type === 'error') {
+          if (lastBlock) { markBlockDone(lastBlock); lastBlock = null; }
+          es.close();
+          _reject(new Error(msg.data.message || 'Analysis error'));
+        }
+
+        if (msg.type === 'done') {
+          es.close();
+          // Stream ended without a result — surface a clear error instead of hanging
+          _reject(new Error('Agent service returned no result. Make sure agent-service is running: python3 agent-service/app.py'));
+        }
+      } catch {}
+    };
+
+    es.onerror = () => { es.close(); _reject(new Error('Stream connection lost')); };
+  });
+}
+
+function loadingHtml(el) {
+  document.getElementById(el).innerHTML = `<div class="result-box info"><span class="spinner"></span> Loading...</div>`;
+}
+
+function riskBadge(label) {
+  return `<span class="risk-badge risk-${label}">${label.toUpperCase()}</span>`;
+}
+
+function jsonBlock(obj) {
+  return `<pre style="background:#0b1120;border:1px solid var(--border);border-radius:6px;padding:12px;margin:8px 0;overflow-x:auto;font-family:ui-monospace,Menlo,monospace;font-size:.78rem;color:#cbd5e1;white-space:pre">${escapeHtml(JSON.stringify(obj, null, 2))}</pre>`;
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Markdown renderer (light) ──
+// Normalizes literal `\n` escape sequences and renders headers, bold, italics,
+// bullets, horizontal rules, code/pre, and paragraphs into clean HTML.
+function renderMarkdown(raw) {
+  if (raw == null) return '';
+  let text = String(raw);
+
+  // If the text came through with literal `\n` / `\t` escape sequences
+  // (e.g. from a JSON round-trip), turn them back into real whitespace.
+  text = text.replace(/\\r\\n/g, '\n')
+             .replace(/\\n/g, '\n')
+             .replace(/\\t/g, '  ')
+             .replace(/\\"/g, '"');
+
+  // Extract fenced code blocks first so their contents aren't touched.
+  const codeBlocks = [];
+  text = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+    codeBlocks.push(code.replace(/^\n/, '').replace(/\n$/, ''));
+    return `§§CODE${codeBlocks.length - 1}§§`;
+  });
+
+  // Escape everything; we re-insert structural HTML below.
+  text = escapeHtml(text);
+
+  // Inline formatting
+  text = text.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  text = text.replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+
+  // Block structure — walk line by line
+  const lines = text.split('\n');
+  const out = [];
+  let listOpen = false;
+  const closeList = () => { if (listOpen) { out.push('</ul>'); listOpen = false; } };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) { closeList(); out.push(''); continue; }
+
+    // Horizontal rule — "---" or a run of "─"
+    if (/^(-{3,}|─{3,}|═{3,})$/.test(trimmed)) {
+      closeList(); out.push('<hr>'); continue;
+    }
+
+    // Headers (ignore leading # inside already-escaped text)
+    const h = /^(#{1,4})\s+(.+)$/.exec(trimmed);
+    if (h) {
+      closeList();
+      const level = h[1].length;
+      out.push(`<h${level}>${h[2]}</h${level}>`);
+      continue;
+    }
+
+    // Section separator lines like "── Section ──"
+    const sep = /^[─=—]+\s*(.+?)\s*[─=—]+$/.exec(trimmed);
+    if (sep) { closeList(); out.push(`<h4>${sep[1]}</h4>`); continue; }
+
+    // Bullets: "- ", "* ", "• "
+    if (/^[-*•]\s+/.test(trimmed)) {
+      if (!listOpen) { out.push('<ul>'); listOpen = true; }
+      out.push(`<li>${trimmed.replace(/^[-*•]\s+/, '')}</li>`);
+      continue;
+    }
+
+    // Numbered list — render as bullets (keeps the number in text)
+    if (/^\d+\.\s+/.test(trimmed)) {
+      if (!listOpen) { out.push('<ul>'); listOpen = true; }
+      out.push(`<li>${trimmed}</li>`);
+      continue;
+    }
+
+    closeList();
+    out.push(`<p>${line}</p>`);
+  }
+  closeList();
+
+  let html = out.join('\n');
+
+  // Restore fenced code blocks
+  html = html.replace(/§§CODE(\d+)§§/g, (_, idx) =>
+    `<pre>${escapeHtml(codeBlocks[+idx])}</pre>`);
+
+  // Collapse runs of empty paragraphs
+  html = html.replace(/(<p><\/p>\s*){2,}/g, '<p></p>');
+
+  return `<div class="md">${html}</div>`;
+}
+
+// ── Metadata pill row (for analysis/recommendation headers) ──
+function metaRow(pills) {
+  const items = pills.filter(Boolean).map(p =>
+    `<span class="meta-pill ${p.tone || ''}">${escapeHtml(p.label)}</span>`
+  ).join('');
+  return items ? `<div class="meta-row">${items}</div>` : '';
+}
+
+function fmtTimestamp(iso) {
+  try { return new Date(iso).toLocaleString(); } catch { return iso || ''; }
+}
+
+// ── Dashboard ──
+async function loadDashboard() {
+  try {
+    const h = await api('/health');
+    document.getElementById('stat-health').textContent = h.status === 'healthy' ? '✅ Healthy' : '❌ Down';
+    document.getElementById('stat-health').style.fontSize = '1rem';
+  } catch { document.getElementById('stat-health').textContent = '❌'; }
+}
+loadDashboard();
+
+// ── Portfolio ──
+async function createPortfolio() {
+  loadingHtml('pf-result');
+  try {
+    const d = await api('/portfolio', 'POST', {
+      name: document.getElementById('pf-name').value,
+      initial_investment: +document.getElementById('pf-investment').value,
+      user_id: document.getElementById('pf-user').value || undefined,
+    });
+    resultHtml('pf-result',
+      `<strong>✅ Portfolio Created!</strong>\n\n` +
+      `<strong>ID:</strong>        ${d.id}\n` +
+      `<strong>Name:</strong>      ${escapeHtml(d.name)}\n` +
+      `<strong>User ID:</strong>   ${d.user_id}\n` +
+      `<strong>Created:</strong>   ${d.created_at}`
+    );
+    toast('Portfolio created! ID: ' + d.id);
+  } catch(e) { resultHtml('pf-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+async function viewPortfolio() {
+  const id = document.getElementById('pf-view-id').value;
+  loadingHtml('pf-view-result');
+  try {
+    const d = await api('/portfolio/' + id);
+    resultHtml('pf-view-result',
+      `<strong>📋 Portfolio #${d.id}</strong>\n\n` +
+      `<strong>Name:</strong>          ${escapeHtml(d.name)}\n` +
+      `<strong>User ID:</strong>       ${d.user_id}\n` +
+      `<strong>Total Value:</strong>   $${Number(d.total_value).toLocaleString()}\n` +
+      `<strong>Cash Balance:</strong>  $${Number(d.cash_balance).toLocaleString()}\n` +
+      `<strong>Assets Count:</strong>  ${d.assets_count}\n` +
+      `<strong>Created:</strong>       ${d.created_at}\n` +
+      `<strong>Updated:</strong>       ${d.updated_at}`
+    );
+  } catch(e) { resultHtml('pf-view-result', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function viewAssets() {
+  const id = document.getElementById('pf-view-id').value;
+  loadingHtml('pf-view-result');
+  try {
+    const d = await api('/portfolio/' + id + '/assets');
+    if (!d.assets.length) { resultHtml('pf-view-result', 'No assets found. Add some first!', 'info'); return; }
+    let html = '<table><tr><th>Symbol</th><th>Name</th><th>Qty</th><th>Buy Price</th><th>Current</th><th>Value</th><th>P&L</th><th>Return</th><th>Type</th></tr>';
+    d.assets.forEach(a => {
+      const color = a.gain_loss >= 0 ? 'var(--green)' : 'var(--red)';
+      html += `<tr>
+        <td><strong>${escapeHtml(a.symbol)}</strong></td>
+        <td>${escapeHtml(a.name||'')}</td>
+        <td>${a.quantity}</td>
+        <td>$${Number(a.purchase_price).toFixed(2)}</td>
+        <td>$${Number(a.current_price).toFixed(2)}</td>
+        <td>$${Number(a.current_value).toLocaleString()}</td>
+        <td style="color:${color}">${a.gain_loss >= 0 ? '+' : ''}$${Number(a.gain_loss).toFixed(2)}</td>
+        <td style="color:${color}">${a.return_percent >= 0 ? '+' : ''}${Number(a.return_percent).toFixed(2)}%</td>
+        <td>${a.asset_type}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    document.getElementById('pf-view-result').innerHTML = `<div style="overflow-x:auto;margin-top:12px">${html}</div>`;
+  } catch(e) { resultHtml('pf-view-result', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function viewTransactions() {
+  const id = document.getElementById('pf-view-id').value;
+  loadingHtml('pf-view-result');
+  try {
+    const d = await api('/portfolio/' + id + '/transactions');
+    if (!d.transactions.length) { resultHtml('pf-view-result', 'No transactions found.', 'info'); return; }
+    let html = '<table><tr><th>ID</th><th>Symbol</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th><th>Fees</th><th>Date</th></tr>';
+    d.transactions.forEach(t => {
+      const color = t.type === 'buy' ? 'var(--green)' : 'var(--red)';
+      html += `<tr>
+        <td>#${t.id}</td>
+        <td><strong>${escapeHtml(t.symbol)}</strong></td>
+        <td style="color:${color}">${t.type.toUpperCase()}</td>
+        <td>${t.quantity}</td>
+        <td>$${Number(t.price).toFixed(2)}</td>
+        <td>$${Number(t.total_amount).toLocaleString()}</td>
+        <td>$${Number(t.fees||0).toFixed(2)}</td>
+        <td>${new Date(t.timestamp).toLocaleString()}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    document.getElementById('pf-view-result').innerHTML = `<div style="overflow-x:auto;margin-top:12px">${html}</div>`;
+  } catch(e) { resultHtml('pf-view-result', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function addAsset() {
+  loadingHtml('asset-result');
+  try {
+    const pid = document.getElementById('asset-pid').value;
+    const d = await api('/portfolio/' + pid + '/asset', 'POST', {
+      symbol:         document.getElementById('asset-symbol').value,
+      name:           document.getElementById('asset-name').value,
+      quantity:       +document.getElementById('asset-qty').value,
+      purchase_price: +document.getElementById('asset-price').value,
+      current_price:  +document.getElementById('asset-current').value,
+      asset_type:     document.getElementById('asset-type').value,
+      sector:         document.getElementById('asset-sector').value,
+    });
+    resultHtml('asset-result',
+      `<strong>✅ Asset Added!</strong>\n\n` +
+      `<strong>ID:</strong>     ${d.id}\n` +
+      `<strong>Symbol:</strong> ${escapeHtml(d.symbol)}\n` +
+      `<strong>Qty:</strong>    ${d.quantity}`
+    );
+    toast('Asset added: ' + d.symbol);
+  } catch(e) { resultHtml('asset-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Transaction Risk Analysis ──
+// Loads portfolios into the risk form dropdown.
+async function loadPortfoliosForRisk() {
+  const sel = document.getElementById('risk-pid');
+  if (!sel) return;
+  try {
+    const resp = await api('/portfolios');
+    const list = Array.isArray(resp) ? resp : (resp.portfolios || []);
+    if (list.length === 0) {
+      sel.innerHTML = '<option value="">— No portfolios, create one first —</option>';
+      return;
+    }
+    sel.innerHTML = list.map(p =>
+      `<option value="${p.id}">#${p.id} — ${escapeHtml(p.name || 'Portfolio')} (user ${escapeHtml(String(p.user_id))})</option>`
+    ).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="">— Failed to load portfolios —</option>';
+    toast('Could not load portfolios: ' + e.message, 'error');
+  }
+}
+
+// Populate all symbol picker selects with options from template
+async function populateSymbolPickers() {
+  const template = document.getElementById('tpl-symbol-options');
+  if (!template) return;
+  
+  const pickers = document.querySelectorAll('.symbol-picker');
+  if (pickers.length === 0) return;
+  
+  try {
+    // Get HTML from template
+    let templateHtml = template.innerHTML;
+    
+    // Populate each picker with the template content
+    pickers.forEach(picker => {
+      // Only populate if empty
+      if (picker.options.length <= 1) {
+        picker.innerHTML = templateHtml;
+        picker.parentElement.style.cursor = 'pointer';
+      }
+    });
+  } catch(e) {
+    console.warn('Failed to populate symbol pickers:', e.message);
+    // Fallback: Add basic options manually
+    const basicSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'JPM', 'JNJ', 'WMT', 'PFE'];
+    pickers.forEach(picker => {
+      if (picker.options.length <= 1) {
+        basicSymbols.forEach(sym => {
+          const opt = document.createElement('option');
+          opt.value = sym;
+          opt.textContent = sym;
+          picker.appendChild(opt);
+        });
+      }
+    });
+  }
+}
+
+new MutationObserver(() => {
+  // When DOM changes, ensure symbol pickers are still populated
+  const pickers = document.querySelectorAll('.symbol-picker:not([data-populated])');
+  if (pickers.length > 0) {
+    const template = document.getElementById('tpl-symbol-options');
+    if (template) {
+      pickers.forEach(picker => {
+        if (picker.options.length <= 1) {
+          picker.innerHTML = template.innerHTML;
+          picker.setAttribute('data-populated', 'true');
+        }
+      });
+    }
+  }
+}).observe(document.body, { childList: true, subtree: true });
+
+
+async function scoreRisk() {
+  loadingHtml('risk-result');
+  try {
+    const pid = document.getElementById('risk-pid').value;
+    if (!pid) { resultHtml('risk-result', '❌ Select a portfolio first', 'error'); return; }
+
+    const amount = +document.getElementById('risk-amount').value;
+    const qty    = +document.getElementById('risk-qty').value || 1;
+    // Derive price so quantity * price ≈ amount (keeps ledger consistent).
+    const price  = qty > 0 ? amount / qty : amount;
+
+    const payload = {
+      symbol:                    document.getElementById('risk-symbol').value,
+      type:                      document.getElementById('risk-type').value,
+      quantity:                  qty,
+      price:                     price,
+      fees:                      +document.getElementById('risk-fees').value || 0,
+      notes:                     document.getElementById('risk-notes').value || undefined,
+      asset_type:                document.getElementById('risk-asset-type').value,
+      currency:                  document.getElementById('risk-currency').value,
+      sender_country:            document.getElementById('risk-sender').value,
+      receiver_country:          document.getElementById('risk-receiver').value,
+      channel:                   document.getElementById('risk-channel').value,
+      device_type:               document.getElementById('risk-device').value,
+      is_new_payee:              +document.getElementById('risk-new-payee').value,
+      account_age_days:          +document.getElementById('risk-acct-age').value,
+      customer_avg_txn_amount:   +document.getElementById('risk-avg-txn').value,
+      customer_txn_count_30d:    +document.getElementById('risk-txn-count').value,
+      failed_login_attempts_24h: +document.getElementById('risk-failed-logins').value,
+      ip_country_match:          +document.getElementById('risk-ip-match').value,
+      pep_flag:                  +document.getElementById('risk-pep').value,
+      is_sanctioned_country:     +document.getElementById('risk-sanctioned').value,
+    };
+
+    const d = await api('/portfolio/' + pid + '/transaction', 'POST', payload);
+    const r = d.risk || {};
+    const score = r.risk_score;
+    const tone  = score >= 55 ? 'error' : 'success';
+
+    let html = `<strong>✅ Transaction Recorded</strong>\n\n` +
+      `  Txn ID:         #${d.id}\n` +
+      `  Symbol:         ${escapeHtml(d.symbol)}\n` +
+      `  Type:           ${d.type}\n` +
+      `  Amount:         $${Number(d.amount).toLocaleString()}\n` +
+      `  Time:           ${new Date(d.timestamp).toLocaleString()}\n`;
+
+    if (r && score != null) {
+      html += `\n── Hybrid Risk Assessment ─────────────\n` +
+        `  Score:          <strong style="font-size:1.5rem;color:${score >= 55 ? 'var(--red)' : score >= 30 ? 'var(--orange)' : 'var(--green)'}">${score}/100</strong>  ${riskBadge(r.risk_label)}\n` +
+        `  Method:         ${r.method}\n` +
+        `  Hard Block:     ${r.hard_block ? '🚫 YES — Transaction blocked' : '✅ No'}\n` +
+        `  LLM Review:     ${r.needs_llm_review ? '⚠️ Yes — Borderline score' : 'No'}\n` +
+        `  Flags:          ${r.flags?.length ? r.flags.join(', ') : 'None'}\n`;
+
+      if (r.case_id) {
+        html += `  Case Opened:    <strong>#${r.case_id}</strong> — <a href="#" onclick="showPage('cases');loadCases();return false;">View in Cases</a>\n`;
+      }
+
+      if (r.rule_details) {
+        html += `\n── Rule Engine Details ─────────────\n` +
+          `  Rule Score:     ${r.rule_details.rule_score}/100\n` +
+          `  Rule Flags:     ${r.rule_details.flags?.length ? r.rule_details.flags.join(', ') : 'None'}\n`;
+        if (r.rule_details.details) {
+          Object.entries(r.rule_details.details).forEach(([k,v]) => {
+            if (v) html += `  ${k}: ${v}\n`;
+          });
+        }
+      }
+
+      if (r.ml_details) {
+        const ml = r.ml_details;
+        const anomaly = ml.ml_anomaly_score != null ? Number(ml.ml_anomaly_score) : 0;
+        // fraud_flag is IsolationForest -1 output; only significant if anomaly >= 0.10
+        const fraudSignificant = ml.ml_fraud_flag && anomaly >= 0.10;
+        const fraudDisplay = ml.ml_fraud_flag
+          ? (fraudSignificant ? '🚨 YES (significant anomaly)' : '⚠️ YES (weak signal, below threshold)')
+          : '✅ No';
+        html += `\n── ML Model Details ─────────────\n` +
+          `  ML Risk Score:    ${ml.ml_risk_score ?? 'N/A'}\n` +
+          `  ML Risk Label:    ${ml.ml_risk_label ?? 'N/A'}\n` +
+          `  Fraud Flag:       ${fraudDisplay}\n` +
+          `  Anomaly Score:    ${anomaly > 0 ? anomaly.toFixed(4) : 'N/A'}\n` +
+          `  Confidence:       ${ml.ml_confidence != null ? (Number(ml.ml_confidence)*100).toFixed(1)+'%' : 'N/A'}`;
+      }
+    } else {
+      html += `\n<em>Risk engine unavailable — transaction was recorded but not scored.</em>`;
+    }
+
+    resultHtml('risk-result', html, tone);
+    toast(
+      score != null
+        ? `Recorded #${d.id} — Risk ${score}/100 (${r.risk_label})${r.case_id ? ` — Case #${r.case_id}` : ''}`
+        : `Recorded #${d.id}`,
+      tone
+    );
+
+    // Append AI analysis section inside the result box (SSE-driven)
+    if (r && score != null) {
+      const rr = document.getElementById('risk-result');
+      const aiWrap = document.createElement('div');
+      aiWrap.style.cssText = 'margin-top:16px;border-top:1px solid rgba(71,85,105,.4);padding-top:12px';
+      aiWrap.innerHTML = `
+        <div class="meta-row"><span class="meta-pill">🤖 AI Agent Analysis</span><span class="meta-pill" style="background:rgba(56,189,248,.06)">⏳ thinking…</span></div>
+        <div id="txn-think"></div>
+        <div id="txn-ai-result"></div>`;
+      rr.appendChild(aiWrap);
+
+      getTransactionAIInsights(
+        { risk_score: score, rule_details: r.rule_details || { details: {} } },
+        { amount, transaction_type: payload.type, asset_type: payload.asset_type, receiver_country: payload.receiver_country }
+      );
+    }
+  } catch(e) { resultHtml('risk-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── AI Insights for Transaction (SSE-driven) ──
+async function getTransactionAIInsights(scoreData, transactionData) {
+  const aiResultEl = document.getElementById('txn-ai-result');
+  try {
+    setThinkingNotice(
+      'txn-think',
+      'Live agent streaming is not available in the current backend yet. Showing the final AI explanation once it returns.'
+    );
+    const d = await api('/transaction/get-ai-insights', 'POST', {
+      transaction: transactionData,
+      score: scoreData.risk_score,
+      factors: scoreData.rule_details.details || {}
+    });
+
+    // Remove the "thinking…" pill from the header
+    const thinkPill = document.querySelector('#risk-result .meta-pill[style*="thinking"]');
+    if (thinkPill) thinkPill.remove();
+
+    if (d.blocked) {
+      if (aiResultEl) aiResultEl.innerHTML =
+        `<div class="callout warn">🛡️ Guardrail blocked this input — ${escapeHtml(d.reason || 'policy violation')}</div>`;
+      return;
+    }
+
+    const body = renderMarkdown(d.insights || d.explanation || '');
+    const fallback = d.success === false
+      ? `<div class="callout warn">Limited AI service — the analysis above is rule-based.</div>` : '';
+    if (aiResultEl) aiResultEl.innerHTML = `<div class="md">${body}${fallback}</div>`;
+
+  } catch(e) {
+    console.log('AI insights error:', e.message);
+    if (aiResultEl) aiResultEl.innerHTML =
+      `<div style="color:var(--text2);font-size:.8rem;padding:8px 0">⚠️ AI analysis unavailable: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// Format AI-generated insight/recommendation/sentiment text as rich markdown
+function formatAIInsights(insightsText, isSuccess) {
+  const body = renderMarkdown(insightsText);
+  const header = `<div class="meta-row"><span class="meta-pill">🤖 AI Agent Analysis</span>${isSuccess === false ? '<span class="meta-pill orange">Fallback mode</span>' : ''}</div>`;
+  const footer = isSuccess === false
+    ? `<div class="callout warn">Limited AI service — the analysis above is rule-based.</div>`
+    : '';
+  return header + body + footer;
+}
+
+
+function loadSuspiciousTxn() {
+  document.getElementById('risk-amount').value = 950000;
+  document.getElementById('risk-type').value = 'transfer';
+  document.getElementById('risk-asset-type').value = 'crypto';
+  document.getElementById('risk-sender').value = 'IR';
+  document.getElementById('risk-receiver').value = 'KP';
+  document.getElementById('risk-currency').value = 'USD';
+  document.getElementById('risk-channel').value = 'wire';
+  document.getElementById('risk-device').value = 'mobile';
+  document.getElementById('risk-new-payee').value = '1';
+  document.getElementById('risk-acct-age').value = 15;
+  document.getElementById('risk-failed-logins').value = 5;
+  document.getElementById('risk-ip-match').value = '0';
+  document.getElementById('risk-pep').value = '1';
+  document.getElementById('risk-sanctioned').value = '1';
+  document.getElementById('risk-avg-txn').value = 500;
+  document.getElementById('risk-txn-count').value = 0;
+  toast('Loaded suspicious transaction example', 'error');
+}
+
+// ── AI Analysis ──
+let _analyzeES = null;
+function stopAnalysis() {
+  if (_analyzeES) { _analyzeES.close(); _analyzeES = null; }
+  toast('Stop is only available once live streaming is enabled.', 'info');
+  document.getElementById('btn-analyze').disabled = false;
+  document.getElementById('btn-analyze').innerHTML = '🤖 Run Full AI Analysis';
+  document.getElementById('btn-analyze-stop').style.display = 'none';
+}
+
+async function runAnalysis() {
+  const pid = document.getElementById('ai-pid').value;
+  const btn = document.getElementById('btn-analyze');
+  const stopBtn = document.getElementById('btn-analyze-stop');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Starting agents…';
+  stopBtn.style.display = 'none';
+  document.getElementById('ai-think').innerHTML = '';
+  document.getElementById('ai-result').innerHTML = '';
+
+  try {
+    setThinkingNotice(
+      'ai-think',
+      'frontendv2 is running against the current direct-response backend. Live streaming is not available yet, so results will appear when the full analysis finishes.'
+    );
+    btn.innerHTML = '<span class="spinner"></span> Running 9 agents… (1-3 min)';
+    const d = await api('/portfolio/' + pid + '/analyze', 'POST');
+
+    let html = '';
+    const pills = [
+      { label: '✅ Analysis Complete', tone: 'green' },
+      d.portfolio_id != null ? { label: `Portfolio #${d.portfolio_id}` } : null,
+      d.agents_used ? { label: `${d.agents_used} agents` } : null,
+      d.crews_run ? { label: `${d.crews_run} crews run` } : null,
+      d.rate_limited ? { label: 'Rate limited', tone: 'orange' } : null,
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    html = metaRow(pills);
+    if (d.crew_output) {
+      html += renderMarkdown(d.crew_output);
+    } else if (Array.isArray(d.analysis_trace) && d.analysis_trace.length) {
+      const trace = d.analysis_trace.map((entry) => {
+        const parts = [
+          entry.label || entry.node || 'Step',
+          entry.agent ? `Agent: ${entry.agent}` : null,
+          entry.crew ? `Crew: ${entry.crew}` : null,
+          entry.status ? `Status: ${entry.status}` : null,
+        ].filter(Boolean);
+        return `- ${parts.join(' | ')}`;
+      }).join('\n');
+      html += renderMarkdown(`## Analysis Trace\n\n${trace}`);
+    } else {
+      const stringFields = Object.entries(d).filter(([, v]) => typeof v === 'string' && v.length > 60);
+      for (const [, v] of stringFields) html += renderMarkdown(v);
+      const leftover = Object.fromEntries(
+        Object.entries(d).filter(([k]) => !['crew_output','timestamp','portfolio_id','agents_used','crews_run','rate_limited'].includes(k))
+      );
+      if (Object.keys(leftover).length && !stringFields.length) html += jsonBlock(leftover);
+    }
+    document.getElementById('ai-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
+    toast('AI Analysis complete!');
+  } catch(e) {
+    let msg = e.message || 'Analysis failed';
+    if (msg.includes('rate limit') || msg.includes('429')) msg = 'Rate limit exceeded — please wait a moment and try again';
+    else if (msg.includes('API key') || msg.includes('401'))  msg = 'API authentication failed — check GROQ_API_KEY';
+    else if (msg.includes('Connection') || msg.includes('503')) msg = 'AI service temporarily unavailable — please try again later';
+    resultHtml('ai-result', `<div style="padding:16px;background:rgba(239,68,68,.1);border-left:4px solid #ef4444;border-radius:6px"><div style="color:#fca5a5;font-weight:600;margin-bottom:8px">⚠️ Analysis Failed</div><div style="color:#fee2e2;line-height:1.6">${escapeHtml(msg)}</div></div>`, 'error');
+    toast(msg, 'error');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🤖 Run Full AI Analysis';
+  stopBtn.style.display = 'none';
+}
+
+// Load portfolio symbols for recommendation
+async function loadPortfolioSymbols() {
+  const pid = document.getElementById('rec-pid').value;
+  const sel = document.getElementById('rec-symbol');
+  
+  if (!pid) {
+    sel.innerHTML = '<option value="">— Select a portfolio first —</option>';
+    return;
+  }
+  
+  try {
+    sel.innerHTML = '<option value="">— Loading symbols… —</option>';
+    const resp = await api('/portfolio/' + pid + '/assets');
+    const assets = resp.assets || [];
+    
+    if (assets.length === 0) {
+      sel.innerHTML = '<option value="">— No assets in this portfolio —</option>';
+      toast('Portfolio has no assets', 'info');
+      return;
+    }
+    
+    // Build options from portfolio assets
+    let html = '<option value="">— Select a symbol —</option>';
+    assets.forEach(asset => {
+      html += `<option value="${escapeHtml(asset.symbol)}">${escapeHtml(asset.symbol)} — ${escapeHtml(asset.name || asset.symbol)}</option>`;
+    });
+    
+    sel.innerHTML = html;
+    toast(`Loaded ${assets.length} symbols from portfolio`, 'success');
+  } catch(e) {
+    sel.innerHTML = '<option value="">— Failed to load symbols —</option>';
+    toast('Could not load portfolio assets: ' + e.message, 'error');
+  }
+}
+
+async function getRecommendation() {
+  const pid = document.getElementById('rec-pid').value;
+  const symbol = document.getElementById('rec-symbol').value;
+  if (!symbol) { resultHtml('rec-result', '❌ Please select a symbol first', 'error'); return; }
+  document.getElementById('rec-think').innerHTML = '';
+  document.getElementById('rec-result').innerHTML = '';
+  loadingHtml('rec-result');
+  try {
+    setThinkingNotice(
+      'rec-think',
+      'Live recommendation streaming is not available in the current backend yet. Showing the final recommendation when it returns.'
+    );
+    const d = await api('/portfolio/' + pid + '/recommendation', 'POST', {
+      symbol, risk_profile: document.getElementById('rec-risk').value,
+    });
+    document.getElementById('rec-result').innerHTML = '';
+    const pills = [
+      { label: '✅ Recommendation', tone: 'green' },
+      d.symbol ? { label: d.symbol } : null,
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    let html = metaRow(pills);
+    if (d.recommendation) html += renderMarkdown(d.recommendation);
+    else if (d.crew_output) html += renderMarkdown(d.crew_output);
+    else html += jsonBlock(d);
+    document.getElementById('rec-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
+    toast('Recommendation received!');
+  } catch(e) { resultHtml('rec-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Alerts ──
+async function loadAlerts() {
+  const pid = document.getElementById('alert-pid').value;
+  loadingHtml('alert-list');
+  try {
+    const d = await api('/portfolio/' + pid + '/alerts');
+    if (!d.alerts.length) { resultHtml('alert-list', 'No alerts found for this portfolio.', 'info'); return; }
+    let html = '<table><tr><th>ID</th><th>Type</th><th>Symbol</th><th>Message</th><th>Active</th><th>Triggered</th><th>Date</th></tr>';
+    d.alerts.forEach(a => {
+      const typeColor = a.type === 'ml_risk_detection' ? 'var(--red)' : 'var(--accent)';
+      html += `<tr>
+        <td>#${a.id}</td>
+        <td style="color:${typeColor}">${escapeHtml(a.type||'')}</td>
+        <td><strong>${escapeHtml(a.symbol||'-')}</strong></td>
+        <td style="max-width:300px;word-break:break-word;font-size:.8rem">${escapeHtml(a.message||'')}</td>
+        <td>${a.is_active ? '🟢 Active' : '⚪ Inactive'}</td>
+        <td>${a.triggered ? '🔔 Yes' : 'No'}</td>
+        <td>${new Date(a.created_at).toLocaleString()}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    document.getElementById('alert-list').innerHTML = `<div style="overflow-x:auto;margin-top:12px">${html}</div>`;
+    toast(`Loaded ${d.alerts.length} alerts`);
+  } catch(e) { resultHtml('alert-list', '❌ ' + escapeHtml(e.message), 'error'); }
+}
+
+async function createAlert() {
+  loadingHtml('ca-result');
+  try {
+    const pid = document.getElementById('ca-pid').value;
+    const d = await api('/portfolio/' + pid + '/alert', 'POST', {
+      alert_type:   document.getElementById('ca-type').value,
+      symbol:       document.getElementById('ca-symbol').value || undefined,
+      target_price: +document.getElementById('ca-target').value || undefined,
+      threshold:    +document.getElementById('ca-threshold').value || undefined,
+      message:      document.getElementById('ca-message').value || undefined,
+    });
+    resultHtml('ca-result',
+      `<strong>✅ Alert Created!</strong>\n\n` +
+      `<strong>ID:</strong>   #${d.id}\n` +
+      `<strong>Type:</strong> ${escapeHtml(d.alert_type)}\n` +
+      `<strong>Active:</strong> ${d.is_active ? 'Yes' : 'No'}`
+    );
+    toast('Alert created!');
+  } catch(e) { resultHtml('ca-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Search ──
+async function runSearch() {
+  const query = document.getElementById('search-query').value;
+  if (!query) { toast('Enter a search query', 'error'); return; }
+  const type  = document.getElementById('search-type').value;
+  const pid   = document.getElementById('search-pid').value || undefined;
+  const body  = { query };
+  if (pid) body.portfolio_id = +pid;
+
+  // Clear previous results and show a thinking container
+  const searchEl = document.getElementById('search-result');
+  searchEl.innerHTML = '<div id="search-think"></div><div id="search-status" class="result-box info"><span class="spinner"></span> Searching…</div>';
+
+  try {
+    setThinkingNotice(
+      'search-think',
+      'Search currently returns direct results from the backend. Live thinking blocks will appear here once streaming search is added.'
+    );
+    const d = await api('/search/' + type, 'POST', body);
+    // remove the loading box, keep the thinking container
+    const statusEl = document.getElementById('search-status');
+    if (statusEl) statusEl.remove();
+
+    if (!d.results || !d.results.length) {
+      const noResult = document.createElement('div');
+      noResult.className = 'result-box info';
+      noResult.textContent = 'No results found. Try a different query or run an AI analysis first to populate the knowledge base.';
+      searchEl.appendChild(noResult);
+      return;
+    }
+    let html = metaRow([{ label: `Found ${d.results.length} results`, tone: 'green' }]);
+    d.results.forEach((r, i) => {
+      html += `<h3>Result ${i+1}</h3>`;
+      if (typeof r === 'string') {
+        html += renderMarkdown(r);
+      } else if (r && typeof r === 'object') {
+        const textField = r.content || r.text || r.analysis || r.document;
+        if (typeof textField === 'string') html += renderMarkdown(textField);
+        const meta = Object.entries(r).filter(([k, v]) => typeof v !== 'object' && k !== 'content' && k !== 'text' && k !== 'analysis' && k !== 'document');
+        if (meta.length) {
+          html += '<dl class="kv">';
+          for (const [k, v] of meta) html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`;
+          html += '</dl>';
+        }
+        if (!textField && !meta.length) html += jsonBlock(r);
+      }
+    });
+    const resultBox = document.createElement('div');
+    resultBox.className = 'result-box success rich';
+    resultBox.innerHTML = html;
+    searchEl.appendChild(resultBox);
+    toast(`Found ${d.results.length} results`);
+  } catch(e) {
+    const statusEl = document.getElementById('search-status');
+    if (statusEl) statusEl.remove();
+    const errBox = document.createElement('div');
+    errBox.className = 'result-box error';
+    errBox.textContent = '❌ ' + e.message;
+    searchEl.appendChild(errBox);
+    toast(e.message, 'error');
+  }
+}
+
+// ── Sentiment ──
+async function getSentiment() {
+  const sym = document.getElementById('sent-symbol').value;
+  if (!sym) { toast('Enter a symbol', 'error'); return; }
+  document.getElementById('sent-think').innerHTML = '';
+  document.getElementById('sent-result').innerHTML = '';
+  loadingHtml('sent-result');
+  try {
+    setThinkingNotice(
+      'sent-think',
+      'Live sentiment streaming is not available in the current backend yet. Showing the final response when it returns.'
+    );
+    const d = await api('/sentiment?symbols=' + encodeURIComponent(sym.toUpperCase()));
+    document.getElementById('sent-result').innerHTML = '';
+    const pills = [
+      { label: '📊 Market Sentiment', tone: 'green' },
+      { label: sym.toUpperCase() },
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    let html = metaRow(pills);
+    if (d.sentiment_analysis) html += renderMarkdown(d.sentiment_analysis);
+    else if (typeof d === 'string') html += renderMarkdown(d);
+    else html += jsonBlock(d);
+    document.getElementById('sent-result').innerHTML = `<div class="result-box success rich">${html}</div>`;
+    toast('Sentiment loaded for ' + sym.toUpperCase());
+  } catch(e) { resultHtml('sent-result', '❌ ' + escapeHtml(e.message), 'error'); toast(e.message, 'error'); }
+}
+
+// ── Cases ──
+function saveToken() {
+  const v = (document.getElementById('cases-token').value || '').trim();
+  if (v) { localStorage.setItem('finguard_token', v); toast('Token saved'); }
+  else   { localStorage.removeItem('finguard_token'); toast('Token cleared'); }
+}
+
+let _currentCase = null;
+
+async function loadCases() {
+  const state = document.getElementById('cases-state').value;
+  const assignee = document.getElementById('cases-assignee').value;
+  const params = new URLSearchParams();
+  if (state) params.set('state', state);
+  if (assignee) params.set('assignee', assignee);
+  params.set('per_page', '50');
+  try {
+    const d = await api('/cases?' + params.toString());
+    const rows = d.items || [];
+    if (!rows.length) {
+      document.getElementById('cases-list').innerHTML =
+        '<p style="color:#888">No cases match these filters.</p>';
+      return;
+    }
+    const html = [
+      '<table style="width:100%;border-collapse:collapse">',
+      '<thead><tr style="text-align:left;border-bottom:1px solid #334">',
+      '<th style="padding:6px">ID</th><th style="padding:6px">Title</th>',
+      '<th style="padding:6px">Risk</th><th style="padding:6px">State</th>',
+      '<th style="padding:6px">Priority</th><th style="padding:6px">Opened</th>',
+      '<th style="padding:6px">Assignee</th><th></th>',
+      '</tr></thead><tbody>',
+      ...rows.map(c => {
+        const tone = c.risk_label === 'critical' ? '#e74c3c'
+                   : c.risk_label === 'high'     ? '#e67e22'
+                   : c.risk_label === 'medium'   ? '#f1c40f' : '#7f8c8d';
+        return `<tr style="border-bottom:1px solid #222">
+          <td style="padding:6px">#${c.id}</td>
+          <td style="padding:6px">${escapeHtml(c.title || '')}</td>
+          <td style="padding:6px;color:${tone}">${c.risk_score}/100 ${c.risk_label || ''}</td>
+          <td style="padding:6px">${c.state}</td>
+          <td style="padding:6px">${c.priority}</td>
+          <td style="padding:6px">${c.opened_at ? fmtTimestamp(c.opened_at) : ''}</td>
+          <td style="padding:6px">${escapeHtml(c.assignee_email || '—')}</td>
+          <td style="padding:6px"><button class="btn btn-secondary" onclick="openCase(${c.id})">Open</button></td>
+        </tr>`;
+      }),
+      '</tbody></table>',
+      `<p style="color:#888;margin-top:6px">${d.total} total</p>`,
+    ].join('');
+    document.getElementById('cases-list').innerHTML = html;
+  } catch (e) {
+    document.getElementById('cases-list').innerHTML =
+      `<div class="result-box error">❌ ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function openCase(id) {
+  try {
+    const c = await api('/cases/' + id);
+    _currentCase = c;
+    document.getElementById('case-detail-card').style.display = 'block';
+    document.getElementById('case-detail-title').textContent =
+      `Case #${c.id} — ${c.title}`;
+    const fields = [
+      ['State', c.state], ['Priority', c.priority],
+      ['Risk', `${c.risk_score}/100 ${c.risk_label || ''}`],
+      ['Symbol', c.symbol || '—'], ['Amount', c.amount ?? '—'],
+      ['Subject', c.subject_user || '—'],
+      ['Opened', c.opened_at || '—'], ['SLA due', c.sla_due_at || '—'],
+      ['Assignee', c.assignee_email || '—'],
+      ['Flags', (c.flags || []).join(', ') || '—'],
+    ];
+    document.getElementById('case-detail-body').innerHTML =
+      '<table style="width:100%">' +
+      fields.map(([k, v]) =>
+        `<tr><td style="padding:4px;color:#888;width:140px">${k}</td>
+              <td style="padding:4px">${escapeHtml(String(v))}</td></tr>`
+      ).join('') + '</table>';
+
+    // Available transitions
+    const legal = {
+      new: ['under_review', 'closed_false_positive', 'closed_cleared'],
+      under_review: ['escalated', 'closed_cleared', 'closed_sar_filed', 'closed_false_positive'],
+      escalated: ['closed_sar_filed', 'closed_cleared', 'closed_false_positive'],
+    };
+    const targets = legal[c.state] || [];
+    const actions = document.getElementById('case-detail-actions');
+    actions.innerHTML = '';
+    if (!targets.length) {
+      actions.innerHTML = '<span style="color:#888">Closed — no further transitions.</span>';
+    } else {
+      targets.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'btn btn-primary';
+        b.textContent = '→ ' + t;
+        b.onclick = () => transitionCase(t);
+        actions.appendChild(b);
+      });
+      const assignBtn = document.createElement('button');
+      assignBtn.className = 'btn btn-secondary';
+      assignBtn.textContent = 'Assign to me';
+      assignBtn.onclick = assignToMe;
+      actions.appendChild(assignBtn);
+    }
+
+    // Customer 360 (async, doesn't block timeline render)
+    loadCustomer360(c.id);
+
+    // Timeline
+    const tl = (c.events || []).map(e => {
+      const head = `**${e.event_type}** · ${fmtTimestamp(e.timestamp)} · ${escapeHtml(e.actor_email || 'system')}`;
+      const body = e.body ? escapeHtml(e.body) : '';
+      const states = (e.from_state || e.to_state)
+        ? `\n   ${e.from_state || '∅'} → ${e.to_state || '∅'}` : '';
+      return `- ${head}${states}${body ? '\n   ' + body : ''}`;
+    }).join('\n') || '_(no events)_';
+    document.getElementById('case-timeline').innerHTML = renderMarkdown(tl);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function transitionCase(to_state) {
+  if (!_currentCase) return;
+  const reason = prompt(`Reason for transition to ${to_state}:`, '') || '';
+  try {
+    await api(`/cases/${_currentCase.id}/transition`, 'POST', { to_state, reason });
+    toast('Transitioned to ' + to_state);
+    await openCase(_currentCase.id);
+    loadCases();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function assignToMe() {
+  if (!_currentCase) return;
+  try {
+    await api(`/cases/${_currentCase.id}/assign`, 'POST', { assignee_id: 'me' });
+    toast('Assigned to you');
+    await openCase(_currentCase.id);
+    loadCases();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function addCaseNote() {
+  if (!_currentCase) return;
+  const body = document.getElementById('case-note-body').value.trim();
+  if (!body) { toast('Note is empty', 'error'); return; }
+  try {
+    await api(`/cases/${_currentCase.id}/notes`, 'POST', { body });
+    document.getElementById('case-note-body').value = '';
+    toast('Note added');
+    openCase(_currentCase.id);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+const _caseBtns = ['risk','compliance','portfolio','recommendation'];
+
+async function analyzeCase(action) {
+  if (!_currentCase) return;
+  const status = document.getElementById('case-analyze-status');
+  const thinkEl = 'case-think';
+  const resultEl = document.getElementById('case-analyze-result');
+
+  // Disable all analysis buttons while running
+  _caseBtns.forEach(a => {
+    const b = document.getElementById('case-btn-' + a);
+    if (b) b.disabled = true;
+  });
+  document.getElementById(thinkEl).innerHTML = '';
+  resultEl.innerHTML = '';
+  status.textContent = '';
+
+  try {
+    setThinkingNotice(
+      thinkEl,
+      'Case analysis currently returns a final response from the backend. Live thought streaming is not available yet.'
+    );
+    const d = await api(`/cases/${_currentCase.id}/analyze`, 'POST', { action });
+
+    const label = d.label || action;
+    const pills = [
+      { label: '✅ ' + label + ' complete', tone: 'green' },
+      d.timestamp ? { label: fmtTimestamp(d.timestamp) } : null,
+    ];
+    let html = metaRow(pills);
+    const text =
+      d.crew_output || d.insights || d.recommendation ||
+      d.sentiment_analysis || d.explanation ||
+      (typeof d === 'string' ? d : JSON.stringify(d, null, 2));
+    html += renderMarkdown(String(text));
+    resultEl.innerHTML = `<div class="result-box success rich">${html}</div>`;
+
+    toast(label + ' complete');
+    // Reload timeline so the new analysis_requested event shows up
+    openCase(_currentCase.id);
+  } catch (e) {
+    status.textContent = '';
+    resultEl.innerHTML = `<div class="result-box error">❌ ${escapeHtml(e.message)}</div>`;
+    toast(e.message, 'error');
+  } finally {
+    _caseBtns.forEach(a => {
+      const b = document.getElementById('case-btn-' + a);
+      if (b) b.disabled = false;
+    });
+  }
+}
+
+async function loadCustomer360(caseId) {
+  const host = document.getElementById('case-customer-360');
+  host.innerHTML = '<em style="color:#888">Loading…</em>';
+  try {
+    const d = await api(`/cases/${caseId}/customer-360`);
+    const s = d.summary || {};
+    const topFlags = (s.top_flags || [])
+      .map(([f, n]) => `<span class="pill">${escapeHtml(f)} × ${n}</span>`).join(' ');
+
+    const priorRows = (d.prior_cases || []).slice(0, 10).map(c => {
+      const tone = c.risk_label === 'critical' ? '#e74c3c'
+                 : c.risk_label === 'high'     ? '#e67e22'
+                 : c.risk_label === 'medium'   ? '#f1c40f' : '#7f8c8d';
+      return `<tr style="border-bottom:1px solid #222">
+        <td style="padding:4px">#${c.id}</td>
+        <td style="padding:4px">${escapeHtml(c.title || '')}</td>
+        <td style="padding:4px">${c.state}</td>
+        <td style="padding:4px;color:${tone}">${c.risk_score}/100</td>
+        <td style="padding:4px">${c.opened_at ? fmtTimestamp(c.opened_at) : ''}</td>
+        <td style="padding:4px"><button class="btn btn-secondary" onclick="openCase(${c.id})">Open</button></td>
+      </tr>`;
+    }).join('');
+
+    const priorHtml = d.prior_cases && d.prior_cases.length
+      ? `<table style="width:100%;border-collapse:collapse;margin-top:6px">
+           <thead><tr style="text-align:left;border-bottom:1px solid #334">
+             <th style="padding:4px">ID</th><th style="padding:4px">Title</th>
+             <th style="padding:4px">State</th><th style="padding:4px">Risk</th>
+             <th style="padding:4px">Opened</th><th></th>
+           </tr></thead><tbody>${priorRows}</tbody></table>`
+      : '<p style="color:#888">No prior cases for this subject.</p>';
+
+    const txn = d.transaction_summary;
+    const txnHtml = txn
+      ? `<p>${txn.count} transactions · total $${txn.total_amount.toFixed(2)} · avg $${txn.avg_amount.toFixed(2)} · max $${txn.max_amount.toFixed(2)} · ${d.alerts_count} alerts</p>`
+      : '<p style="color:#888">No portfolio linked to this case.</p>';
+
+    host.innerHTML = `
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px">
+        <div><b>Prior cases:</b> ${s.prior_case_count || 0}</div>
+        <div><b>Open:</b> ${s.open_case_count || 0}</div>
+        <div><b>SAR filed:</b> ${s.sar_filed_count || 0}</div>
+        <div><b>False positives:</b> ${s.false_positive_count || 0}</div>
+      </div>
+      <div style="margin-bottom:8px">${topFlags || '<span style="color:#888">No flags recorded.</span>'}</div>
+      ${txnHtml}
+      <h5 style="margin-top:10px">Prior cases</h5>
+      ${priorHtml}
+    `;
+  } catch (e) {
+    host.innerHTML = `<div class="result-box error">❌ ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function exportSar(fmt) {
+  if (!_currentCase) return;
+  const url = `${API}/sar/${_currentCase.id}.${fmt}`;
+  const tok = localStorage.getItem('finguard_token');
+  try {
+    const res = await fetch(url, { headers: tok ? { 'Authorization': 'Bearer ' + tok } : {} });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${res.status}`);
+    }
+    if (fmt === 'pdf') {
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `SAR_case_${_currentCase.id}.pdf`;
+      link.click();
+    } else {
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `SAR_case_${_currentCase.id}.json`;
+      link.click();
+    }
+    toast('SAR exported');
+  } catch (e) { toast(e.message, 'error'); }
+}
+</script>
+</body>
+</html>

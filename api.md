@@ -13,7 +13,7 @@ Docker frontend:        http://localhost:13000
 Cloud backend:          https://<finguard-backend-url>
 ```
 
-Frontend code must use:
+Frontend code should use the same-origin `/api` path when served from `frontendv2`. Legacy React builds may still inject:
 
 ```text
 REACT_APP_API_BASE_URL

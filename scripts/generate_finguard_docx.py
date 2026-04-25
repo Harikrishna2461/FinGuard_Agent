@@ -78,7 +78,7 @@ def build_document() -> Document:
             ("LLM provider", "Groq API"),
             ("Vector database", "ChromaDB persistent store"),
             ("ML risk scoring", "Rules plus scikit learn models"),
-            ("Frontend", "React app plus a Flask template demo UI"),
+            ("Frontend", "frontendv2 static SPA plus a Flask template demo UI"),
         ],
     )
 
@@ -103,7 +103,7 @@ def build_document() -> Document:
     _add_subtitle(doc, "2.3 How to start the system")
     doc.add_paragraph("1. From the project root, run: python3 main.py")
     doc.add_paragraph(
-        "2. This will install Python dependencies and build the frontend if needed, then start Flask. "
+        "2. This will install Python dependencies and build the frontendv2 UI if needed, then start Flask. "
         "The API routes are under /api and the UI is served at the root path."
     )
 
@@ -197,11 +197,11 @@ def build_document() -> Document:
 
     _add_section_title(doc, "5. Pages and their purpose")
     doc.add_paragraph(
-        "The repository includes two user interfaces. The React frontend includes several pages, but only the Sentiment page currently calls the backend API. "
+        "The repository includes two user interfaces. The primary frontendv2 UI is the main analyst experience, while the legacy React frontend remains in the repo for reference. "
         "The Flask template UI is a working demo interface that calls most backend endpoints."
     )
 
-    _add_subtitle(doc, "5.1 React frontend pages")
+    _add_subtitle(doc, "5.1 Frontend pages")
     _add_kv_table(
         doc,
         [

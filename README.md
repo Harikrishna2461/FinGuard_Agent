@@ -3,7 +3,7 @@
 FinGuard is an AI-assisted fraud and portfolio risk investigation system.
 
 ```text
-Frontend (React)
+Frontend (frontendv2 static SPA)
   -> Backend (FastAPI)
       -> AI System (FastAPI + LangGraph)
           -> Internal agent modules
@@ -11,7 +11,9 @@ Frontend (React)
 
 ## Services
 
-- `frontend`: React analyst UI.
+- `frontend`: Docker service name for the primary UI, built from `frontendv2/`.
+- `frontendv2`: active single-page analyst UI served by nginx and proxied to the backend.
+- `frontend/`: legacy React prototype kept in the repo for reference.
 - `backend`: FastAPI business API, persistence, auth, cases, audit, SAR, and API compatibility.
 - `ai_system`: FastAPI AI service with LangGraph orchestration, OpenAI adapter, ML/rules risk adapter, and internal agents.
 
@@ -63,7 +65,7 @@ URLs:
 The Docker frontend is built with:
 
 ```text
-REACT_APP_API_BASE_URL=http://localhost:15050
+frontendv2 + BACKEND_URL=http://backend:5000
 ```
 
 Backend CORS is configured in Compose as:
@@ -74,10 +76,10 @@ CORS_ORIGINS=http://localhost:13000,http://localhost:3000
 
 ## Main User Flow
 
-1. Open `http://localhost:13000/ai-analysis`.
+1. Open `http://localhost:13000/`.
 2. Select a portfolio.
-3. Click `Run Analysis`.
-4. Review progress and final real `analysis_trace`.
+3. Open the AI Analysis section and click `Run Analysis`.
+4. Review the final real `analysis_trace`.
 
 ## Important API Docs
 
@@ -121,10 +123,10 @@ Required GitHub secrets:
 
 ## Current Gaps
 
-- Several frontend pages still use static/local data instead of backend APIs.
+- Some `frontendv2` flows still fall back to direct JSON responses because backend SSE endpoints are not implemented yet.
 - Agent trace is real after completion, but not streamed live yet.
-- Frontend lockfile is out of sync, so Docker currently uses `npm install`.
-- Frontend auth UI is not implemented.
+- Cases still rely on pasted bearer tokens instead of a full auth session UX.
+- The legacy `frontend/` React app remains in the repo but is no longer the primary Docker-served UI.
 - SQLite is suitable for demo, but cloud persistence needs hardening.
 - CI/CD currently deploys backend only.
 
