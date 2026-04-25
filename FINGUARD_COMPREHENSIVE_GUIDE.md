@@ -4,7 +4,7 @@ Last updated: 2026-04-25
 
 ## 1. What FinGuard Is
 
-FinGuard is a fraud and portfolio risk investigation tool. It combines the `frontendv2` analyst UI, a FastAPI backend, and a LangGraph-based AI system with internal agents.
+FinGuard is a fraud and portfolio risk investigation tool. It combines the React frontend, a FastAPI backend, and a LangGraph-based AI system with internal agents.
 
 The product is designed for:
 
@@ -18,7 +18,7 @@ The product is designed for:
 ## 2. Architecture
 
 ```text
-frontendv2 Static SPA
+React Frontend
   -> FastAPI Backend
       -> SQLite persistence
       -> AI System over HTTP
@@ -30,9 +30,7 @@ frontendv2 Static SPA
 
 Service responsibilities:
 
-- `frontend`: Docker service name for the active analyst UI, built from `frontendv2/`.
-- `frontendv2`: primary analyst UI, portfolio selection, AI trace display, sentiment UI, cases, and search.
-- `frontend/`: legacy React prototype retained for reference.
+- `frontend`: primary analyst UI, delivered as a standalone React app.
 - `backend`: stable API, persistence, auth, cases, audit, SAR, and AI proxying.
 - `ai_system`: model calls, LangGraph orchestration, agent strategy, and trace metadata.
 
@@ -119,13 +117,13 @@ Service URLs:
 
 ## 7. Frontend Configuration
 
-`frontendv2` calls the backend through same-origin `/api` requests and nginx proxies them to:
+The React frontend injects the backend base URL at build time through:
 
 ```text
-BACKEND_URL=http://backend:5000
+REACT_APP_API_BASE_URL=http://localhost:15050
 ```
 
-For cloud deployment, set `BACKEND_URL` to the deployed backend origin visible from the frontend container or host.
+For local `npm start`, the frontend falls back to `/api` and uses the React dev proxy.
 
 ## 8. Backend Configuration
 
@@ -212,16 +210,15 @@ Current deployment gap:
 
 ## 12. Current Limitations
 
-- Some `frontendv2` flows currently wait for direct JSON responses because backend SSE endpoints are not implemented yet.
-- The legacy `frontend/` React app is still present, but it is no longer the primary served UI.
+- Some frontend flows currently wait for direct JSON responses because backend SSE endpoints are not implemented yet.
 - Agent trace is returned after completion, not streamed live.
 - SQLite is demo-friendly but needs a durable production plan.
 - Backend-only CI/CD is not enough for full cloud deployment.
 
 ## 13. Recommended Next Steps
 
-1. Add SSE streaming endpoints so `frontendv2` can show live thinking instead of final-only responses.
+1. Add SSE streaming endpoints so the frontend can show live thinking instead of final-only responses.
 2. Complete a first-class auth flow for cases instead of manual bearer token pasting.
-3. Decide whether to retire or modernize the legacy `frontend/` React app.
+3. Break the embedded frontend shell into native React components over time.
 4. Add CI/CD for frontend and `ai_system`.
 5. Move cloud persistence to durable storage.

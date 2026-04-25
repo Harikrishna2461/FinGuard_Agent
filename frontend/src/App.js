@@ -1,71 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
-import Portfolio from './pages/Portfolio';
-import Analytics from './pages/Analytics';
-import AIAnalysis from './pages/AIAnalysis';
-import SentimentAnalysis from './pages/SentimentAnalysis';
-import Alerts from './pages/Alerts';
-import Settings from './pages/Settings';
+import React, { useEffect, useMemo, useState } from 'react';
 import './App.css';
 
-function PlaceholderPage({ title }) {
-  return (
-    <div className="placeholder-page">
-      <h1>{title}</h1>
-      <p>This workspace is ready for the {title.toLowerCase()} workflow.</p>
-    </div>
-  );
-}
-
 function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [shellDoc, setShellDoc] = useState('');
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    // Load user from localStorage or initialize
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    } else {
-      const newUser = {
-        id: 'user_' + Date.now(),
-        name: 'Investor',
-        email: 'investor@finguard.com'
-      };
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
+  const apiBase = useMemo(() => {
+    const configured = (process.env.REACT_APP_API_BASE_URL || '/api').trim();
+    const normalized = configured.replace(/\/$/, '') || '/api';
+    if (normalized === '/api' || normalized.endsWith('/api')) {
+      return normalized;
     }
-    setLoading(false);
+    return `${normalized}/api`;
   }, []);
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-900 to-blue-700">
-      <div className="text-white text-2xl font-bold">Loading FinGuard...</div>
-    </div>;
+  useEffect(() => {
+    let active = true;
+
+    async function loadShell() {
+      try {
+        const response = await fetch(
+          `${process.env.PUBLIC_URL}/frontend-shell-template.html`
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to load UI template (${response.status})`);
+        }
+
+        const template = await response.text();
+        const runtimeShell = template.replace(
+          /const API = ['"]\/api['"];/,
+          `const API = ${JSON.stringify(apiBase)};`
+        );
+
+        if (active) {
+          setShellDoc(runtimeShell);
+        }
+      } catch (loadError) {
+        if (active) {
+          setError(loadError.message || 'Unable to load the frontend shell.');
+        }
+      }
+    }
+
+    loadShell();
+
+    return () => {
+      active = false;
+    };
+  }, [apiBase]);
+
+  if (error) {
+    return (
+      <div className="shell-status shell-status-error">
+        <h1>FinGuard frontend failed to start</h1>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!shellDoc) {
+    return (
+      <div className="shell-status">
+        <h1>Loading FinGuard</h1>
+        <p>Preparing the analyst workspace inside the React app.</p>
+      </div>
+    );
   }
 
   return (
-    <Router>
-      <div className="app-shell">
-        <Navbar user={user} />
-        <main className="app-main">
-          <Routes>
-            <Route path="/" element={<AIAnalysis user={user} />} />
-            <Route path="/dashboard" element={<Dashboard user={user} />} />
-            <Route path="/portfolio" element={<Portfolio user={user} />} />
-            <Route path="/analytics" element={<Analytics user={user} />} />
-            <Route path="/ai-analysis" element={<AIAnalysis user={user} />} />
-            <Route path="/sentiment" element={<SentimentAnalysis user={user} />} />
-            <Route path="/alerts" element={<Alerts user={user} />} />
-            <Route path="/search" element={<PlaceholderPage title="Search" />} />
-            <Route path="/cases" element={<PlaceholderPage title="Cases" />} />
-            <Route path="/settings" element={<Settings user={user} />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <div className="shell-app">
+      <iframe
+        className="shell-frame"
+        srcDoc={shellDoc}
+        title="FinGuard frontend"
+      />
+    </div>
   );
 }
 

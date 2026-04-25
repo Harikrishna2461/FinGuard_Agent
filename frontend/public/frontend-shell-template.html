@@ -1560,7 +1560,7 @@ async function runAnalysis() {
   try {
     setThinkingNotice(
       'ai-think',
-      'frontendv2 is running against the current direct-response backend. Live streaming is not available yet, so results will appear when the full analysis finishes.'
+      'The current backend returns direct responses for this flow. Live streaming is not available yet, so results will appear when the full analysis finishes.'
     );
     btn.innerHTML = '<span class="spinner"></span> Running 9 agents… (1-3 min)';
     const d = await api('/portfolio/' + pid + '/analyze', 'POST');

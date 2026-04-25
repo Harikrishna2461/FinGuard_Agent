@@ -13,11 +13,13 @@ Docker frontend:        http://localhost:13000
 Cloud backend:          https://<finguard-backend-url>
 ```
 
-Frontend code should use the same-origin `/api` path when served from `frontendv2`. Legacy React builds may still inject:
+Frontend builds can inject the backend base URL through:
 
 ```text
 REACT_APP_API_BASE_URL
 ```
+
+Local React development can also fall back to same-origin `/api` via the dev proxy.
 
 Backend CORS must include the deployed frontend origin:
 

@@ -13,11 +13,7 @@ from docx import Document
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = REPO_ROOT / "backend"
-FRONTEND_DIR = (
-    REPO_ROOT / "frontendv2"
-    if (REPO_ROOT / "frontendv2").exists()
-    else REPO_ROOT / "frontend"
-)
+FRONTEND_DIR = REPO_ROOT / "frontend"
 DOCS_DIR = REPO_ROOT / "docs"
 
 
@@ -132,18 +128,30 @@ def run_check(
 def detect_frontend_integration(pages_dir: Path) -> list[list[str]]:
     """Return a per-page status table for React pages."""
     rows: list[list[str]] = []
-    index_file = FRONTEND_DIR / "index.html"
-    if index_file.exists():
-        text = _read_text(index_file)
+    shell_template = FRONTEND_DIR / "public" / "frontend-shell-template.html"
+    app_file = FRONTEND_DIR / "src" / "App.js"
+    if shell_template.exists():
+        text = _read_text(shell_template)
         calls_api = "/api/" in text
         uses_fetch = "fetch(" in text
         rows.append(
             [
-                index_file.name,
+                shell_template.name,
                 "Integrated" if calls_api else "UI-only (mock/static)",
                 "yes" if uses_fetch else "no",
                 "no",
                 "yes" if calls_api else "no",
+            ]
+        )
+    if app_file.exists():
+        text = _read_text(app_file)
+        rows.append(
+            [
+                app_file.name,
+                "Integrated" if ("REACT_APP_API_BASE_URL" in text or "/api" in text) else "UI-only (mock/static)",
+                "yes" if "fetch(" in text else "no",
+                "no",
+                "yes" if ("REACT_APP_API_BASE_URL" in text or "/api" in text) else "no",
             ]
         )
     for js in sorted(pages_dir.glob("*.js")):
@@ -244,7 +252,7 @@ def build_doc() -> Document:
 
     # React pages table
     pages_dir = FRONTEND_DIR / "src" / "pages"
-    if pages_dir.exists() or (FRONTEND_DIR / "index.html").exists():
+    if pages_dir.exists() or (FRONTEND_DIR / "public" / "frontend-shell-template.html").exists():
         _h2(doc, "3.1 React pages: backend integration status")
         _p(
             doc,
