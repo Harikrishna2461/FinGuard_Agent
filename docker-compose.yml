@@ -27,5 +27,9 @@ services:
       dockerfile: ai_system/Dockerfile
     env_file:
       - ./ai_system/.env
+    environment:
+      CHROMA_PERSIST_DIR: /app/data/chroma
     ports:
       - "18000:8000"
+    volumes:
+      - ./ai_system/data:/app/data
